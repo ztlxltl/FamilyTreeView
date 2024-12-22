@@ -9,22 +9,23 @@ on:
     branches:
       - main
   pull_request:
-    # types: [closed]
+    # types:
+    #   - closed
     branches:
       - main
-  workflow_dispatch:
+  workflow_dispatch: # can be run it manually
 
 jobs:
   build-and-distribute:
+    # if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-
     steps:
       - name: Clone FamilyTreeView (to subdir)
         run: git clone --depth 1 https://github.com/ztlxltl/FamilyTreeView.git
       - name: Move src content one level up
         run: |
           cd FamilyTreeView
-          rm -r $(ls -A | grep -v src)
+          rm -r $(ls -A | grep -v 'src\|COPYING.txt|MANIFEST')
           mv src/* .
           rm -r src
       - name: Set up Python
