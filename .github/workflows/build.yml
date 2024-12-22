@@ -21,6 +21,11 @@ jobs:
     steps:
       - name: Clone FamilyTreeView (to subdir)
         run: git clone --depth 1 https://github.com/ztlxltl/FamilyTreeView.git
+      - name: Move src content one level up
+        run: |
+          rm -r $(ls -A | grep -v src)
+          mv src/* .
+          rm -r src
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -45,6 +50,8 @@ jobs:
         run: rm -rf -- *
       - name: Checkout repository (in cwd)
         uses: actions/checkout@v3
+        with:
+          ref: dist-test
       - name: Commit and Push to dist Branch
         run: |
           # Configure Git
