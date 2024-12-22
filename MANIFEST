@@ -1,4 +1,4 @@
-src/*
-src/*/*
+*.py
+icons/*
 COPYING.txt
 MANIFEST
