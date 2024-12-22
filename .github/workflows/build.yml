@@ -23,6 +23,7 @@ jobs:
         run: git clone --depth 1 https://github.com/ztlxltl/FamilyTreeView.git
       - name: Move src content one level up
         run: |
+          cd FamilyTreeView
           rm -r $(ls -A | grep -v src)
           mv src/* .
           rm -r src
