@@ -25,7 +25,7 @@ jobs:
       - name: Move src content one level up
         run: |
           cd FamilyTreeView
-          rm -r $(ls -A | grep -v 'src\|COPYING.txt|MANIFEST')
+          rm -r $(ls -A | grep -v 'src\|COPYING.txt\|MANIFEST')
           mv src/* .
           rm -r src
       - name: Set up Python
