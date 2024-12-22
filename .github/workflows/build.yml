@@ -19,11 +19,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Make directory
-        run: mkdir FamilyTreeView
-      - name: Checkout repository in directory
-        uses: actions/checkout@v3
-        working-directory: ./FamilyTreeView
+      - name: Clone FamilyTreeView
+        run: git clone --depth 1 https://github.com/ztlxltl/FamilyTreeView.git
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
