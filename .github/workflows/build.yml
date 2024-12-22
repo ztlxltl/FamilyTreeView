@@ -28,6 +28,8 @@ jobs:
           rm -r $(ls -A | grep -v 'src\|COPYING.txt\|MANIFEST')
           mv src/* .
           rm -r src
+      - name: ls
+        run: ls -a
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
