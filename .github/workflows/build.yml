@@ -62,4 +62,4 @@ jobs:
           git commit -m "Automated build and distribution of addons"
 
           # Push changes to the 'dist' branch
-          git push origin dist --force
+          git push origin dist-test --force
