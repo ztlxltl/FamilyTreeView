@@ -55,7 +55,7 @@ jobs:
 
           # Replace the content of the current directory with the contents of ../addons
           rm -rf -- *
-          cp -r ../addons/* ./
+          cp -r ../../addons/* ./
 
           # Add and commit the updated build files
           git add .
