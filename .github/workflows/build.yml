@@ -43,6 +43,9 @@ jobs:
           python3 make.py gramps52 as-needed
       - name: Commit and Push to dist Branch
         run: |
+          # change to repo directory
+          cd FamilyTreeView
+
           # Configure Git
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
