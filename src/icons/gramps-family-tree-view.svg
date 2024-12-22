@@ -1,0 +1,24 @@
+<svg width="24" height="24" version="1.0" xmlns="http://www.w3.org/2000/svg">
+ <title>FamilyTreeView Icon</title>
+ <path d="m8 8v1" fill="none" stroke="#000" stroke-linecap="square" stroke-linejoin="round" stroke-width="1px"/>
+ <path d="m16 8v1" fill="none" stroke="#000" stroke-linecap="square" stroke-linejoin="round" stroke-width="1px"/>
+ <path d="m12 14.5h-9v1.5" fill="none" stroke="#000" stroke-linecap="square" stroke-linejoin="round" stroke-width="1px"/>
+ <path d="m12 13v3" fill="none" stroke="#000" stroke-linecap="square" stroke-linejoin="round" stroke-width="1px"/>
+ <path d="m12 14.5h9v1.5" fill="none" stroke="#000" stroke-linecap="square" stroke-linejoin="round" stroke-width="1px"/>
+ <rect x="5.5" y=".5" width="5" height="7" fill="#b8cee6" stroke="#1f4986" stroke-width="1px"/>
+ <rect x="13.5" y=".5" width="5" height="7" fill="#feccf0" stroke="#861f69" stroke-width="1px"/>
+ <rect x="5.5" y="9.5" width="13" height="3" fill="#eee" stroke="#ccc"/>
+ <rect x=".5" y="16.5" width="5" height="7" fill="#b8cee6" stroke="#1f4986"/>
+ <rect x="9.5" y="16.5" width="5" height="7" fill="#feccf0" stroke="#861f69"/>
+ <rect x="18.5" y="16.5" width="5" height="7" fill="#f3dbb6" stroke="#8e5801"/>
+ <circle cx="8" cy="3" r="1" fill="#1f4986"/>
+ <circle cx="16" cy="3" r="1" fill="#861f69"/>
+ <circle cx="3" cy="19" r="1" fill="#1f4986"/>
+ <circle cx="12" cy="19" r="1" fill="#861f69"/>
+ <circle cx="21" cy="19" r="1" fill="#8e5801"/>
+ <path d="m7 5.5h2" fill="none" stroke="#1f4986" stroke-width="1px"/>
+ <path d="m15 5.5h2" fill="none" stroke="#861f69" stroke-width="1px"/>
+ <path d="m2 21.5h2" fill="none" stroke="#1f4986" stroke-width="1px"/>
+ <path d="m11 21.5h2" fill="none" stroke="#861f69" stroke-width="1px"/>
+ <path d="m20 21.5h2" fill="none" stroke="#8e5801" stroke-width="1px"/>
+</svg>
