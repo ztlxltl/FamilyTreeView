@@ -56,7 +56,14 @@ jobs:
       - name: Git diff
         run: |
           cd FamilyTreeView
-          git diff
+          mv *.gpr.py src/
+          ls -a
+          echo
+          git diff -- '*.gpr.py'
+          echo
+          git add --dry-run .
+          echo
+          git add --dry-run '*.gpr.py'
       # - name: Push new build version
       #   run: |
       #     cd FamilyTreeView
