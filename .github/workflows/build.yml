@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Checkout repository (in cwd)
         uses: actions/checkout@v3
+        with:
+          fetch-tags: true
       - name: Move repo to subdir
         run: |
           mkdir FamilyTreeView
