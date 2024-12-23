@@ -22,12 +22,11 @@ jobs:
     steps:
       - name: Clone FamilyTreeView (to subdir)
         run: git clone --depth 1 https://github.com/ztlxltl/FamilyTreeView.git
-      - name: Move src content one level up
+      - name: Move .py files one level up
         run: |
           cd FamilyTreeView
           rm -r $(ls -A | grep -v 'src\|COPYING.txt\|MANIFEST')
-          mv src/* .
-          rm -r src
+          mv src/*.py .
       - name: ls
         run: ls -a FamilyTreeView
       - name: Set up Python
@@ -66,7 +65,7 @@ jobs:
           git checkout -b dist-test || git checkout dist-test
 
           # Replace the content of the current directory with the contents of ../addons
-          rm -rf -- *
+          rm -rf -- .[!.]* *
           cp -r ../addons/* ./
 
           # Add and commit the updated build files
