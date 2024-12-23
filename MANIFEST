@@ -1,4 +1,2 @@
-*.py
-icons/*
-COPYING.txt
-MANIFEST
+FamilyTreeView/icons/*
+FamilyTreeView/MANIFEST
