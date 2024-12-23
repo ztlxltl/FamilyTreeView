@@ -8,22 +8,16 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    # types:
-    #   - closed
-    branches:
-      - main
   workflow_dispatch: # can be run it manually
 
 jobs:
   build-and-distribute:
-    # if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository (in cwd)
         uses: actions/checkout@v3
         with:
-          ref: 'main-test'
+          ref: 'main'
       - name: Move repo to subdir
         run: |
           mkdir FamilyTreeView
@@ -63,13 +57,13 @@ jobs:
           git config --global user.email "actions@github.com"
           git add '*.gpr.py'
           git commit -m "Bump addon version after automated build"
-          git push --force origin main-test:main-test
+          git push --force origin main:main
       - name: Remove all files (output is in ../addons)
         run: rm -rf -- .[!.]* *
       - name: Checkout repository (in cwd)
         uses: actions/checkout@v3
         with:
-          ref: dist-test
+          ref: dist
       - name: Commit and Push to dist Branch
         run: |
           # Configure Git
@@ -77,7 +71,7 @@ jobs:
           git config --global user.email "actions@github.com"
 
           # Create or switch to the 'dist' branch
-          git checkout -b dist-test || git checkout dist-test
+          git checkout -b dist || git checkout dist
 
           # Replace the content of the current directory with the contents of ../addons
           rm -rf $(ls -A | grep -v '.git')
@@ -88,4 +82,4 @@ jobs:
           git commit -m "Automated build and distribution of addons"
 
           # Push changes to the 'dist' branch
-          git push origin dist-test --force
+          git push origin dist --force
