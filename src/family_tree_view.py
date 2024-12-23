@@ -156,7 +156,9 @@ class FamilyTreeView(NavigationView):
         self.config_provider.config_connect(self._config, self.cb_update_config)
 
     def cb_update_config(self, client, connection_id, entry, data):
-        self.goto_handle(self.get_active())
+        self.widget_manager.info_box_manager.close_info_box()
+        self.widget_manager.close_panel()
+        self.rebuild_tree()
 
     def _get_configure_page_funcs(self):
         self.widget_manager.close_panel()
@@ -264,11 +266,28 @@ class FamilyTreeView(NavigationView):
             self.widget_manager.info_box_manager.close_info_box()
             self.rebuild_tree(offset=offset)
 
+    def set_active_family(self, family_handle):
+        if self.get_family_from_handle(family_handle) is not None:
+            self.change_active_family(family_handle)
+            self.widget_manager.info_box_manager.close_info_box()
+            # no rebuild_tree
+
     def get_person_from_handle(self, handle):
         try:
             return self.dbstate.db.get_person_from_handle(handle)
         except HandleError:
             return None
+
+    def get_family_from_handle(self, handle):
+        try:
+            return self.dbstate.db.get_family_from_handle(handle)
+        except HandleError:
+            return None
+
+    def get_active_family(self):
+        nav_group = 0 # TODO not sure about this
+        hobj = self.uistate.get_history("Family", nav_group)
+        return hobj.present()
 
     def get_symbol(self, event_type):
         if event_type == EventType.DEATH:
@@ -297,6 +316,12 @@ class FamilyTreeView(NavigationView):
             return self.symbols.get_symbol_for_string(symbol)
         else:
             return self.symbols.get_symbol_fallback(symbol)
+
+    def change_active_family(self, handle):
+        nav_group = 0 # TODO not sure about this
+        hobj = self.uistate.get_history("Family", nav_group)
+        if handle and not hobj.lock and not (handle == hobj.present()):
+            hobj.push(handle)
 
     # editing windows
 

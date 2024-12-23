@@ -308,6 +308,12 @@ class FamilyTreeViewInfoWidgetManager:
         edit_button.connect("clicked", lambda *_: self.ftv.edit_family(family_handle))
         buttons.pack_start(edit_button, False, False, 0)
 
+        if self.ftv._config.get("interaction.familytreeview-family-info-box-set-active-button"):
+            set_active_button = self.create_button("Set active", char="\u2794") # rightwards arrow
+            set_active_button.set_sensitive(self.ftv.get_active_family() != family_handle)
+            set_active_button.connect("clicked", lambda *_: self.ftv.set_active_family(family_handle))
+            buttons.pack_start(set_active_button, False, False, 0)
+
         if panel_button:
             open_panel_button = self.create_button("Open panel", char="\u25e8") # Square with Right Half Black
             open_panel_button.connect("clicked", lambda*_: self.widget_manager.panel_manager.open_family_panel(family_handle))

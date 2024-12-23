@@ -52,6 +52,7 @@ class FamilyTreeViewConfigProvider:
             ("interaction.familytreeview-family-single-click-action", 1),
             ("interaction.familytreeview-family-double-click-action", 3),
             ("interaction.familytreeview-double-click-timeout-milliseconds", 200),
+            ("interaction.familytreeview-family-info-box-set-active-button", False),
 
             ("badges.familytreeview-badges-active", { # examples are turned off by default
                 'num_citations': {'person': False, 'family': False},
@@ -224,6 +225,15 @@ class FamilyTreeViewConfigProvider:
             row,
             "interaction.familytreeview-double-click-timeout-milliseconds",
             (1, 5000) # large value: accessibility
+        )
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _("Show \"Set active\" button in family info box (it has no effect on FamilyTreeView)"),
+            row,
+            "interaction.familytreeview-family-info-box-set-active-button",
+            stop=3 # same width as spinners and combos
         )
 
         return (_("Interaction"), grid)
