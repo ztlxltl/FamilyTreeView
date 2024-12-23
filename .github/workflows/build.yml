@@ -53,26 +53,15 @@ jobs:
           python3 make.py gramps52 build all
           python3 make.py gramps52 listing all
           python3 make.py gramps52 as-needed
-      - name: Git diff
+      - name: Push new build version
         run: |
           cd FamilyTreeView
           mv *.gpr.py src/
-          ls -a
-          echo
-          git diff -- '*.gpr.py'
-          echo
-          git add --dry-run .
-          echo
-          git add --dry-run '*.gpr.py'
-      # - name: Push new build version
-      #   run: |
-      #     cd FamilyTreeView
-      #     git config --global user.name "GitHub Actions Bot"
-      #     git config --global user.email "actions@github.com"
-      #     git checkout main
-      #     git add .
-      #     git commit -m "Bump addon version after automated build"
-      #     git push --force
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+          git add '*.gpr.py'
+          git commit -m "Bump addon version after automated build"
+          git push --force origin main:main-test
       - name: Remove all files (output is in ../addons)
         run: rm -rf -- .[!.]* *
       - name: Checkout repository (in cwd)
