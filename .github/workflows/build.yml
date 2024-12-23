@@ -1,0 +1,85 @@
+# This workflow is based on David Straub's workflow:
+# https://gramps.discourse.group/t/github-workflow-to-automatically-build-addons/6499
+# https://github.com/DavidMStraub/addons-source/blob/b3b289616f76ba23171dcb405e60ae2c9f10c6d7/.github/workflows/build.yml
+
+name: Build and Distribute Addons
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # can be run it manually
+
+jobs:
+  build-and-distribute:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository (in cwd)
+        uses: actions/checkout@v3
+        with:
+          ref: 'main'
+      - name: Move repo to subdir
+        run: |
+          mkdir FamilyTreeView
+          mv $(ls -A | grep -v 'FamilyTreeView') FamilyTreeView
+      - name: Move .py files one level up
+        run: |
+          cd FamilyTreeView
+          rm -r $(ls -A | grep -v '.git\|src\|COPYING.txt\|MANIFEST')
+          mv src/*.py .
+      - name: ls
+        run: ls -a FamilyTreeView
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install Ubuntu dependencies
+        run: sudo apt update && sudo apt-get -y install gettext appstream pkg-config libcairo2-dev gir1.2-gtk-3.0 libgirepository1.0-dev libicu-dev gir1.2-pango-1.0
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install gramps[GUI,i18n]==5.2.3
+      - name: Get make.py
+        run: wget https://raw.githubusercontent.com/gramps-project/addons-source/refs/heads/maintenance/gramps52/make.py
+      - name: Build Addons
+        run: |
+          export LANGUAGE=en_US.UTF-8
+          python3 make.py gramps52 init all
+          python3 make.py gramps52 compile all
+          python3 make.py gramps52 build all
+          python3 make.py gramps52 listing all
+          python3 make.py gramps52 as-needed
+      - name: Push new build version
+        run: |
+          cd FamilyTreeView
+          mv *.gpr.py src/
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+          git add '*.gpr.py'
+          git commit -m "Bump addon version after automated build"
+          git push --force origin main:main
+      - name: Remove all files (output is in ../addons)
+        run: rm -rf -- .[!.]* *
+      - name: Checkout repository (in cwd)
+        uses: actions/checkout@v3
+        with:
+          ref: dist
+      - name: Commit and Push to dist Branch
+        run: |
+          # Configure Git
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+
+          # Create or switch to the 'dist' branch
+          git checkout -b dist || git checkout dist
+
+          # Replace the content of the current directory with the contents of ../addons
+          rm -rf $(ls -A | grep -v '.git')
+          cp -r ../addons/* ./
+
+          # Add and commit the updated build files
+          git add .
+          git commit -m "Automated build and distribution of addons"
+
+          # Push changes to the 'dist' branch
+          git push origin dist --force
