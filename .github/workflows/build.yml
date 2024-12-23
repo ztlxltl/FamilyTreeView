@@ -53,6 +53,8 @@ jobs:
           python3 make.py gramps52 build all
           python3 make.py gramps52 listing all
           python3 make.py gramps52 as-needed
+      - name: Git diff
+        run: git diff
       # - name: Push new build version
       #   run: |
       #     cd FamilyTreeView
@@ -60,7 +62,7 @@ jobs:
       #     git config --global user.email "actions@github.com"
       #     git checkout main
       #     git add .
-      #     git commit -m "Bump version after build"
+      #     git commit -m "Bump addon version after automated build"
       #     git push --force
       - name: Remove all files (output is in ../addons)
         run: rm -rf -- .[!.]* *
