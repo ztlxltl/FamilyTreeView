@@ -22,11 +22,6 @@ jobs:
     steps:
       - name: Checkout repository (in cwd)
         uses: actions/checkout@v3
-      - name: Get tags (to fix missing .git)
-        run: |
-          ls -a
-          git fetch --tags origin
-          ls -a
       - name: Move repo to subdir
         run: |
           mkdir FamilyTreeView
@@ -34,7 +29,7 @@ jobs:
       - name: Move .py files one level up
         run: |
           cd FamilyTreeView
-          rm -r $(ls -A | grep -v 'src\|COPYING.txt\|MANIFEST')
+          rm -r $(ls -A | grep -v '.git\|src\|COPYING.txt\|MANIFEST')
           mv src/*.py .
       - name: ls
         run: ls -a FamilyTreeView
