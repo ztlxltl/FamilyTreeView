@@ -29,30 +29,34 @@ There are two options for adding FamilyTreeView to Gramps. The first lets Gramps
 > [!IMPORTANT]
 > Back up your data before installing.
 
-- Make Gramps aware of the pre-builds:
-  1. Open Gramps
-  2. Click on the puzzle piece icon to open the Addon Manager
-  3. Go to the "Projects" tab
-  4. Click the plus at the bottom left
-  5. Enter `FamilyTreeView` as the project name
-  6. Enter the following URL: `https://raw.githubusercontent.com/ztlxltl/FamilyTreeView/dist-test/gramps52`
-  7. Click OK, go to the "Addons" tab and select "All statuses" in the last dropdown menu (usually "Stable" is selected). This is necessary because this addon should not be considered stable.
-  8. Select "FamilyTreeView" in the second dropdown menu (usually "All projects" is selected). Alternatively, you can search for FamilyTreeView.
-  9. I recommended to install all three of the addons of this repository (which are explained above). Click the "Install" button of each of the addons.
+### Making Gramps aware of the pre-builds
+1. Open Gramps
+2. Click on the puzzle piece icon to open the Addon Manager
+3. Go to the "Projects" tab
+4. Click the plus at the bottom left
+5. Enter `FamilyTreeView` as the project name
+6. Enter the following URL: `https://raw.githubusercontent.com/ztlxltl/FamilyTreeView/dist-test/gramps52`
+7. Click OK, go to the "Addons" tab and select "All statuses" in the last dropdown menu (usually "Stable" is selected). This is necessary because this addon should not be considered stable.
+8. Select "FamilyTreeView" in the second dropdown menu (usually "All projects" is selected). Alternatively, you can search for FamilyTreeView.
+9. I recommended to install all three of the addons of this repository (which are explained above). Click the "Install" button of each of the addons.
   
-  If you have problems, you can always use the robust alternative of downloading the source code:
-- Downloading the source code.
-  1. Find your Gramps user directory. It's usually located here:
-     - Linux / MacoOS (built) / other POSIX: `~/.gramps` (e.g. `/home/<username>/.gramps`)
-     - Windows: `%AppData%\gramps` (e.g. `C:\Users\<username>\AppData\Roaming\gramps`)
-     - MacOS Application Package: `/Users/<username>/Library/Application Support/gramps`
-  2. Go to the subdirectory `gramps52/plugins`, e.g. `~/.gramps/gramps52`.
-  3. Clone or download the repository to this subdirectory, e.g. `~/.gramps/gramps52/FamilyTreeView` or `C:\Users\<username>\AppData\Roaming\gramps\gramps52\FamilyTreeView`. To do this, click on the green "Code" button on FamilyTreeView's repository on Github and 
-     - copy the URL to clone it (I assume you know how to do this if you choose to clone it.)\
-       or 
-     - click "Download ZIP" to download a ZIP of the source code directly. After the download finished, extract the ZIP file in the subdirectory mentioned above. You can check to make sure that this README.md is in the correct location: e.g. `~/.gramps/gramps52/FamilyTreeView/README.md` or `C:\Users\<username>\AppData\Roaming\gramps\gramps52\FamilyTreeView\README.md`
+If you have problems, you can always use the robust alternative of downloading the source code:
+
+### Downloading the source code
+1. Find your Gramps user directory. It's usually located here:
+    - Linux / MacoOS (built) / other POSIX: `~/.gramps` (e.g. `/home/<username>/.gramps`)
+    - Windows: `%AppData%\gramps` (e.g. `C:\Users\<username>\AppData\Roaming\gramps`)
+    - MacOS Application Package: `/Users/<username>/Library/Application Support/gramps`
+2. Go to the subdirectory `gramps52/plugins`, e.g. `~/.gramps/gramps52`.
+3. Clone or download the repository to this subdirectory, e.g. `~/.gramps/gramps52/FamilyTreeView` or `C:\Users\<username>\AppData\Roaming\gramps\gramps52\FamilyTreeView`. To do this, click on the green "Code" button on FamilyTreeView's repository on Github and 
+    - copy the URL to clone it (I assume you know how to do this if you choose to clone it.)\
+      or 
+    - click "Download ZIP" to download a ZIP of the source code directly. After the download finished, extract the ZIP file in the subdirectory mentioned above. You can check to make sure that this README.md is in the correct location: e.g. `~/.gramps/gramps52/FamilyTreeView/README.md` or `C:\Users\<username>\AppData\Roaming\gramps\gramps52\FamilyTreeView\README.md`
 
 ## TODOs, ideas & known issues
+
+If you have feedback or bug reports that are not listed below or tracked by a Github issue, you can create a new issue or contact me directly (e.g. via the [Gramps Forum](https://gramps.discourse.group)).
+
 - tree:
   - move siblings closer together if positioning of their descendants allow it
   - reduce large generation gaps for generation ~7+ if they are not needed for connecting lines
@@ -93,3 +97,5 @@ There are two options for adding FamilyTreeView to Gramps. The first lets Gramps
 - alternative centering of single child
 - generalize ui code to support different styles / themes for different visualizations of persons and families
 - all the other TODOs in the code
+
+Once the major open items are resolved and the most important TODO features are implemented, this addon may be moved to Gramps' official addon repository and bugs as well as feature requests will be tracked in the Gramps bug tracker.
