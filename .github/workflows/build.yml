@@ -20,8 +20,12 @@ jobs:
     # if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-      - name: Clone FamilyTreeView (to subdir)
-        run: git clone --depth 1 https://github.com/ztlxltl/FamilyTreeView.git
+      - name: Checkout repository (in cwd)
+        uses: actions/checkout@v3
+      - name: Move repo to subdir
+        run: |
+          mkdir FamilyTreeView
+          mv $(ls -A | grep -v 'FamilyTreeView') FamilyTreeView
       - name: Move .py files one level up
         run: |
           cd FamilyTreeView
@@ -49,6 +53,15 @@ jobs:
           python3 make.py gramps52 build all
           python3 make.py gramps52 listing all
           python3 make.py gramps52 as-needed
+      # - name: Push new build version
+      #   run: |
+      #     cd FamilyTreeView
+      #     git config --global user.name "GitHub Actions Bot"
+      #     git config --global user.email "actions@github.com"
+      #     git checkout main
+      #     git add .
+      #     git commit -m "Bump version after build"
+      #     git push --force
       - name: Remove all files (output is in ../addons)
         run: rm -rf -- .[!.]* *
       - name: Checkout repository (in cwd)
