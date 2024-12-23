@@ -35,7 +35,7 @@ There are two options for adding FamilyTreeView to Gramps. The first lets Gramps
 3. Go to the "Projects" tab
 4. Click the plus at the bottom left
 5. Enter `FamilyTreeView` as the project name
-6. Enter the following URL: `https://raw.githubusercontent.com/ztlxltl/FamilyTreeView/dist-test/gramps52`
+6. Enter the following URL: `https://raw.githubusercontent.com/ztlxltl/FamilyTreeView/dist/gramps52`
 7. Click OK, go to the "Addons" tab and select "All statuses" in the last dropdown menu (usually "Stable" is selected). This is necessary because this addon should not be considered stable.
 8. Select "FamilyTreeView" in the second dropdown menu (usually "All projects" is selected). Alternatively, you can search for FamilyTreeView.
 9. I recommended to install all three of the addons of this repository (which are explained above). Click the "Install" button of each of the addons.
