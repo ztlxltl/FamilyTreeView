@@ -22,8 +22,11 @@ jobs:
     steps:
       - name: Checkout repository (in cwd)
         uses: actions/checkout@v3
-        with:
-          fetch-tags: true
+      - name: Get tags (to fix missing .git)
+        run: |
+          ls -a
+          git fetch --tags origin
+          ls -a
       - name: Move repo to subdir
         run: |
           mkdir FamilyTreeView
