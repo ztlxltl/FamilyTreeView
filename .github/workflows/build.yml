@@ -54,7 +54,9 @@ jobs:
           python3 make.py gramps52 listing all
           python3 make.py gramps52 as-needed
       - name: Git diff
-        run: git diff
+        run: |
+          cd FamilyTreeView
+          git diff
       # - name: Push new build version
       #   run: |
       #     cd FamilyTreeView
