@@ -50,7 +50,7 @@ jobs:
           python3 make.py gramps52 listing all
           python3 make.py gramps52 as-needed
       - name: Remove all files (output is in ../addons)
-        run: rm -rf $(ls -A | grep -v '.git')
+        run: rm -rf -- .[!.]* *
       - name: Checkout repository (in cwd)
         uses: actions/checkout@v3
         with:
@@ -65,7 +65,7 @@ jobs:
           git checkout -b dist-test || git checkout dist-test
 
           # Replace the content of the current directory with the contents of ../addons
-          rm -rf -- .[!.]* *
+          rm -rf $(ls -A | grep -v '.git')
           cp -r ../addons/* ./
 
           # Add and commit the updated build files
