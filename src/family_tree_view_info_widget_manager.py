@@ -178,16 +178,16 @@ class FamilyTreeViewInfoWidgetManager:
             for parent_handle, relation in [(father_handle, child_ref.get_father_relation()), (mother_handle, child_ref.get_mother_relation())]:
                 parent = self.ftv.get_person_from_handle(parent_handle)
                 if parent is None:
-                    s =  _("Parent (unknown)")
+                    s =  _("Parent [unknown]")
+                elif parent.gender == Person.FEMALE:
+                    s = _("Mother")
+                elif parent.gender == Person.MALE:
+                    s = _("Father")
                 else:
-                    if parent.gender == Person.FEMALE:
-                        s = _("Mother")
-                    elif parent.gender == Person.MALE:
-                        s = _("Father")
-                    else:
-                        s =  _("Parent")
-                    if relation is not None:
-                        s += f" ({_(str(relation))})"
+                    s =  _("Parent")
+                if relation is not None:
+                    s += f" ({_(str(relation))})"
+                if parent is not None:
                     s += ":"
                 parent_type_label = self.create_label_for_grid(s)
                 grid.attach(parent_type_label, 0, i_row, 1, 1)
@@ -214,21 +214,25 @@ class FamilyTreeViewInfoWidgetManager:
         i_row = 0
         for parent_handle in [father_handle, mother_handle]:
             parent = self.ftv.get_person_from_handle(parent_handle)
-            if parent.gender == Person.FEMALE:
+            if parent is None:
+                s =  _("Parent [unknown]")
+            elif parent.gender == Person.FEMALE:
                 s = _("Mother")
             elif parent.gender == Person.MALE:
                 s = _("Father")
             else:
                 s =  _("Parent")
-            s += ":"
+            if parent is not None:
+                s += ":"
             parent_type_label = self.create_label_for_grid(s)
             grid.attach(parent_type_label, 0, i_row, 1, 1)
 
-            parent_name_label = self.create_label_for_grid(self.ftv.name_display.display_name(parent.get_primary_name()))
-            grid.attach(parent_name_label, 1, i_row, 1, 1)
+            if parent is not None:
+                parent_name_label = self.create_label_for_grid(self.ftv.name_display.display_name(parent.get_primary_name()))
+                grid.attach(parent_name_label, 1, i_row, 1, 1)
 
-            parent_dates_label = self.create_birth_death_label_for_grid(parent)
-            grid.attach(parent_dates_label, 2, i_row, 1, 1)
+                parent_dates_label = self.create_birth_death_label_for_grid(parent)
+                grid.attach(parent_dates_label, 2, i_row, 1, 1)
 
             i_row += 1
         return grid
