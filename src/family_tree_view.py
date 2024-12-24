@@ -202,7 +202,7 @@ class FamilyTreeView(NavigationView):
         self.callman.add_db_signal("family-update", self.close_info_and_rebuild)
         self.callman.add_db_signal("event-update", self.close_info_and_rebuild)
     
-    def close_info_and_rebuild(self):
+    def close_info_and_rebuild(self, *_): # *_ required when used as callback
         self.widget_manager.info_box_manager.close_info_box()
         self.widget_manager.close_panel()
         self.rebuild_tree()
