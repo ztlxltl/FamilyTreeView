@@ -27,6 +27,7 @@ from gramps.gen.config import config
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.datehandler import get_date
 from gramps.gen.lib.eventroletype import EventRoleType
+from gramps.gen.lib.date import Date
 from gramps.gen.lib.family import Family
 from gramps.gen.lib.person import Person
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback, get_divorce_or_fallback
@@ -106,7 +107,7 @@ class FamilyTreeViewTimeline:
                 event = self.ftv.dbstate.db.get_event_from_handle(ref.ref)
                 # These must be the same criteria as in the final filtering.
                 return (
-                    not event.date.is_empty()
+                    not event.date.is_empty() and event.date.modifier != Date.MOD_TEXTONLY
                     and self.start_event.date.get_sort_value() <= event.date.get_sort_value()
                     and event.date.get_sort_value() <= self.end_event.date.get_sort_value()
                 )
@@ -253,11 +254,11 @@ class FamilyTreeViewTimeline:
         event_and_ref_list.sort(key=lambda e: e[2].date.get_sort_value()) # 2: event
 
         # NOTE: These must be the same criteria as in the initial filtering in ref_will_be_on_timeline.
-        # remove events without dates
+        # remove events without dates and with text only dates (as they cannot be sorted)
         event_and_ref_list = [
             (rel_type, rel, event, ref)
             for rel_type, rel, event, ref in event_and_ref_list
-            if not event.date.is_empty()
+            if not event.date.is_empty() and event.date.modifier != Date.MOD_TEXTONLY
         ]
 
         # Remove non-primary events before birth and after death.
