@@ -38,6 +38,10 @@ register(VIEW,
     fname = "family_tree_view.py",
     authors = ["ztlxltl"],
     authors_email = ["ztlxltl@gmx.net"],
+    requires_gi = [
+        ("GooCanvas", "2.0,3.0"),
+        ("Rsvg", "2.0"),
+    ],
     viewclass = "FamilyTreeView",
     stock_icon = "gramps-family-tree-view",
 )
