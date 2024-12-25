@@ -91,15 +91,52 @@ class FamilyTreeViewTimeline:
 
         if isinstance(self.obj, Person):
             self.obj_type = "P"
-            self.timeline_modes = [
-                "Primary own events",
-                "All own events",
-                "Primary own and relatives' events",
-                "All own and relatives' events"
+            self.start_event = get_birth_or_fallback(self.ftv.dbstate.db, self.obj)
+            self.end_event = get_death_or_fallback(self.ftv.dbstate.db, self.obj)
+            self.primary_event_ref_list = [
+                (None, (), ref) # None marks primary event
+                for ref in self.obj.get_primary_event_ref_list()
             ]
+            self.non_primary_event_ref_list = [
+                ("self", (self.obj,), ref)
+                for ref in self.obj.get_event_ref_list()
+                if ref.get_role() != EventRoleType.PRIMARY
+            ]
+            def ref_will_be_on_timeline(ref):
+                event = self.ftv.dbstate.db.get_event_from_handle(ref.ref)
+                # These must be the same criteria as in the final filtering.
+                return (
+                    not event.date.is_empty()
+                    and self.start_event.date.get_sort_value() <= event.date.get_sort_value()
+                    and event.date.get_sort_value() <= self.end_event.date.get_sort_value()
+                )
+            has_non_primary_events = any(
+                ref.get_role() != EventRoleType.PRIMARY
+                for ref in self.obj.get_event_ref_list()
+                if ref_will_be_on_timeline(ref)
+            )
             timeline_mode_idx = self.ftv._config.get("appearance.familytreeview-timeline-mode-default-person")
+            if has_non_primary_events:
+                self.timeline_modes = [
+                    "Primary own events",
+                    "All own events",
+                    "Primary own and relatives' events",
+                    "All own and relatives' events"
+                ]
+            else:
+                self.timeline_modes = [
+                    "Own events",
+                    "Own and relatives' events"
+                ]
+                timeline_mode_idx //= 2
         elif isinstance(self.obj, Family):
             self.obj_type = "F"
+            self.start_event = get_marriage_or_fallback(self.ftv.dbstate.db, self.obj)
+            self.end_event = get_divorce_or_fallback(self.ftv.dbstate.db, self.obj)
+            self.primary_event_ref_list = [
+                (None, (), ref) # None marks primary event
+                for ref in self.obj.get_event_ref_list()
+            ]
             self.timeline_modes = [
                 "Family events",
                 "Family and parents' event",
@@ -148,17 +185,10 @@ class FamilyTreeViewTimeline:
 
     def create_timeline(self):
         if self.obj_type == "P":
-            start_event = get_birth_or_fallback(self.ftv.dbstate.db, self.obj)
-            end_event = get_death_or_fallback(self.ftv.dbstate.db, self.obj)
-            primary_event_ref_list = [(None, (), ref) for ref in self.obj.get_primary_event_ref_list()]
-            if "Primary own" in self.timeline_mode:
+            if "Primary own" in self.timeline_mode or "Own" in self.timeline_mode:
                 event_ref_list = []
             elif "All own" in self.timeline_mode:
-                event_ref_list = [
-                    ("self", (self.obj,), ref)
-                    for ref in self.obj.get_event_ref_list()
-                    if ref.get_role() != EventRoleType.PRIMARY
-                ]
+                event_ref_list = self.non_primary_event_ref_list.copy()
             if "relatives' events" in self.timeline_mode:
                 # all families where person is spouse and all families where person is child
                 family_handles = (
@@ -191,9 +221,6 @@ class FamilyTreeViewTimeline:
                             ]
 
         elif self.obj_type == "F":
-            start_event = get_marriage_or_fallback(self.ftv.dbstate.db, self.obj)
-            end_event = get_divorce_or_fallback(self.ftv.dbstate.db, self.obj)
-            primary_event_ref_list = [(None, (), ref) for ref in self.obj.get_event_ref_list()] # None marks primary event
             event_ref_list = []
             if "parents'" in self.timeline_mode:
                 for parent_handle in [self.obj.get_father_handle(), self.obj.get_mother_handle()]:
@@ -215,7 +242,7 @@ class FamilyTreeViewTimeline:
 
         primary_event_and_ref_list = [
             (rel_type, rel, self.ftv.dbstate.db.get_event_from_handle(ref.ref), ref)
-            for rel_type, rel, ref in primary_event_ref_list
+            for rel_type, rel, ref in self.primary_event_ref_list
         ]
         event_and_ref_list = [
             (rel_type, rel, self.ftv.dbstate.db.get_event_from_handle(ref.ref), ref)
@@ -225,6 +252,7 @@ class FamilyTreeViewTimeline:
         event_and_ref_list = primary_event_and_ref_list + event_and_ref_list
         event_and_ref_list.sort(key=lambda e: e[2].date.get_sort_value()) # 2: event
 
+        # NOTE: These must be the same criteria as in the initial filtering in ref_will_be_on_timeline.
         # remove events without dates
         event_and_ref_list = [
             (rel_type, rel, event, ref)
@@ -234,21 +262,21 @@ class FamilyTreeViewTimeline:
 
         # Remove non-primary events before birth and after death.
         if self.obj_type == "P":
-            if start_event is not None:
+            if self.start_event is not None:
                 event_and_ref_list = [
                     (rel_type, rel, event, ref)
                     for rel_type, rel, event, ref in event_and_ref_list
                     if (
-                        start_event.date.get_sort_value() <= event.date.get_sort_value()
+                        self.start_event.date.get_sort_value() <= event.date.get_sort_value()
                         or rel_type is None # keep all primary events
                     )
                 ]
-            if end_event is not None:
+            if self.end_event is not None:
                 event_and_ref_list = [
                     (rel_type, rel, event, ref)
                     for rel_type, rel, event, ref in event_and_ref_list
                     if (
-                        event.date.get_sort_value() <= end_event.date.get_sort_value()
+                        event.date.get_sort_value() <= self.end_event.date.get_sort_value()
                         or rel_type is None # keep all primary events
                     )
                 ]
@@ -274,9 +302,9 @@ class FamilyTreeViewTimeline:
             if event is None:
                 continue
             event_age_str = ""
-            if start_event is not None:
+            if self.start_event is not None:
                 if short_age:
-                    min_max_age = calculate_min_max_age_at_event(start_event, event, calendar)
+                    min_max_age = calculate_min_max_age_at_event(self.start_event, event, calendar)
                     if min_max_age is not None:
                         min_age, max_age = min_max_age
                         if min_age == max_age:
@@ -285,7 +313,7 @@ class FamilyTreeViewTimeline:
                             age = f"{min_age} - {max_age}"
                         event_age_str = f"({age}) "
                 else:
-                    age_str = (event.date - start_event.date).format(precision=age_precision)
+                    age_str = (event.date - self.start_event.date).format(precision=age_precision)
                     event_age_str = f"({age_str}) "
             event_type = _(str(event.type))
             event_date_str = get_date(event)
@@ -374,12 +402,7 @@ class FamilyTreeViewTimeline:
         if self.obj is None or len(event_and_ref_list) == 0:
             return
 
-        if self.obj_type == "P":
-            start_event = get_birth_or_fallback(self.ftv.dbstate.db, self.obj)
-        elif self.obj_type == "F":
-            start_event = get_marriage_or_fallback(self.ftv.dbstate.db, self.obj)
-
-        if start_event is None:
+        if self.start_event is None:
             return
 
         root_item = timeline_canvas.get_root_item()
@@ -398,7 +421,7 @@ class FamilyTreeViewTimeline:
         min_sort_values = min(event_sort_values)
         max_sort_values = max(event_sort_values)
         num_days = max_sort_values - min_sort_values
-        pos_num_days = max_sort_values - start_event.date.get_sort_value()
+        pos_num_days = max_sort_values - self.start_event.date.get_sort_value()
         timeline_height = canvas_height - self.timeline_top_margin - self.timeline_bottom_margin
         if num_days == 0 or pos_num_days == 0 or timeline_height == 0:
             pos_timeline_height = timeline_height
