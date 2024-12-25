@@ -81,7 +81,7 @@ class FamilyTreeViewInfoBoxManager(FamilyTreeViewInfoWidgetManager):
         tags = self.create_tags_widget(person)
         self.info_box_widget.add(tags)
 
-        y = self.canvas_manager.get_y_of_generation(person_generation)
+        y = self.widget_manager.tree_builder.get_y_of_generation(person_generation)
         self.info_box_height = 280 # TODO should be adjusted to content
         self.finalize_info_box(
             x, y,
@@ -108,7 +108,7 @@ class FamilyTreeViewInfoBoxManager(FamilyTreeViewInfoWidgetManager):
         tags = self.create_tags_widget(family)
         self.info_box_widget.add(tags)
 
-        y = self.canvas_manager.get_y_of_generation(family_generation) + self.canvas_manager.above_family_sep
+        y = self.widget_manager.tree_builder.get_y_of_generation(family_generation) + self.canvas_manager.above_family_sep
         self.info_box_height = 200 # TODO should be adjusted to content
         self.finalize_info_box(
             x, y,

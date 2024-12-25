@@ -60,6 +60,8 @@ class FamilyTreeViewConfigProvider:
                 'num_children': {'person': False, 'family': False},
                 'num_other_families': {'person': False, 'family': False},
             }),
+
+            ("experimental.familytreeview-adaptive-ancestor-generation-dist", False),
         )
 
     @staticmethod
@@ -72,6 +74,7 @@ class FamilyTreeViewConfigProvider:
             self.appearance_page,
             self.interaction_page,
             self.badges_page,
+            self.experimental_page,
         ]
 
     def appearance_page(self, configdialog):
@@ -87,7 +90,7 @@ class FamilyTreeViewConfigProvider:
             _("Default number of ancestor generations to show"),
             row,
             "appearance.familytreeview-num-ancestor-generations-default",
-            (0, 15) # more might be possible
+            (0, 25) # more might be possible
         )
 
         row += 1
@@ -96,7 +99,7 @@ class FamilyTreeViewConfigProvider:
             _("Default number of descendant generations to show"),
             row,
             "appearance.familytreeview-num-descendant-generations-default",
-            (0, 15) # more might be possible
+            (0, 25) # more might be possible
         )
 
         row += 1
@@ -306,3 +309,33 @@ class FamilyTreeViewConfigProvider:
         grid.attach(scrolled_window, 1, 0, 8, 1) # these are the default with of widgets created by configdialog's methods
 
         return (_("Badges"), grid)
+
+    def experimental_page(self, configdialog):
+        grid = Gtk.Grid()
+        grid.set_border_width(12)
+        grid.set_column_spacing(6)
+        grid.set_row_spacing(6)
+        row = -1
+
+        row += 1
+        label = configdialog.add_text(
+            grid,
+            _(
+                "These are experimental features. "
+                "Only activate them after double checking your backup!"
+            ),
+            row, stop=3, bold=True
+        )
+        label.set_margin_top(10)
+        label.set_margin_bottom(10)
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _("Use adaptive distances between ancestor generations"),
+            row,
+            "experimental.familytreeview-adaptive-ancestor-generation-dist",
+            stop=3 # same width as spinners and combos
+        )
+
+        return (_("Experimental"), grid)

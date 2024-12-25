@@ -77,7 +77,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
 
         # connections
         self.connection_radius = 10
-        self.connection_sep = 5
+        self.connection_sep = 10
 
         # combinations
         self.bottom_family_offset = self.above_family_sep + self.family_height # vertical offset between bottom of family and bottom of spouses above it
@@ -109,19 +109,6 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         # Connections are added to a group created as first canvas element so connections are below everything else.
         self.connection_group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
 
-    def get_y_of_generation(self, generation):
-        # negative y is up
-        y = -generation*self.generation_offset
-        if generation > 3:
-            # To avoid overlapping lines, extra space has to be added if the lines could overlap.
-            # Generation 3 (0 being active) needs to be the first which is shifted up (by 1 connection sep).
-            # Generation 4 needs to be shifted up by 4 connection seps (1 from generation 3 and 3 own).
-            # Generation 5 needs to be shifted up by 11 connection seps (4 from previous generations and 7 own).
-            # etc.
-            n = generation - 1
-            y -= self.connection_sep * (2**n - n - 1)
-        return y
-
     def add_person(self, x, generation, name, abbr_names, birth_date, death_date, primary_color, secondary_color, image_spec, alive, round_lower_corners, click_callback=None, badges=None):
 
         # group
@@ -131,7 +118,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         parent = group
 
         # box
-        y = self.get_y_of_generation(generation) # bottom center
+        y = self.widget_manager.tree_builder.get_y_of_generation(generation) # bottom center
 
         r = self.corner_radius
         if round_lower_corners:
@@ -287,7 +274,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         parent = group
 
         # box
-        y = self.get_y_of_generation(generation) + self.above_family_sep # top center
+        y = self.widget_manager.tree_builder.get_y_of_generation(generation) + self.above_family_sep # top center
         r = self.corner_radius
         data = f"""
             M {x - self.family_width/2},{y}
@@ -337,19 +324,14 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                 L {x2} {y2}
             """
         else:
-            ym = (y1 + y2) / 2
+            ym = (y1 + y2) / 2 # middle
             if m is not None:
-                # m[0] which line, 0-based
+                # m[0] which line, 0-based, counted from top to bottom
                 # m[1] how many lines
                 if m[1] > 1:
-                    if x1 < 0:
-                        ym1 = ym - self.connection_sep * (m[1]-1)/2
-                        ym2 = ym + self.connection_sep * (m[1]-1)/2
-                        ym = ym2 + (ym2 - ym1) * m[0]/(m[1]-1)
-                    else:
-                        ym1 = ym - self.connection_sep * (m[1]-1)/2
-                        ym2 = ym + self.connection_sep * (m[1]-1)/2
-                        ym = ym1 - (ym2 - ym1) * m[0]/(m[1]-1)
+                    ym1 = ym - self.connection_sep * (m[1]-1)/2 # top
+                    ym2 = ym + self.connection_sep * (m[1]-1)/2 # bottom
+                    ym = ym1 + (ym2 - ym1) * m[0]/(m[1]-1) # horizontal part
             if (x1 < x2) != (y1 < y2): # xor
                 sweepFlag1 = "1"
                 sweepFlag2 = "0"

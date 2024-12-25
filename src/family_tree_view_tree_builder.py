@@ -24,20 +24,48 @@ from typing import TYPE_CHECKING
 from gramps.gen.lib.childreftype import ChildRefType
 
 if TYPE_CHECKING:
-    from family_tree_view import FamilyTreeView
+    from family_tree_view import FamilyTreeViewWidgetManager
 
 
 class FamilyTreeViewTreeBuilder():
     """Collects all the information to build the tree and sends it to the canvas."""
-    def __init__(self, ftv: "FamilyTreeView"):
-        self.ftv = ftv
+    def __init__(self, widget_manager: "FamilyTreeViewWidgetManager"):
+        self.widget_manager = widget_manager
+        self.ftv = self.widget_manager.ftv
         self.dbstate = self.ftv.dbstate
         self.uistate = self.ftv.uistate
-        self.widget_manager = self.ftv.widget_manager
         self.canvas_manager = self.widget_manager.canvas_manager
 
     def reset(self):
+        # NOTE: ancestors have positive generation number (descendants negative)
         self.generation_spread = {}
+        
+        # To only allocate the vertical space required for the connections between two ancestor generations,
+        # we keep track of the number of connections in each generation (left and right side separately)
+        self.num_connections_per_generation = {} # key i: number of connections between gen i and gen i+1
+        # After dry run, keep track where we are using this property.
+        self.i_connections_per_generation = {}
+
+    def get_y_of_generation(self, generation):
+        # negative y is up
+        y = -generation*self.canvas_manager.generation_offset
+        if generation > 3:
+            if self.ftv._config.get("experimental.familytreeview-adaptive-ancestor-generation-dist"):
+                s = sum(
+                    max(v)
+                    for g, v in self.num_connections_per_generation.items()
+                    if g < generation
+                )
+            else:
+                # To avoid overlapping lines, extra space has to be added if the lines could overlap.
+                # Generation 3 (0 being active) needs to be the first which is shifted up (by 1 connection sep).
+                # Generation 4 needs to be shifted up by 4 connection seps (1 from generation 3 and 3 own).
+                # Generation 5 needs to be shifted up by 11 connection seps (4 from previous generations and 7 own).
+                # etc.
+                n = generation - 1
+                s = (2**n - n - 1)
+            y -= self.canvas_manager.connection_sep * s
+        return y
 
     def process_person(
         self, person_handle, x_person, person_generation, dry_run=False, alignment=None,
@@ -80,7 +108,12 @@ class FamilyTreeViewTreeBuilder():
 
         if process_ancestors:
             # parents, siblings etc.
-            self.process_ancestors(person, person_bounds, x_person, person_generation, ahnentafel)
+            if not dry_run and person_generation == 0 and self.ftv._config.get("experimental.familytreeview-adaptive-ancestor-generation-dist"):
+                # fill self.num_connections_per_generation
+                self.process_ancestors(person, person_bounds, x_person, person_generation, ahnentafel, dry_run=True)
+                # reset generation spread after dry run to start over
+                self.generation_spread = {}
+            self.process_ancestors(person, person_bounds, x_person, person_generation, ahnentafel, dry_run=dry_run)
 
         return person_bounds
 
@@ -180,7 +213,7 @@ class FamilyTreeViewTreeBuilder():
         person_bounds["st_r"] = max(person_bounds["st_r"], x_family-x_person+children_subtree_width/2)
         return person_bounds
 
-    def process_ancestors(self, person, person_bounds, x_person, person_generation, ahnentafel):
+    def process_ancestors(self, person, person_bounds, x_person, person_generation, ahnentafel, dry_run=False):
         # family in which person is a child with parents and siblings
         parent_family_handle = person.get_main_parents_family_handle()
         if parent_family_handle is None:
@@ -190,6 +223,14 @@ class FamilyTreeViewTreeBuilder():
         max_generation = self.ftv._config.get("appearance.familytreeview-num-ancestor-generations-default")
         if parent_generation > max_generation:
             return
+
+        if person_generation >= 1:
+            if dry_run:
+                self.num_connections_per_generation.setdefault(person_generation, [0, 0])
+                self.num_connections_per_generation[person_generation][int(x_person > 0)] += 1
+            else:
+                self.i_connections_per_generation.setdefault(person_generation, [-1, -1]) # none, 1st will be 0
+                self.i_connections_per_generation[person_generation][int(x_person > 0)] += 1
 
         person_width = self.canvas_manager.person_width
         family_width = self.canvas_manager.family_width
@@ -212,7 +253,8 @@ class FamilyTreeViewTreeBuilder():
                 x_family = max(x_person, self.generation_spread[parent_generation][1] + (ancestor_sep + family_width/2))
                 self.generation_spread[parent_generation][1] = x_family + family_width/2
 
-        family_bounds = self.widget_manager.add_family(parent_family_handle, x_family, parent_generation)
+        if not dry_run:
+            family_bounds = self.widget_manager.add_family(parent_family_handle, x_family, parent_generation)
 
         father_handle = family.get_father_handle()
         mother_handle = family.get_mother_handle()
@@ -240,42 +282,53 @@ class FamilyTreeViewTreeBuilder():
             outer_parent_alignment = "l"
 
         if inner_parent_handle is not None:
-            inner_parent_bounds = self.process_person(inner_parent_handle, inner_parent_x, parent_generation, alignment=inner_parent_alignment, process_families=False, process_descendants=False, ahnentafel=inner_parent_ahnentafel)
+            inner_parent_bounds = self.process_person(inner_parent_handle, inner_parent_x, parent_generation, dry_run=dry_run, alignment=inner_parent_alignment, process_families=False, process_descendants=False, ahnentafel=inner_parent_ahnentafel)
         else:
             # missing inner parent
-            inner_parent_bounds = self.add_missing_person(inner_parent_x, parent_generation, inner_parent_alignment)
+            if not dry_run:
+                inner_parent_bounds = self.add_missing_person(inner_parent_x, parent_generation, inner_parent_alignment)
         if outer_parent_handle is not None:
-            outer_parent_bounds = self.process_person(outer_parent_handle, outer_parent_x, parent_generation, alignment=outer_parent_alignment, process_families=False, process_descendants=False, ahnentafel=outer_parent_ahnentafel)
+            outer_parent_bounds = self.process_person(outer_parent_handle, outer_parent_x, parent_generation, dry_run=dry_run, alignment=outer_parent_alignment, process_families=False, process_descendants=False, ahnentafel=outer_parent_ahnentafel)
         else:
             # missing outer parent
-            outer_parent_bounds = self.add_missing_person(outer_parent_x, parent_generation, outer_parent_alignment)
+            if not dry_run:
+                outer_parent_bounds = self.add_missing_person(outer_parent_x, parent_generation, outer_parent_alignment)
 
         # TODO include parents' bounds (?)
 
-        # connections between family and spouses
-        self.canvas_manager.add_connection(inner_parent_x, inner_parent_bounds["bx_b"], inner_parent_x, family_bounds["bx_t"])
-        self.canvas_manager.add_connection(outer_parent_x, outer_parent_bounds["bx_b"], outer_parent_x, family_bounds["bx_t"])
+        if not dry_run:
+            # connections between family and spouses
+            self.canvas_manager.add_connection(inner_parent_x, inner_parent_bounds["bx_b"], inner_parent_x, family_bounds["bx_t"])
+            self.canvas_manager.add_connection(outer_parent_x, outer_parent_bounds["bx_b"], outer_parent_x, family_bounds["bx_t"])
 
-        if ahnentafel is None:
-            m = None
-        else:
-            # Note: floor(log2(ahnentafel)) == person_generation
-            person
-            first_paternal_ahnentafel_in_generation = 2**person_generation
-            first_maternal_ahnentafel_in_generation = 3*2**(person_generation-1)
-            if ahnentafel >= first_maternal_ahnentafel_in_generation:
-                first_ahnentafel_on_side = first_maternal_ahnentafel_in_generation
+            if ahnentafel is None:
+                m = None
             else:
-                first_ahnentafel_on_side = first_paternal_ahnentafel_in_generation
-            m = (
-                first_ahnentafel_on_side-ahnentafel,
-                2**(person_generation-1) # -1 since only the lines on one side are counted since only those can overlap
-            )
+                if self.ftv._config.get("experimental.familytreeview-adaptive-ancestor-generation-dist"):
+                    if person_generation > 1:
+                        m0 = self.i_connections_per_generation[person_generation][int(x_person>0)]
+                        m1 = self.num_connections_per_generation[person_generation][int(x_person>0)]
+                        m = (m0, m1)
+                    else:
+                        m = None
+                else: # use ahnentafel
+                    # NOTE: floor(log2(ahnentafel)) == person_generation
+                    first_maternal_ahnentafel_in_generation = 3*2**(person_generation-1)
+                    if ahnentafel >= first_maternal_ahnentafel_in_generation:
+                        # maternal side (right)
+                        m0 = ahnentafel-first_maternal_ahnentafel_in_generation
+                    else:
+                        # paternal side (left)
+                        m0 = (first_maternal_ahnentafel_in_generation-1)-ahnentafel
+                    m = (
+                        m0,
+                        2**(person_generation-1) # -1 since only the lines on one side are counted since only those can overlap
+                    )
 
-        parent_family = self.dbstate.db.get_family_from_handle(parent_family_handle)
-        dashed = self.get_dashed(parent_family, person.handle)
+            parent_family = self.dbstate.db.get_family_from_handle(parent_family_handle)
+            dashed = self.get_dashed(parent_family, person.handle)
 
-        self.canvas_manager.add_connection(family_bounds["x"], family_bounds["bx_b"], x_person, person_bounds["bx_t"], m=m, dashed=dashed)
+            self.canvas_manager.add_connection(family_bounds["x"], family_bounds["bx_b"], x_person, person_bounds["bx_t"], m=m, dashed=dashed)
 
     def add_missing_person(self, x_person, person_generation, alignment, dry_run=False):
         person_width = self.canvas_manager.person_width

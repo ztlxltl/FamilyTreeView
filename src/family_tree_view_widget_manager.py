@@ -34,6 +34,7 @@ from family_tree_view_canvas_manager import FamilyTreeViewCanvasManager
 from family_tree_view_info_box_manager import FamilyTreeViewInfoBoxManager
 from family_tree_view_minimap_manager import FamilyTreeViewMinimapManager
 from family_tree_view_panel_manager import FamilyTreeViewPanelManager
+from family_tree_view_tree_builder import FamilyTreeViewTreeBuilder
 from family_tree_view_utils import import_GooCanvas
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
@@ -64,6 +65,7 @@ class FamilyTreeViewWidgetManager:
         self.main_container_paned.connect("size-allocate", self.main_container_paned_size_allocate)
 
         self.canvas_manager = FamilyTreeViewCanvasManager(self, resize_reference=self.main_container_paned)
+        self.tree_builder = FamilyTreeViewTreeBuilder(self)
 
         self.minimap_overlay_container = Gtk.Overlay()
         self.minimap_overlay_container.add(self.canvas_manager.canvas_container)

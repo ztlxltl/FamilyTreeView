@@ -139,7 +139,7 @@ class FamilyTreeViewMinimapManager:
         )
 
     def add_person(self, x, person_generation, background_color):
-        y = self.canvas_manager.get_y_of_generation(person_generation)-self.canvas_manager.person_height
+        y = self.widget_manager.tree_builder.get_y_of_generation(person_generation)-self.canvas_manager.person_height
         GooCanvas.CanvasRect(
             parent=self.content_group,
             x=x-self.canvas_manager.person_width/2,
@@ -153,7 +153,7 @@ class FamilyTreeViewMinimapManager:
         self.minimap_outer_container.show_all()
 
     def add_family(self, x, family_generation, background_color):
-        y = self.canvas_manager.get_y_of_generation(family_generation)+self.canvas_manager.above_family_sep
+        y = self.widget_manager.tree_builder.get_y_of_generation(family_generation)+self.canvas_manager.above_family_sep
         GooCanvas.CanvasRect(
             parent=self.content_group,
             x=x-self.canvas_manager.family_width/2,

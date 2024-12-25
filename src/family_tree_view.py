@@ -36,7 +36,6 @@ from gramps.gui.views.navigationview import NavigationView
 from abbreviated_name_display import AbbreviatedNameDisplay
 from family_tree_view_badge_manager import FamilyTreeViewBadgeManager
 from family_tree_view_config_provider import FamilyTreeViewConfigProvider
-from family_tree_view_tree_builder import FamilyTreeViewTreeBuilder
 from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
 
@@ -126,7 +125,6 @@ class FamilyTreeView(NavigationView):
 
         self.symbols = Symbols()
         self.widget_manager = FamilyTreeViewWidgetManager(self)
-        self.tree_builder = FamilyTreeViewTreeBuilder(self)
         self.name_display = AbbreviatedNameDisplay()
 
         self.processed_person_handles = []
@@ -218,7 +216,7 @@ class FamilyTreeView(NavigationView):
             # it's a list (with one element) sometimes
             root_person_handle = root_person_handle[0]
 
-        self.tree_builder.process_person(root_person_handle, 0, 0, ahnentafel=1)
+        self.widget_manager.tree_builder.process_person(root_person_handle, 0, 0, ahnentafel=1)
         self.widget_manager.canvas_manager.move_to_center()
 
         self.uistate.set_busy_cursor(False)
