@@ -90,7 +90,7 @@ class FamilyTreeViewConfigProvider:
             _("Default number of ancestor generations to show"),
             row,
             "appearance.familytreeview-num-ancestor-generations-default",
-            (0, 25) # more might be possible
+            (0, 100) # more might be possible
         )
 
         row += 1
@@ -99,7 +99,7 @@ class FamilyTreeViewConfigProvider:
             _("Default number of descendant generations to show"),
             row,
             "appearance.familytreeview-num-descendant-generations-default",
-            (0, 25) # more might be possible
+            (0, 100) # more might be possible
         )
 
         row += 1

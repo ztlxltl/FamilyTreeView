@@ -108,6 +108,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         super().reset_canvas()
         # Connections are added to a group created as first canvas element so connections are below everything else.
         self.connection_group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
+        self.canvas_bounds = [0, 0, 0, 0] # left, top, right, bottom
 
     def add_person(self, x, generation, name, abbr_names, birth_date, death_date, primary_color, secondary_color, image_spec, alive, round_lower_corners, click_callback=None, badges=None):
 
@@ -260,6 +261,8 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         if badges is not None:
             self.add_badges(badges, x+self.person_width/2-self.padding, y-self.person_height)
 
+        self.adjust_bounds(x-self.person_width/2, y-self.person_height, x+self.person_width/2, y)
+
         return {
             "bx_t": y - self.person_height,
             "bx_b": y
@@ -309,6 +312,8 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
 
         if badges is not None:
             self.add_badges(badges, x+self.family_width/2-self.padding, y)
+
+        self.adjust_bounds(x-self.family_width/2, y, x+self.family_width/2, y+self.family_height)
 
         return {
             "bx_t": y,
@@ -453,3 +458,12 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             # background click
             return self.widget_manager.info_box_manager.close_info_box()
         return False
+
+    def adjust_bounds(self, left, top, right, bottom):
+        padding = 10_000
+        self.canvas_bounds[0] = min(self.canvas_bounds[0], left-padding)
+        self.canvas_bounds[1] = min(self.canvas_bounds[1], top-padding)
+        self.canvas_bounds[2] = max(self.canvas_bounds[2], right+padding)
+        self.canvas_bounds[3] = max(self.canvas_bounds[3], bottom+padding)
+
+        self.canvas.set_bounds(*self.canvas_bounds)
