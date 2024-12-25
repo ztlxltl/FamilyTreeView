@@ -249,6 +249,11 @@ class FamilyTreeView(NavigationView):
                 place_name = place_displayer.display(self.dbstate.db, place)
                 return place_name
 
+    def get_full_place_name_from_event(self, event):
+        if event:
+            place_name = place_displayer.display_event(self.dbstate.db, event)
+            return place_name
+
     def set_home_person(self, person_handle, also_set_active=False):
         if self.get_person_from_handle(person_handle) is not None:
             self.dbstate.db.set_default_person_handle(person_handle)

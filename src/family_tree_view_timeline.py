@@ -317,7 +317,7 @@ class FamilyTreeViewTimeline:
                     event_age_str = f"({age_str}) "
             event_type = _(str(event.type))
             event_date_str = get_date(event)
-            event_place_str = self.ftv.get_full_place_name(event.get_place_handle())
+            event_place_str = self.ftv.get_full_place_name_from_event(event)
             if event_place_str is None: # no place
                 event_place_str = ""
             else:
