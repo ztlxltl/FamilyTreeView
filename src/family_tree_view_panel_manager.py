@@ -106,8 +106,13 @@ class FamilyTreeViewPanelManager(FamilyTreeViewInfoWidgetManager):
         buttons = self.create_person_buttons_widget(person_handle, panel_button=False)
         self.panel_content.add(buttons)
 
-        tags = self.create_tags_widget(person)
-        self.panel_content.add(tags)
+        self.panel_content.add(Gtk.Separator())
+
+        tags_expander = Gtk.Expander(label=_("Tags"))
+        tags_expander.set_expanded(True)
+        tags_section = self.create_tags_widget(person)
+        tags_expander.add(tags_section)
+        self.panel_content.add(tags_expander)
 
         self.panel_content.add(Gtk.Separator())
 
