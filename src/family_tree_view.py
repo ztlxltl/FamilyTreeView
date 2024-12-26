@@ -32,6 +32,7 @@ from gramps.gui.editors import EditFamily, EditPerson
 from gramps.gui.pluginmanager import GuiPluginManager
 from gramps.gui.views.bookmarks import PersonBookmarks
 from gramps.gui.views.navigationview import NavigationView
+from gramps.cli.clidbman import CLIDbManager
 
 from abbreviated_name_display import AbbreviatedNameDisplay
 from family_tree_view_badge_manager import FamilyTreeViewBadgeManager
@@ -173,12 +174,16 @@ class FamilyTreeView(NavigationView):
     def build_tree(self):
         # Cannot build tree without handle.
         # See self.goto_handle
-        pass
+
+        # The apparently only case which needs to be covered here is an empty db:
+        self.check_and_handle_empty_db()
 
     def goto_handle(self, handle):
         # In other implementations, both build_tree and goto_handle call the main buildup of the view.
         # But it looks like after build_tree is called, goto_handle is always called as well,
         # so the tree would be reloaded immediately, i.e. loaded twice.
+        # The apparently only case in which only build_tree is when FTV is opened the first time 
+        # after Gramps started and the db is empty (no people).
 
         person_handle = None
         if handle:
@@ -205,21 +210,69 @@ class FamilyTreeView(NavigationView):
         self.widget_manager.close_panel()
         self.rebuild_tree()
 
-    def rebuild_tree(self, root_person_handle=None, offset=None):
+    def rebuild_tree(self, offset=None):
         self.uistate.set_busy_cursor(True)
 
         self.widget_manager.reset_tree()
 
-        if root_person_handle is None:
-            root_person_handle = self.get_active()
-        if isinstance(root_person_handle, list):
-            # it's a list (with one element) sometimes
-            root_person_handle = root_person_handle[0]
+        if not self.check_and_handle_special_db_cases():
+            # no special case had to be handled
 
-        self.widget_manager.tree_builder.process_person(root_person_handle, 0, 0, ahnentafel=1)
-        self.widget_manager.canvas_manager.move_to_center()
+            root_person_handle = self.get_active()
+            if isinstance(root_person_handle, list):
+                # it's a list (with one element) sometimes
+                # TODO Can this still happen?
+                root_person_handle = root_person_handle[0]
+
+            if root_person_handle is not None and len(root_person_handle) > 0: # handle can be empty string 
+                self.widget_manager.tree_builder.process_person(root_person_handle, 0, 0, ahnentafel=1)
+                self.widget_manager.canvas_manager.move_to_center()
 
         self.uistate.set_busy_cursor(False)
+
+    def check_and_handle_special_db_cases(self):
+        """Returns True if special cases were handled (no tree should be built)."""
+        if not self.dbstate.db.is_open():
+            # no db loaded
+            if len(CLIDbManager(self.dbstate).current_names) == 0: # TODO This condition has not been tested yet!
+                # no db to load
+                # TODO Show some replacement text, e.g. 
+                # "No database to load. Create or import one."
+                # (where import creates one first).
+                pass
+            else:
+                # no db loaded but can be loaded
+                # TODO Show some replacement text, e.g. 
+                # "No database loaded. Load, create or import one."
+                # (where import creates one first).
+                pass
+            return True
+        if self.check_and_handle_empty_db():
+            return True
+
+        # A db with people is loaded.
+
+        no_active = len(self.get_active()) == 0 # returns handle str with length 0 if no active
+        no_home = self.dbstate.db.get_default_handle() is None # returns None if no home
+        if no_active and no_home:
+            # neither an active nor a home person
+            # TODO Show some replacement text, e.g. 
+            # "No person selected to display the tree for. Please select a person."
+            return True
+        if no_active and not no_home:
+            self.set_active_person(self.dbstate.db.get_default_handle())
+        elif no_home and not no_active:
+            self.set_home_person(self.get_active())
+        # If both are set, everything is alright.
+        return False
+
+    def check_and_handle_empty_db(self):
+        if self.dbstate.db.get_number_of_people() == 0:
+            # db has no people
+            # show missing person
+            self.widget_manager.add_missing_person(0, 0, "c")
+            return True
+        return False
 
     def get_image_spec(self, person):
         if person is None:

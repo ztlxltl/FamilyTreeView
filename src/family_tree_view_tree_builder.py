@@ -86,22 +86,32 @@ class FamilyTreeViewTreeBuilder():
         person = self.ftv.get_person_from_handle(person_handle)
 
         if alignment is None:
-            family_handles = person.get_family_handle_list()
-            if len(family_handles) == 0:
+            if person is None:
                 alignment = "c"
             else:
-                family = self.dbstate.db.get_family_from_handle(family_handles[0]) # 0: main / primary
-                person_is_s1 = family.get_father_handle() == person_handle
-                if person_is_s1:
-                    alignment = "r"
+                family_handles = person.get_family_handle_list()
+                if len(family_handles) == 0:
+                    alignment = "c"
                 else:
-                    alignment = "l"
+                    family = self.dbstate.db.get_family_from_handle(family_handles[0]) # 0: main / primary
+                    person_is_s1 = family.get_father_handle() == person_handle
+                    if person_is_s1:
+                        alignment = "r"
+                    else:
+                        alignment = "l"
 
         if not dry_run:
-            person_box_bounds = self.widget_manager.add_person(person_handle, x_person, person_generation, alignment)
+            if person is None:
+                person_box_bounds = self.widget_manager.add_missing_person(x_person, person_generation, alignment)
+            else:
+                person_box_bounds = self.widget_manager.add_person(person_handle, x_person, person_generation, alignment)
             person_bounds.update(person_box_bounds)
         person_bounds["st_l"] = -person_width/2
         person_bounds["st_r"] = person_width/2
+
+        if person is None:
+            # Trying to process relatives doesn't make sense.
+            return person_bounds
 
         if process_families:
             person_bounds = self.process_families(person_handle, person_bounds, x_person, person_generation, dry_run, process_descendants)

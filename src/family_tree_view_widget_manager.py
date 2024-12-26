@@ -184,7 +184,7 @@ class FamilyTreeViewWidgetManager:
 
         person_bounds = self.canvas_manager.add_person(
             x, person_generation, "", [""], "", "", background_color, border_color,
-            None, # no image
+            ("text", "[missing person]"), # text instead of image
             True, # no ribbon
             round_lower_corners,
             click_callback=None # TODO create new person

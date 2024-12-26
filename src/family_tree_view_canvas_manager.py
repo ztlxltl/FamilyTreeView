@@ -90,7 +90,6 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.multiple_families_sep = self.sibling_sep # horizontal space between families with sharing a spouse
         self.multiple_parent_families_sep = self.sibling_sep
 
-
         # badges
         self.badge_sep = 5
         self.badge_padding = 5
@@ -103,6 +102,8 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.reset_transform()
 
         self.click_callback = self.click_handler
+
+        self.reset_canvas()
 
     def reset_canvas(self):
         super().reset_canvas()
@@ -152,6 +153,8 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             stroke_color=secondary_color
         )
 
+        font_desc = self.canvas_container.get_style_context().get_font(Gtk.StateFlags.NORMAL)
+
         # image
         img_max_width = self.person_width - 2*self.padding
         img_max_height = 80
@@ -192,6 +195,19 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                     fill_color=secondary_color,
                     line_width=0
                 )
+        elif image_spec[0] == "text":
+            image_text_label = GooCanvas.CanvasText(
+                parent=parent,
+                x=x,
+                y=y-self.person_height+self.padding+img_max_height/2,
+                text=image_spec[1],
+                alignment=Pango.Alignment.CENTER,
+                anchor=GooCanvas.CanvasAnchorType.CENTER,
+                width=self.person_width-2*self.padding,
+                font_desc=font_desc
+                # TODO somehow make ellipsize work for multiline (most likely has to kick in after using abbreviated names)
+            )
+            image_text_label
 
         sep_below_image = 5 # between image and name
         sep_below_name = 5 # between name and dates
@@ -202,7 +218,6 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         max_name_height = (max_text_height - sep_below_name) / (num_lines_dates+num_max_name_text) * num_max_name_text
 
         # name
-        font_desc = self.canvas_container.get_style_context().get_font(Gtk.StateFlags.NORMAL)
         name_label = GooCanvas.CanvasText(
             parent=parent,
             x=x,
