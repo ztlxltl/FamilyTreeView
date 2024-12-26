@@ -217,7 +217,7 @@ class FamilyTreeViewWidgetManager:
         return family_bounds
 
     def add_connection(self, x1, y1, x2, y2, m=None, dashed=False, handle1=None, handle2=None):
-        # assuming y1 > y2 (e.g. handle1 is ancestor)
+        # assuming y1 < y2 (e.g. handle1 is ancestor)
         follow_on_click = self.ftv._config.get("experimental.familytreeview-connection-follow-on-click")
         if not follow_on_click or (handle1 is None and handle2 is None):
             click_callback = None
@@ -289,7 +289,7 @@ class FamilyTreeViewWidgetManager:
         return True
 
     def _db_connection_clicked(self, handle1, handle2, event, ym):
-        # assuming (y of handle 1) > (y of handle 2) (e.g. handle1 is ancestor)
+        # assuming (y of handle 1) < (y of handle 2) (e.g. handle1 is ancestor)
         if event.type != Gdk.EventType.DOUBLE_BUTTON_PRESS:
             return False
 
