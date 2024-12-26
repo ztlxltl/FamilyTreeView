@@ -4,7 +4,7 @@
 "i": "children_quick_report",
 "t": 1,
 "d": "Display a person's children.",
-"v": "0.1.14",
+"v": "0.1.15",
 "g": "5.2",
 "s": 2,
 "z": "FamilyTreeView.addon.tgz"
@@ -14,7 +14,7 @@
 "i": "family_tree_view_example_badges",
 "t": 6,
 "d": "Example badges for FamilyTreeView.",
-"v": "0.1.14",
+"v": "0.1.15",
 "g": "5.2",
 "s": 2,
 "z": "FamilyTreeView.addon.tgz"
@@ -24,7 +24,7 @@
 "i": "family_tree_view",
 "t": 8,
 "d": "A navigable family tree.",
-"v": "0.1.14",
+"v": "0.1.15",
 "g": "5.2",
 "s": 2,
 "z": "FamilyTreeView.addon.tgz",
