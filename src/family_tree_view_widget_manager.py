@@ -89,6 +89,8 @@ class FamilyTreeViewWidgetManager:
 
         self.click_event_sources = [] # to wait for double clicks
 
+        self.position_of_handle = {} # keep record of what is placed where
+
     def show_panel(self):
         paned_width = self.main_container_paned.get_allocation().width
         if self.panel_hidden:
@@ -170,6 +172,8 @@ class FamilyTreeViewWidgetManager:
         )
         self.minimap_manager.add_person(x, person_generation, background_color)
 
+        self.position_of_handle[person_handle] = [person_bounds["oc_x"], person_bounds["oc_y"]]
+
         return person_bounds
 
     def add_missing_person(self, x, person_generation, alignment):
@@ -208,7 +212,21 @@ class FamilyTreeViewWidgetManager:
         )
         self.minimap_manager.add_family(x, family_generation, background_color)
 
+        self.position_of_handle[family_handle] = [family_bounds["oc_x"], family_bounds["oc_y"]]
+
         return family_bounds
+
+    def add_connection(self, x1, y1, x2, y2, m=None, dashed=False, handle1=None, handle2=None):
+        # assuming y1 > y2 (e.g. handle1 is ancestor)
+        follow_on_click = self.ftv._config.get("experimental.familytreeview-connection-follow-on-click")
+        if not follow_on_click or (handle1 is None and handle2 is None):
+            click_callback = None
+        else:
+            click_callback = lambda item, target, event, ym: self._db_connection_clicked(handle1, handle2, event, ym)
+        self.canvas_manager.add_connection(
+            x1, y1, x2, y2, m=m, dashed=dashed,
+            click_callback=click_callback
+        )
 
     # callbacks
 
@@ -269,6 +287,31 @@ class FamilyTreeViewWidgetManager:
         self._process_click(is_single_click, function, *data)
 
         return True
+
+    def _db_connection_clicked(self, handle1, handle2, event, ym):
+        # assuming (y of handle 1) > (y of handle 2) (e.g. handle1 is ancestor)
+        if event.type != Gdk.EventType.DOUBLE_BUTTON_PRESS:
+            return False
+
+        def move_to_target():
+            # small distance to deactivate center
+            # Has to be larger that half of the width of the additional (wider, invisible) connection.
+            dy = 5
+            
+            # NOTE: event.y is in same units as ym
+            if event.y < ym-dy: # smaller/negative y: up in view
+                # clicked near the ancestor (1), go to descendant (2)
+                target_handle = handle2
+            elif event.y > ym+dy:
+                # clicked near the descendant (2), go to ancestor (1)
+                target_handle = handle1
+            else:
+                # center is ambiguous
+                target_handle = None
+            if target_handle is not None and target_handle in self.position_of_handle:
+                self.canvas_manager.move_to_center(*self.position_of_handle[target_handle])
+
+        self._process_click(False, move_to_target)
 
     def _process_click(self, is_single_click, function, *data):
         if is_single_click:

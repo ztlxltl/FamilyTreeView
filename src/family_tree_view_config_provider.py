@@ -62,6 +62,7 @@ class FamilyTreeViewConfigProvider:
             }),
 
             ("experimental.familytreeview-adaptive-ancestor-generation-dist", False),
+            ("experimental.familytreeview-connection-follow-on-click", False),
         )
 
     @staticmethod
@@ -335,6 +336,15 @@ class FamilyTreeViewConfigProvider:
             _("Use adaptive distances between ancestor generations"),
             row,
             "experimental.familytreeview-adaptive-ancestor-generation-dist",
+            stop=3 # same width as spinners and combos
+        )
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _("Double click one end of a connection to move to the person or family at the other end"),
+            row,
+            "experimental.familytreeview-connection-follow-on-click",
             stop=3 # same width as spinners and combos
         )
 

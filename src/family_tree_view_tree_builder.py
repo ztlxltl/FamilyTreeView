@@ -160,8 +160,9 @@ class FamilyTreeViewTreeBuilder():
                     # missing person
                     self.widget_manager.add_missing_person(x_spouse, person_generation, spouse_alignment)
 
-                self.canvas_manager.add_connection(x_person, person_bounds["bx_b"], x_person, family_bounds["bx_t"])
-                self.canvas_manager.add_connection(x_spouse, person_bounds["bx_b"], x_spouse, family_bounds["bx_t"])
+                # connections between family and spouses
+                self.widget_manager.add_connection(x_person, person_bounds["bx_b"], x_person, family_bounds["bx_t"]) # very short, no handles
+                self.widget_manager.add_connection(x_spouse, person_bounds["bx_b"], x_spouse, family_bounds["bx_t"])
 
             # This is not required if family edges aligns with spouse edges.
             # (They do in the current / default configuration.)
@@ -206,7 +207,11 @@ class FamilyTreeViewTreeBuilder():
                 x_child -= children_bounds[i_child]["st_l"] # subtree left is negative
                 child_bounds = self.process_person(child_handle, x_child, child_generation, dry_run=False, process_ancestors=False)
                 dashed = self.get_dashed(family, child_handle)
-                self.canvas_manager.add_connection(x_family, family_bounds["bx_b"], x_child, child_bounds["bx_t"], dashed=dashed)
+                self.widget_manager.add_connection(
+                    x_family, family_bounds["bx_b"], x_child, child_bounds["bx_t"], dashed=dashed,
+                    # For multiple children, clicking near the parents is ambiguous.
+                    handle1=family.handle, handle2=child_handle if len(child_handles) == 1 else None
+                )
                 x_child += children_bounds[i_child]["st_r"]
                 x_child += child_sep
         person_bounds["st_l"] = min(person_bounds["st_l"], x_family-x_person-children_subtree_width/2) # /2: descendants are centered
@@ -298,8 +303,8 @@ class FamilyTreeViewTreeBuilder():
 
         if not dry_run:
             # connections between family and spouses
-            self.canvas_manager.add_connection(inner_parent_x, inner_parent_bounds["bx_b"], inner_parent_x, family_bounds["bx_t"])
-            self.canvas_manager.add_connection(outer_parent_x, outer_parent_bounds["bx_b"], outer_parent_x, family_bounds["bx_t"])
+            self.widget_manager.add_connection(inner_parent_x, inner_parent_bounds["bx_b"], inner_parent_x, family_bounds["bx_t"]) # very short, no handles
+            self.widget_manager.add_connection(outer_parent_x, outer_parent_bounds["bx_b"], outer_parent_x, family_bounds["bx_t"])
 
             if ahnentafel is None:
                 m = None
@@ -328,7 +333,7 @@ class FamilyTreeViewTreeBuilder():
             parent_family = self.dbstate.db.get_family_from_handle(parent_family_handle)
             dashed = self.get_dashed(parent_family, person.handle)
 
-            self.canvas_manager.add_connection(family_bounds["x"], family_bounds["bx_b"], x_person, person_bounds["bx_t"], m=m, dashed=dashed)
+            self.widget_manager.add_connection(family_bounds["x"], family_bounds["bx_b"], x_person, person_bounds["bx_t"], m=m, dashed=dashed, handle1=parent_family_handle, handle2=person.handle)
 
     def add_missing_person(self, x_person, person_generation, alignment, dry_run=False):
         person_width = self.canvas_manager.person_width

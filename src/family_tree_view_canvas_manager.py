@@ -264,6 +264,10 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.adjust_bounds(x-self.person_width/2, y-self.person_height, x+self.person_width/2, y)
 
         return {
+            # optical center x/y
+            "oc_x": x,
+            "oc_y": y - self.person_height/2,
+            # box top/bottom
             "bx_t": y - self.person_height,
             "bx_b": y
         }
@@ -316,20 +320,23 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.adjust_bounds(x-self.family_width/2, y, x+self.family_width/2, y+self.family_height)
 
         return {
+            # optical center x/y
+            "oc_x": x,
+            "oc_y": y + self.family_height - (self.family_height + self.above_family_sep + self.person_height)/2, # center of family and spouses
+            # box top/bottom
             "bx_t": y,
             "bx_b": y + self.family_height,
             "x": x
         }
 
-    def add_connection(self, x1, y1, x2, y2, m=None, dashed=False):
-
+    def add_connection(self, x1, y1, x2, y2, m=None, dashed=False, click_callback=None):
+        ym = (y1 + y2) / 2 # middle
         if x1 == x2:
             data = f"""
                 M {x1} {y1}
                 L {x2} {y2}
             """
         else:
-            ym = (y1 + y2) / 2 # middle
             if m is not None:
                 # m[0] which line, 0-based, counted from top to bottom
                 # m[1] how many lines
@@ -382,8 +389,18 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         GooCanvas.CanvasPath(
             parent=self.connection_group,
             data=data,
+            line_width=2,
             line_dash=line_dash
         )
+        # add additional (invisible) path for larger clickable area
+        path = GooCanvas.CanvasPath(
+            parent=self.connection_group,
+            data=data,
+            line_width=5,
+            stroke_color=None
+        )
+        if click_callback:
+            path.connect("button-press-event", click_callback, ym)
 
     def add_badges(self, badges, x, y):
         # add badges right-aligned and right to left starting from (x, y), vertically centered
