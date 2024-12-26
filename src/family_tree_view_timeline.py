@@ -105,11 +105,11 @@ class FamilyTreeViewTimeline:
             ]
             def ref_will_be_on_timeline(ref):
                 event = self.ftv.dbstate.db.get_event_from_handle(ref.ref)
-                # These must be the same criteria as in the final filtering.
+                # These must be the same criteria used for non-primary events in the final filtering.
                 return (
                     not event.date.is_empty() and event.date.modifier != Date.MOD_TEXTONLY
-                    and self.start_event.date.get_sort_value() <= event.date.get_sort_value()
-                    and event.date.get_sort_value() <= self.end_event.date.get_sort_value()
+                    and (self.start_event is None or self.start_event.date.get_sort_value() <= event.date.get_sort_value())
+                    and (self.end_event is None or event.date.get_sort_value() <= self.end_event.date.get_sort_value())
                 )
             has_non_primary_events = any(
                 ref.get_role() != EventRoleType.PRIMARY
