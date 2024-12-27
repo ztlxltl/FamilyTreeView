@@ -19,7 +19,7 @@
 #
 
 
-from gi.repository import Gdk, Gtk
+from gi.repository import Gdk, GLib, Gtk
 
 from family_tree_view_info_widget_manager import FamilyTreeViewInfoWidgetManager
 
@@ -82,7 +82,7 @@ class FamilyTreeViewInfoBoxManager(FamilyTreeViewInfoWidgetManager):
         self.info_box_widget.add(tags)
 
         y = self.widget_manager.tree_builder.get_y_of_generation(person_generation)
-        self.info_box_height = 280 # TODO should be adjusted to content
+        self.info_box_height = 50 # default, height is adjusted to fit content later
         self.finalize_info_box(
             x, y,
             350,
@@ -109,7 +109,7 @@ class FamilyTreeViewInfoBoxManager(FamilyTreeViewInfoWidgetManager):
         self.info_box_widget.add(tags)
 
         y = self.widget_manager.tree_builder.get_y_of_generation(family_generation) + self.canvas_manager.above_family_sep
-        self.info_box_height = 200 # TODO should be adjusted to content
+        self.info_box_height = 50 # default, height is adjusted to fit content later
         self.finalize_info_box(
             x, y,
             300,
@@ -140,11 +140,17 @@ class FamilyTreeViewInfoBoxManager(FamilyTreeViewInfoWidgetManager):
             allocation.x = -self.canvas_manager.hadjustment.get_value() + origin_px.x + x*canvas_scale - x_pos
             allocation.y = -self.canvas_manager.vadjustment.get_value() + origin_px.y + y*canvas_scale - y_pos
             allocation.width = info_box_width+2*offset
-            allocation.height = self.info_box_height+2*offset # TODO: How to make this self-adjusting to content?
+            allocation.height = self.info_box_height+2*offset
             return True
 
         # TODO: Why does this not work?
         # self.info_box_widget.connect("scroll-event", lambda widget, event: Gtk.propagate_event(self.canvas_manager.zoom_at_pointer, event))
+
+        # Make the info box invisible (without changing it's size,
+        # set_visible(False) or hide() would change it)
+        # to get the natural value for self.info_box_height later.
+        # Leaving it visible would cause a flickering, immediate height change.
+        self.info_box_widget.set_opacity(0)
 
         # The info box uses an overlay as it's size should be independent on zoom,
         # i.e. you should be able to read info on persons when zoomed out.
@@ -152,6 +158,14 @@ class FamilyTreeViewInfoBoxManager(FamilyTreeViewInfoWidgetManager):
         self.position_child_connection_handle = self.overlay_container.connect("get-child-position", position_child)
         self.overlay_container.add_overlay(self.info_box_widget)
         self.overlay_container.show_all()
+
+        # adjust height to content
+        # TODO: Why is sometimes the height too big?
+        def set_height():
+            self.info_box_height = self.info_box_widget.get_preferred_height().natural_height
+            self.info_box_widget.queue_resize() # indirectly calls position_child
+            self.info_box_widget.set_opacity(1) # make visible after setting correct height
+        GLib.idle_add(set_height)
 
     def close_info_box(self):
         if self.info_box_widget is None:
