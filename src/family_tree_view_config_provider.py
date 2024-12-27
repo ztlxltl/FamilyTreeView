@@ -63,6 +63,7 @@ class FamilyTreeViewConfigProvider:
 
             ("experimental.familytreeview-adaptive-ancestor-generation-dist", False),
             ("experimental.familytreeview-connection-follow-on-click", False),
+            ("experimental.familytreeview-canvas-font-size-ppi", 96),
         )
 
     @staticmethod
@@ -347,5 +348,20 @@ class FamilyTreeViewConfigProvider:
             "experimental.familytreeview-connection-follow-on-click",
             stop=3 # same width as spinners and combos
         )
+
+        row += 1
+        configdialog.add_spinner(
+            grid,
+            _(
+                "PPI (pixels per inch) to calculate font size in pixels for name display on canvas"
+                "(increase if there is only one line, decrease if there are more that two lines, default: 96)"
+            ),
+            row,
+            "experimental.familytreeview-canvas-font-size-ppi",
+            (20, 1000)
+        )
+        label = grid.get_child_at(1, row)
+        label.set_line_wrap(True)
+        label.set_xalign(0)
 
         return (_("Experimental"), grid)

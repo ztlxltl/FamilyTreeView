@@ -110,6 +110,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         # Connections are added to a group created as first canvas element so connections are below everything else.
         self.connection_group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
         self.canvas_bounds = [0, 0, 0, 0] # left, top, right, bottom
+        self.ppi = self.ftv._config.get("experimental.familytreeview-canvas-font-size-ppi")
 
     def add_person(self, x, generation, name, abbr_names, birth_date, death_date, primary_color, secondary_color, image_spec, alive, round_lower_corners, click_callback=None, badges=None):
 
@@ -232,8 +233,8 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         )
 
         size_pt = font_desc.get_size() / Pango.SCALE
-        dpi = 96 # TODO assumption
-        size_px = size_pt * dpi/72
+        ppi = self.ppi # TODO assumption: 96
+        size_px = size_pt * ppi/72
         line_height_px = size_px * 1.2 # TODO how to compute this ? (current value seems to work)
         for abbr_name in abbr_names:
             ink_extend_rect, logical_extend_rect = name_label.get_natural_extents()
