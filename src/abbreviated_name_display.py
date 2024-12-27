@@ -332,7 +332,7 @@ class AbbreviatedNameDisplay(NameDisplay):
 
         # abbreviate prefixes
         while True:
-            abbrev_name_parts = self._abbrev_one_prefix(clean_name_parts)
+            abbrev_name_parts = self._abbrev_one_prefix_or_connector(clean_name_parts)
             if abbrev_name_parts is None:
                 break
             abbrev_name_list.append(self._name_from_parts(clean_name_parts))
@@ -509,21 +509,26 @@ class AbbreviatedNameDisplay(NameDisplay):
                         return name_parts
         return None
 
-    def _abbrev_one_prefix(self, name_parts):
-        for name_part_type in ["prefix", "primary-prefix"]:
+    def _abbrev_one_prefix_or_connector(self, name_parts):
+        # prefix, connector and primary-connector have the same "hierarchy level".
+        # primary-prefix is the last to be abbreviated.
+        for name_part_types in [["prefix", "connector", "primary-connector"], ["primary-prefix"]]:
             for i in range(len(name_parts)-1, -1, -1):
-                if name_parts[i][0] != name_part_type:
+                if name_parts[i][0] not in name_part_types:
                     continue
-                prefix = name_parts[i][1]
-                if not (prefix[:-1] if prefix[-1] == "." else prefix).isalpha():
-                    # ignore everything that's not a name or abbreviated name
-                    continue
-                if len(prefix) == 1 or (len(prefix) == 2 and prefix[1] == "."):
-                    # can't abbreviate one-letter prefix or an abbreviated prefix
-                    continue
-                prefix = prefix[0] + "."
-                name_parts[i] = (name_parts[i][0], prefix)
-                return name_parts
+                prefixes = name_parts[i][1].split() # multiple prefixes: e.g. "van den"
+                for j in range(len(prefixes)-1, -1, -1): # loop backwards
+                    prefix = prefixes[j]
+                    if not (prefix[:-1] if prefix[-1] == "." else prefix).isalpha():
+                        # ignore everything that's not a name or abbreviated name
+                        continue
+                    if len(prefix) == 1 or (len(prefix) == 2 and prefix[1] == "."):
+                        # can't abbreviate one-letter prefix or an abbreviated prefix
+                        continue
+                    prefix = prefix[0] + "."
+                    prefixes[j] = prefix
+                    name_parts[i] = (name_parts[i][0], " ".join(prefixes))
+                    return name_parts
         return None
 
     def _abbrev_one_surname(self, name_parts):
