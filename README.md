@@ -20,6 +20,7 @@ This repository includes the following addons, which are registered individually
 - FamilyTreeView, the main addon of this repository
 - FamilyTreeView Example Badges, registers example badges which can be activated in FamilyTreeView's configuration window
 - Children Quick View, quick view/report listing children, used as a callback example for clicking on badges
+- AbbreviatedNameDisplay Inspector Gramplet, lists the abbreviations of the names of the active person (audience=DEVELOPER)
 
 ## Installation
 FamilyTreeView uses GooCanvas to draw the tree. If you are using Gramps' Graph View, all requirements are satisfied already. (In contrast to Graph View, FamilyTreeView doesn't require Graphviz.)
