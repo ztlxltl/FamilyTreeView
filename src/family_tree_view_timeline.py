@@ -408,6 +408,12 @@ class FamilyTreeViewTimeline:
 
         root_item = timeline_canvas.get_root_item()
 
+        # TODO This is a fallback.
+        # How can the root_item be None? It's never removed.
+        if root_item is None:
+            root_item = GooCanvas.CanvasGroup()
+            timeline_canvas.set_root_item(root_item)
+
         # TODO only ticks if there is a birth or replacement
 
         # remove all canvas elements
