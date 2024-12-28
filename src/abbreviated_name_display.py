@@ -25,7 +25,7 @@ from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.display.name import (
     _CONNECTOR_IN_LIST, _F_FMT, _ORIGINMATRO, _ORIGINPATRO, _PREFIX_IN_LIST,
     _PRIMARY_IN_LIST, _SURNAME_IN_LIST, _TYPE_IN_LIST, PAT_AS_SURN,
-    NameDisplay, _make_cmp_key
+    displayer as name_displayer, _make_cmp_key
 )
 
 
@@ -257,10 +257,7 @@ def _raw_single_surname(raw_surn_data_list):
     return result
 
 
-class AbbreviatedNameDisplay(NameDisplay):
-    """
-    A subclass of NameDisplay providing method get_abbreviated_names.
-    """
+class AbbreviatedNameDisplay():
     def get_abbreviated_names(self, name):
         """
         Returns a list of strings with abbreviations of the given name object.
@@ -311,11 +308,14 @@ class AbbreviatedNameDisplay(NameDisplay):
         clean_name_parts = []
         for i in range(len(name_parts)):
             p = name_parts[i]
-            if isinstance(p, str):
+            if isinstance(p, str) and len(p.strip()) == 0:
                 if i == len(name_parts)-1:
+                    # In most formats, the last is ' ' and can be skipped.
+                    # (If it is something else (e.g. ')'), keep it.)
                     continue
-                # only if the next part is no str
-                if len(p.strip()) == 0 and isinstance(name_parts[i+1], str):
+                if isinstance(name_parts[i+1], str) and len(name_parts[i+1].strip()) == 0:
+                    # Sometimes there are 2 consecutive spaces (as two separate parts).
+                    # Skip if the next is also only whitespace.
                     continue
             clean_name_parts.append(p)
 
@@ -356,10 +356,8 @@ class AbbreviatedNameDisplay(NameDisplay):
     def _get_display_name_parts(self, name):
         num = name.display_as
         if num == 0:
-            # FIXME: For some reason NameDisplay appears to return the format num which was default at gramps startup.
-            num = self.get_default_format()
-        # FIXME: self.name_formats may not be the right dict. The format is not correct. Some formats seem to be missing.
-        format_str = self.name_formats[num][_F_FMT]
+            num = name_displayer.get_default_format()
+        format_str = name_displayer.name_formats[num][_F_FMT]
         d = {
             "t": ("('title', title)","title", _("Person|title")),
             "f": ("('given', first, first, call)","given", _("given")), # first two times so one can be abbreviated and second can be checked for call afterwards
@@ -469,7 +467,14 @@ class AbbreviatedNameDisplay(NameDisplay):
             field = d[code.lower()][0]
             field_name = d[code.lower()][1]
             if code.isupper():
-                field += ".upper()"
+                field = ("["
+                    "("
+                        "part[0], "
+                        "'-'.join(''.join(_split_name_prefix(p, True)) for p in part[1].split('-'))"
+                    ") if isinstance(part, tuple) "
+                    "else part.upper() "
+                    f"for part in {field}"
+                "]")
             if field != '':
                 if p != '':
                     res.append(["p", p])
@@ -481,15 +486,17 @@ class AbbreviatedNameDisplay(NameDisplay):
         return res
 
     def _abbrev_one_given(self, name_parts):
-        for i in range(len(name_parts)):
-            if name_parts[i][0] != "given":
+        for i in range(len(name_parts)-1, -1, -1): # loop backwards (e.g. if call is after given, abbreviate call first)
+            if name_parts[i][0] not in ["given", "nick", "call"]:
                 continue
             for abbrev_call in [False, True]:
                 given_names = name_parts[i][1].split()
-                call = name_parts[i][3]
+                is_given = name_parts[i][0] == "given"
+                if is_given:
+                    call = name_parts[i][3]
                 for j in range(len(given_names)-1, -1, -1): # loop backwards
                     given = given_names[j]
-                    if given == call and not abbrev_call:
+                    if not abbrev_call and is_given and given == call:
                         # abbreviate call after others
                         continue
                     # hyphenated given names: one at a time (e.g. Bengt-Arne, Bengt-A., B.-A.)
@@ -505,7 +512,10 @@ class AbbreviatedNameDisplay(NameDisplay):
                         given_parts[k] = given_part[0] + "."
                         given = "-".join(given_parts)
                         given_names[j] = given
-                        name_parts[i] = (name_parts[i][0], " ".join(given_names), name_parts[i][2], name_parts[i][3])
+                        if is_given:
+                            name_parts[i] = (name_parts[i][0], " ".join(given_names), name_parts[i][2], name_parts[i][3])
+                        else:
+                            name_parts[i] = (name_parts[i][0], " ".join(given_names))
                         return name_parts
         return None
 
@@ -533,13 +543,13 @@ class AbbreviatedNameDisplay(NameDisplay):
 
     def _abbrev_one_surname(self, name_parts):
         for i in range(len(name_parts)-1, -1, -1):
-            if name_parts[i][0] != "surname": # NOT primary-surname
+            if name_parts[i][0] not in ["surname", "famnick"]: # NOT primary-surname
                 continue
             surname = name_parts[i][1]
             surname_parts = surname.split("-")
             for j in range(len(surname_parts)-1, -1, -1):
                 surname_part = surname_parts[j]
-                if surname[-1] == ".":
+                if surname_part[-1] == ".":
                     surname_part_without_dot = surname_part[:-1]
                 else:
                     surname_part_without_dot = surname_part
@@ -575,20 +585,24 @@ class AbbreviatedNameDisplay(NameDisplay):
                     return name_parts
         return None
 
-def _split_name_prefix(name):
-    if name.isupper() or name.islower():
-        return ("", name)
+def _split_name_prefix(name, upper_main=False):
+    if len(name) == 0:
+        return ("", "")
+    if (name.isupper() and name.isalpha()) or name.islower():
+        # All upper and all lower should cannot be separated.
+        # isupper() is also true for O'BRIEN which can be separated
+        return ("", name.upper() if upper_main else name)
     upper_indices = [idx for idx in range(len(name)) if name[idx].isupper()]
     if upper_indices[0] == 0:
         if len(upper_indices) == 1:
             # no prefix
-            return ("", name)
+            return ("", name.upper() if upper_main else name)
         idx = upper_indices[1]
     else:
         if len(upper_indices) == 0:
             # this should not be reachable
-            return ("", name)
+            return ("", name.upper() if upper_main else name)
         idx = upper_indices[0]
     prefix = name[:idx]
     name = name[idx:]
-    return (prefix, name)
+    return (prefix, name.upper() if upper_main else name)

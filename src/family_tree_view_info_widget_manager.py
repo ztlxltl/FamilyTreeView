@@ -27,6 +27,7 @@ from gi.repository import Gdk, Gtk, Rsvg
 
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.datehandler import get_date
+from gramps.gen.display.name import displayer as name_displayer
 from gramps.gen.lib import Person
 from gramps.gen.utils.alive import probably_alive
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback, get_divorce_or_fallback
@@ -121,7 +122,7 @@ class FamilyTreeViewInfoWidgetManager:
                 name_type_label = self.create_label_for_grid(f"{_(str(alt_name.get_type()))}:")
                 grid.attach(name_type_label, 0, i_row, 1, 1)
 
-                event_data_label = self.create_label_for_grid(self.ftv.name_display.display_name(alt_name))
+                event_data_label = self.create_label_for_grid(name_displayer.display_name(alt_name))
                 grid.attach(event_data_label, 1, i_row, 1, 1)
 
                 i_row += 1
@@ -193,7 +194,7 @@ class FamilyTreeViewInfoWidgetManager:
                 grid.attach(parent_type_label, 0, i_row, 1, 1)
 
                 if parent is not None:
-                    parent_name_label = self.create_label_for_grid(self.ftv.name_display.display_name(parent.get_primary_name()))
+                    parent_name_label = self.create_label_for_grid(name_displayer.display_name(parent.get_primary_name()))
                     grid.attach(parent_name_label, 1, i_row, 1, 1)
 
                     parent_dates_label = self.create_birth_death_label_for_grid(parent)
@@ -228,7 +229,7 @@ class FamilyTreeViewInfoWidgetManager:
             grid.attach(parent_type_label, 0, i_row, 1, 1)
 
             if parent is not None:
-                parent_name_label = self.create_label_for_grid(self.ftv.name_display.display_name(parent.get_primary_name()))
+                parent_name_label = self.create_label_for_grid(name_displayer.display_name(parent.get_primary_name()))
                 grid.attach(parent_name_label, 1, i_row, 1, 1)
 
                 parent_dates_label = self.create_birth_death_label_for_grid(parent)
@@ -264,7 +265,7 @@ class FamilyTreeViewInfoWidgetManager:
             child_type_label = self.create_label_for_grid(s)
             grid.attach(child_type_label, 0, i_row, 1, 1)
 
-            child_name_label = self.create_label_for_grid(self.ftv.name_display.display_name(child.get_primary_name()))
+            child_name_label = self.create_label_for_grid(name_displayer.display_name(child.get_primary_name()))
             grid.attach(child_name_label, 1, i_row, 1, 1)
 
             child_dates_label = self.create_birth_death_label_for_grid(child)

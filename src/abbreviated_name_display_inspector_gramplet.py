@@ -27,13 +27,9 @@ from abbreviated_name_display import AbbreviatedNameDisplay
 class AbbreviatedNameDisplayInspectorGramplet(Gramplet):
 
     def init(self):
-        self.name_display = AbbreviatedNameDisplay()
-        self.uistate.connect("nameformat-changed", self.nameformat_changed)
+        self.abbrev_name_display = AbbreviatedNameDisplay()
+        self.uistate.connect("nameformat-changed", self.update)
         self.fallback()
-        
-    def nameformat_changed(self):
-        self.name_display = AbbreviatedNameDisplay()
-        self.update()
 
     def db_changed(self):
         self.connect(self.dbstate.db, "person-update", self.update)
@@ -45,11 +41,11 @@ class AbbreviatedNameDisplayInspectorGramplet(Gramplet):
         active_person = self.get_active_object("Person")
         if active_person:
             text = "Primary name:\n"
-            abbr_name_list = self.name_display.get_abbreviated_names(active_person.get_primary_name())
+            abbr_name_list = self.abbrev_name_display.get_abbreviated_names(active_person.get_primary_name())
             text += "\n".join(abbr_name_list)
             for i, name in enumerate(active_person.get_alternate_names()):
-                text += f"\n\nAlterative name {i+1}:\n"
-                abbr_name_list = self.name_display.get_abbreviated_names(name)
+                text += f"\n\nAlternative name {i+1}:\n"
+                abbr_name_list = self.abbrev_name_display.get_abbreviated_names(name)
                 text += "\n".join(abbr_name_list)
             self.gui.set_text(text)
         else:

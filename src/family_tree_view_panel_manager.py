@@ -22,6 +22,7 @@
 from gi.repository import Gtk
 
 from gramps.gen.const import GRAMPS_LOCALE
+from gramps.gen.display.name import displayer as name_displayer
 
 from family_tree_view_info_widget_manager import FamilyTreeViewInfoWidgetManager
 from family_tree_view_timeline import FamilyTreeViewTimeline
@@ -72,7 +73,7 @@ class FamilyTreeViewPanelManager(FamilyTreeViewInfoWidgetManager):
         self.reset_panel()
 
         person = self.ftv.get_person_from_handle(person_handle)
-        name_str = self.ftv.name_display.display_name(person.get_primary_name())
+        name_str = name_displayer.display_name(person.get_primary_name())
 
         overview_section = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         overview_section.set_spacing(self.spacing)

@@ -21,6 +21,8 @@
 
 from gi.repository import Gdk, GLib, Gtk
 
+from gramps.gen.display.name import displayer as name_displayer
+
 from family_tree_view_info_widget_manager import FamilyTreeViewInfoWidgetManager
 
 
@@ -52,7 +54,7 @@ class FamilyTreeViewInfoBoxManager(FamilyTreeViewInfoWidgetManager):
         self.close_info_box()
 
         person = self.ftv.get_person_from_handle(person_handle)
-        name_str = self.ftv.name_display.display_name(person.get_primary_name())
+        name_str = name_displayer.display_name(person.get_primary_name())
 
         self.info_box_widget = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.info_box_widget.set_spacing(self.spacing)

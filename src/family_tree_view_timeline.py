@@ -26,6 +26,7 @@ from gi.repository import GLib, Gtk, Pango
 from gramps.gen.config import config
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.datehandler import get_date
+from gramps.gen.display.name import displayer as name_displayer
 from gramps.gen.lib.eventroletype import EventRoleType
 from gramps.gen.lib.date import Date
 from gramps.gen.lib.family import Family
@@ -354,7 +355,7 @@ class FamilyTreeViewTimeline:
                     elif rel[-1].get_gender() == Person.MALE:
                         relationship_type = "husband"
                 if isinstance(rel[-1], Person):
-                    relative_name = self.ftv.name_display.display_name(rel[-1].get_primary_name())
+                    relative_name = name_displayer.display_name(rel[-1].get_primary_name())
                     markup = f"{event_age_str}{event_type} of {relationship_type} <b>{relative_name}</b>:\n{event_date_str}{event_place_str}"
                 else:
                     markup = f"{event_age_str}{event_type} of <b>{relationship_type}</b>:\n{event_date_str}{event_place_str}"
