@@ -120,7 +120,7 @@ class FamilyTreeView(NavigationView):
         self.uistate = uistate
         self.nav_group = nav_group
         self.dbstate.connect("database-changed", self._cb_db_changed)
-        self.uistate.connect("nameformat-changed", self.close_info_and_rebuild)
+        self.uistate.connect("nameformat-changed", self._cb_nameformat_changed)
 
         self.additional_uis.append(self.ADDITIONAL_UI)
 
@@ -165,6 +165,10 @@ class FamilyTreeView(NavigationView):
 
     def _cb_db_changed(self, db):
         self._change_db(db)
+        self.close_info_and_rebuild()
+
+    def _cb_nameformat_changed(self):
+        self.name_display = AbbreviatedNameDisplay()
         self.close_info_and_rebuild()
 
     def build_widget(self):
