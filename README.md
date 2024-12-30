@@ -23,7 +23,7 @@ This repository includes the following addons, which are registered individually
 - AbbreviatedNameDisplay Inspector Gramplet, lists the abbreviations of the names of the active person (audience=DEVELOPER)
 
 ## Installation
-FamilyTreeView uses GooCanvas to draw the tree. If you are using Gramps' Graph View, all requirements are satisfied already. (In contrast to Graph View, FamilyTreeView doesn't require Graphviz.)
+FamilyTreeView uses `GooCanvas` to draw the tree. If you are using Gramps' Graph View, this requirement is already satisfied. (In contrast to Graph View, FamilyTreeView doesn't require Graphviz.) In addition, FamilyTreeView needs `Rsvg` which needs to be installed on some Linux systems.
 
 There are two options for adding FamilyTreeView to Gramps. The first lets Gramps know about the provided prebuilds. The second downloads the source code to the right location for Gramps to find. If you have problems with the first option, you can always use the robust alternative of downloading the source code. 
 
@@ -48,11 +48,11 @@ If you have problems, you can always use the robust alternative of downloading t
     - Linux / MacoOS (built) / other POSIX: `~/.gramps` (e.g. `/home/<username>/.gramps`)
     - Windows: `%AppData%\gramps` (e.g. `C:\Users\<username>\AppData\Roaming\gramps`)
     - MacOS Application Package: `/Users/<username>/Library/Application Support/gramps`
-2. Go to the subdirectory `gramps52/plugins`, e.g. `~/.gramps/gramps52`.
-3. Clone or download the repository to this subdirectory, e.g. `~/.gramps/gramps52/FamilyTreeView` or `C:\Users\<username>\AppData\Roaming\gramps\gramps52\FamilyTreeView`. To do this, click on the green "Code" button on FamilyTreeView's repository on Github and 
+2. Go to the subdirectory `gramps52/plugins`, e.g. `~/.gramps/gramps52/plugins`.
+3. Clone or download the repository to this subdirectory, e.g. `~/.gramps/gramps52/plugins/FamilyTreeView` or `C:\Users\<username>\AppData\Roaming\gramps\gramps52\plugins\FamilyTreeView`. To do this, click on the green "Code" button on FamilyTreeView's repository on Github and 
     - copy the URL to clone it (I assume you know how to do this if you choose to clone it.)\
       or 
-    - click "Download ZIP" to download a ZIP of the source code directly. After the download finished, extract the ZIP file in the subdirectory mentioned above. You can check to make sure that this README.md is in the correct location: e.g. `~/.gramps/gramps52/FamilyTreeView/README.md` or `C:\Users\<username>\AppData\Roaming\gramps\gramps52\FamilyTreeView\README.md`
+    - click "Download ZIP" to download a ZIP of the source code directly. After the download finished, extract the ZIP file in the subdirectory mentioned above. You can check to make sure that this README.md is in the correct location: e.g. `~/.gramps/gramps52/plugins/FamilyTreeView/README.md` or `C:\Users\<username>\AppData\Roaming\gramps\gramps52\plugins\FamilyTreeView\README.md`
 
 ## TODOs, ideas & known issues
 
@@ -60,7 +60,6 @@ If you have feedback or bug reports that are not listed below or tracked by a Gi
 
 - tree:
   - move siblings closer together if positioning of their descendants allow it
-  - reduce large generation gaps for generation ~7+ if they are not needed for connecting lines
   - expanders (expand more ancestors / descendants / relatives of a specific person / family)
     - expand ancestor of a person (which are not visible due to selected maximum generation)
     - expand descendants of a family (which are not visible due to selected minimum generation)
@@ -80,7 +79,7 @@ If you have feedback or bug reports that are not listed below or tracked by a Gi
   - if birth is uncertain, no range
   - option to hide large gaps in timeline (x years removed)
   - better ui design of panel
-- adaptive canvas size based on content and padding based on zoom and ScrolledWindow's size
+- adaptive canvas padding based on zoom and ScrolledWindow's size
 - more customization options
 - hight of info box should adjust to content
 - find a good way to include a search bar (e.g. SearchWidget from graph view), add zoom buttons
