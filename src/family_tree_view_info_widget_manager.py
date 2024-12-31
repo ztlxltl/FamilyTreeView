@@ -295,7 +295,7 @@ class FamilyTreeViewInfoWidgetManager:
         buttons.pack_start(set_active_button, False, False, 0)
 
         if panel_button:
-            open_panel_button = self.create_button("Open panel", char="\u25e8") # Square with right half black
+            open_panel_button = self.create_button("Open panel", icon="sidebar-show-right")
             open_panel_button.connect("clicked", lambda*_: self.widget_manager.panel_manager.open_person_panel(person_handle))
             buttons.pack_start(open_panel_button, False, False, 0)
 
@@ -320,7 +320,7 @@ class FamilyTreeViewInfoWidgetManager:
             buttons.pack_start(set_active_button, False, False, 0)
 
         if panel_button:
-            open_panel_button = self.create_button("Open panel", char="\u25e8") # Square with Right Half Black
+            open_panel_button = self.create_button("Open panel", icon="sidebar-show-right")
             open_panel_button.connect("clicked", lambda*_: self.widget_manager.panel_manager.open_family_panel(family_handle))
             buttons.pack_start(open_panel_button, False, False, 0)
 
