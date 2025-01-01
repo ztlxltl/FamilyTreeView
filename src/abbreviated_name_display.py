@@ -295,29 +295,25 @@ class AbbreviatedNameDisplay():
         abbrev_name_list.append(full_name)
         self.step_description.append("full name\n")
 
-        # abbreviate given names
-        while True:
-            if not self._abbrev_one_given(name_parts):
-                break
-            abbrev_name_list.append(self._name_from_parts(name_parts))
-
-        # abbreviate prefixes and connectors
-        while True:
-            if not self._abbrev_one_prefix_or_connector(name_parts):
-                break
-            abbrev_name_list.append(self._name_from_parts(name_parts))
-
-        # abbreviate surnames
-        while True:
-            if not self._abbrev_one_surname(name_parts):
-                break
-            abbrev_name_list.append(self._name_from_parts(name_parts))
-
-        # remove given names
-        while True:
-            if not self._remove_one_given(name_parts):
-                break
-            abbrev_name_list.append(self._name_from_parts(name_parts))
+        abbrev_rules = [
+            ("abbrev", ["given[ncnf]", "nick", "given0", "call"], True),
+            ("abbrev", ["given"], True),
+            ("abbrev", ["prefix", "connector", "primary-connector"], True),
+            ("abbrev", ["primary-prefix"], True),
+            ("abbrev", ["surname", "famnick"], True),
+            ("remove", ["given[ncnf]"], True),
+            ("remove", ["prefix", "connector"], True),
+            ("remove", ["title", "suffix"], True),
+            ("remove", ["primary-prefix", "primary-connector"], True),
+            ("remove", ["surname", "famnick"], True),
+            ("abbrev", ["primary-surname"], True),
+            ("remove", ["given", "nick", "given0", "call"], True),
+        ]
+        for action, name_part_types, reverse in abbrev_rules:
+            while True:
+                if not self._apply_rule_once(name_parts, action, name_part_types, reverse):
+                    break
+                abbrev_name_list.append(self._name_from_parts(name_parts))
 
         step_description = self.step_description
         self.step_description = None
@@ -445,7 +441,7 @@ class AbbreviatedNameDisplay():
                 res.append(format_str[last_mat_end:mat.start()])
             match_pattern = mat.group(0)
             p, code, s = re.split("%(.)", match_pattern)
-            if code in '0123456789':
+            if code in "0123456789":
                 code = code + s[0]
                 s = s[1:]
             field = d[code.lower()][0]
@@ -453,11 +449,14 @@ class AbbreviatedNameDisplay():
             if code.isupper():
                 field = ("["
                     "("
-                        "part[0], "
-                        "'-'.join(''.join(_split_name_prefix(p, True)) for p in part[1].split('-'))"
+                        "part[0].upper(), "
+                        "*part[1:]"
                     ") if isinstance(part, tuple) "
-                    "else part.upper() "
-                    f"for part in {field}"
+                    "else part.upper() " # This should only be a space or an empty string.
+                    # There should only be strings (e.g. spaces) and list of tuples
+                    # (list of tuples: 'surname', tuple which needs to be converted: 'given').
+                    # A lambda is used so field doesn't have to be evaluated multiple times (e.g. if it's a function).
+                    f"for part in (lambda x: [x] if isinstance(x, tuple) else x)({field})"
                 "]")
             res.append((field_name, p, field, s))
             last_mat_end = mat.end()
@@ -475,7 +474,23 @@ class AbbreviatedNameDisplay():
                     if isinstance(sub_part, str):
                         part_str += sub_part
                     else:
-                        part_str += sub_part[1]
+                        if sub_part[0].isupper():
+                            prefix_possible = sub_part[0].lower() in ["surname", "primary-surname", "famnick"]
+                            part_str += " ".join(
+                                "-".join(
+                                    "".join(_upper(
+                                        _split_name_at_capital_letter(
+                                            hysep_part,
+                                            expect_prefix=prefix_possible
+                                        ),
+                                        all_but_first=prefix_possible
+                                    ))
+                                    for hysep_part in spsep_part.split("-")
+                                )
+                                for spsep_part in sub_part[1].split()
+                            )
+                        else:
+                            part_str += sub_part[1]
                 if part_str.strip() != "":
                     # This is equivalent to ifNotEmpty in NameDisplay.
                     part_str = name_part[1] + part_str + name_part[3]
@@ -485,159 +500,178 @@ class AbbreviatedNameDisplay():
 
         return clean_name_str
 
-    def _abbrev_one_given(self, name_parts):
-        for i, ii in self._iter_name_parts(name_parts):
-            if name_parts[i][2][ii][0] not in ["given", "nick", "given0", "call"]:
-                continue
-            is_given = name_parts[i][2][ii][0] == "given"
-            for abbrev_call in [False, True] if is_given else [None]:
-                given_names = name_parts[i][2][ii][1].split()
-                if is_given:
+    def _apply_rule_once(self, name_parts, action, name_part_types, reverse):
+        if reverse:
+            reversed_ = reversed
+        else:
+            reversed_ = lambda x: x
+
+        for i, ii in self._iter_name_parts(name_parts, reverse):
+            name_part_type = name_parts[i][2][ii][0].lower()
+            if name_part_type not in name_part_types:
+                if name_part_type == "given" and "given[ncnf]" in name_part_types:
+                    name_part_type_opts = "ncnf"
                     call = name_parts[i][2][ii][3]
-                for j in range(len(given_names)-1, -1, -1): # loop backwards
-                    given = given_names[j]
-                    if is_given and not abbrev_call and given == call:
-                        # abbreviate call after others
+                else:
+                    continue
+            else:
+                name_part_type_opts = ""
+            is_given = name_part_type == "given" # special handling for 'given'
+            spsep_parts = name_parts[i][2][ii][1].split()
+            for j in reversed_(range(len(spsep_parts))):
+                spsep_part = spsep_parts[j]
+                if is_given:
+                    # Check full (non-abbreviated) to check for actual call name.
+                    spsep_parts_given_full = name_parts[i][2][ii][2].split()
+                    if name_part_type_opts == "ncnf" and spsep_parts_given_full[j] == call:
+                        # NOTE: Don't check for first since first can be hyphenated or a compound name without a separator.
+                        # Skip call name.
                         continue
-                    # hyphenated given names: one at a time (e.g. Bengt-Arne, Bengt-A., B.-A.)
-                    given_parts = given.split("-")
-                    for k in range(len(given_parts)-1, -1, -1): # loop backwards
-                        given_part = given_parts[k]
-                        if not (given_part[:-1] if given_part[-1] == "." else given_part).isalpha():
-                            # ignore everything that's not a name or abbreviated name
+                hysep_parts = spsep_part.split("-")
+                for k in reversed_(range(len(hysep_parts))):
+                    hysep_part = hysep_parts[k]
+                    if is_given:
+                        # Check full (non-abbreviated) to check for actual call name.
+                        hysep_parts_given_full = spsep_parts_given_full[j].split("-")
+                        if name_part_type_opts == "ncnf" and hysep_parts_given_full[k] == call:
+                            # NOTE: Don't check for first since first can be a compound name without a separator.
+                            # Skip call name.
                             continue
-                        if len(given_part) == 1 or (len(given_part) == 2 and given_part[1] == "."):
-                            # can't abbreviate a one-letter name or an abbreviated name
-                            continue
-                        given_parts[k] = given_part[0] + "."
-                        given = "-".join(given_parts)
-                        given_names[j] = given
+                    if name_part_type in ["surname", "primary-surname", "famnick"]:
+                        prefix, *upsep_parts_without_prefix = _split_name_at_capital_letter(hysep_part)
+                    else:
+                        # Only surnames have prefixes that need to be handled specially.
+                        upsep_parts_without_prefix = _split_name_at_capital_letter(hysep_part, expect_prefix=False)
+                        prefix = ""
+                    for l in reversed_(range(len(upsep_parts_without_prefix))):
+                        upsep_part_without_prefix = upsep_parts_without_prefix[l]
                         if is_given:
-                            name_parts[i][2][ii] = (name_parts[i][2][ii][0], " ".join(given_names), name_parts[i][2][ii][2], name_parts[i][2][ii][3])
+                            # Check full (non-abbreviated) to check for actual call name.
+                            # Only surnames have prefixes that need to be handled specially.
+                            upsep_parts_given_full = _split_name_at_capital_letter(hysep_parts_given_full[k], expect_prefix=False)
+                            if name_part_type_opts == "ncnf" and (
+                                upsep_parts_given_full[l] == call # call name
+                                or (call == "" and j == 0 and k == 0 and l == 0) # no call and this is first
+                            ):
+                                # Skip call name and first name.
+                                continue
+                        if action == "abbrev":
+                            if not upsep_part_without_prefix.isalpha():
+                                # Ignore everything that's not a name or abbreviated name.
+                                # TODO What about names with question marks etc.
+                                continue
+                            if (len(upsep_part_without_prefix) == 1):
+                                # Can't abbreviate a one-letter name part or an abbreviated name.
+                                continue
+                            # Actual abbreviation:
+                            upsep_parts_without_prefix[l] = upsep_part_without_prefix[0] + "."
+                            hysep_parts[k] =  prefix + "".join(upsep_parts_without_prefix)
+                            spsep_parts[j] = "-".join(hysep_parts)
+                            if is_given:
+                                name_parts[i][2][ii] = (name_parts[i][2][ii][0], " ".join(spsep_parts), name_parts[i][2][ii][2], name_parts[i][2][ii][3])
+                            else:
+                                name_parts[i][2][ii] = (name_parts[i][2][ii][0], " ".join(spsep_parts))
+                        elif action == "remove":
+                            upsep_parts_without_prefix.pop(l)
+                            hysep_parts[k] = "".join(upsep_parts_without_prefix)
+                            if len(hysep_parts[k]) == 0:
+                                hysep_parts.pop(k)
+                            spsep_parts[j] = "-".join(hysep_parts)
+                            if len(spsep_parts[j]) == 0:
+                                spsep_parts.pop(j)
+                            if is_given:
+                                upsep_parts_given_full.pop(l)
+                                hysep_parts_given_full[k] = "".join(upsep_parts_given_full)
+                                if len(hysep_parts_given_full[k]) == 0:
+                                    hysep_parts_given_full.pop(k)
+                                spsep_parts_given_full[j] = "-".join(hysep_parts_given_full)
+                                if len(spsep_parts_given_full[j]) == 0:
+                                    spsep_parts_given_full.pop(j)
+                                name_parts[i][2][ii] = (name_parts[i][2][ii][0], " ".join(spsep_parts).strip(), " ".join(spsep_parts_given_full).strip(), name_parts[i][2][ii][3])
+                            else:
+                                name_parts[i][2][ii] = (name_parts[i][2][ii][0], " ".join(spsep_parts))
+
+                        if action == "abbrev":
+                            action_str = "abbreviate"
+                            extra_str = "non-abbreviated "
+                        elif action == "remove":
+                            action_str = "remove"
+                            extra_str = ""
+                        if reverse:
+                            last_or_first = "last"
                         else:
-                            name_parts[i][2][ii] = (name_parts[i][2][ii][0], " ".join(given_names))
-                        if abbrev_call is not None:
-                            call_str = " (call)" if abbrev_call else " (non-call)"
+                            last_or_first = "first"
+                        if len(name_part_types) == 1:
+                            name_part_types_str = (
+                                repr("given") + " (non-call or non-first)"
+                                if name_part_types[0] == "given[ncnf]"
+                                else repr(name_part_types[0])
+                            )
                         else:
-                            call_str = ""
+                            name_part_types_str = (
+                                ", ".join(
+                                    repr("given") + " (non-call or non-first)"
+                                    if p == "given[ncnf]"
+                                    else repr(p)
+                                    for p in name_part_types[:-1]
+                                )
+                                + " or " + repr(name_part_types[-1]))
                         self.step_description.append(
-                            f"abbreviate last non-abbreviated 'given'{call_str}, 'nick', 'given0' or 'call'\n"
-                            f"  ({i}, {repr(name_parts[i][0])}, {ii}, {repr(name_parts[i][2][ii][0])}, given {j+1}, part {k+1})"
+                            f"{action_str} {last_or_first} {extra_str}{name_part_types_str}\n"
+                            f"  ({i}, {repr(name_parts[i][0])}, {ii}, {repr(name_parts[i][2][ii][0])}, space-separated part {j+1}, hyphen-separated part {k+1}, uppercase-separated part {l+1})"
                         )
                         return True
         return False
 
-    def _abbrev_one_prefix_or_connector(self, name_parts):
-        # 'prefix', 'connector' and 'primary-connector' have the same "hierarchy level".
-        # 'primary-prefix' is the last to be abbreviated.
-        for name_part_types in [["prefix", "connector", "primary-connector"], ["primary-prefix"]]:
-            for i, ii in self._iter_name_parts(name_parts):
-                if name_parts[i][2][ii][0] not in name_part_types:
-                    continue
-                prefixes = name_parts[i][2][ii][1].split() # multiple prefixes: e.g. "van den"
-                for j in range(len(prefixes)-1, -1, -1): # loop backwards
-                    prefix = prefixes[j]
-                    if not (prefix[:-1] if prefix[-1] == "." else prefix).isalpha():
-                        # ignore everything that's not a name or abbreviated name
-                        continue
-                    if len(prefix) == 1 or (len(prefix) == 2 and prefix[1] == "."):
-                        # can't abbreviate one-letter prefix or an abbreviated prefix
-                        continue
-                    prefix = prefix[0] + "."
-                    prefixes[j] = prefix
-                    name_parts[i][2][ii] = (name_parts[i][2][ii][0], " ".join(prefixes))
-                    if len(name_part_types) == 1:
-                        name_part_types_str = repr(name_part_types[0])
-                    else:
-                        name_part_types_str = ", ".join(repr(p) for p in name_part_types[:-1]) + " or " + repr(name_part_types[-1])
-                    self.step_description.append(
-                        f"abbreviate last non-abbreviated {name_part_types_str}\n"
-                        f"  ({i}, {repr(name_parts[i][0])}, {ii}, {repr(name_parts[i][2][ii][0])}, prefix {j+1})"
-                    )
-                    return True
-        return False
-
-    def _abbrev_one_surname(self, name_parts):
-        for i, ii in self._iter_name_parts(name_parts):
-            if name_parts[i][2][ii][0] not in ["surname", "famnick"]: # NOT primary-surname
-                continue
-            surname = name_parts[i][2][ii][1]
-            surname_parts = surname.split("-")
-            for j in range(len(surname_parts)-1, -1, -1):
-                surname_part = surname_parts[j]
-                if surname_part[-1] == ".":
-                    surname_part_without_dot = surname_part[:-1]
-                else:
-                    surname_part_without_dot = surname_part
-                prefix, surname_part_without_prefix_and_dot = _split_name_prefix(surname_part_without_dot)
-                if not surname_part_without_prefix_and_dot.isalpha():
-                    # ignore everything that's not a name or an abbreviated name
-                    continue
-                if len(surname_part) == 1 or (surname_part[-1] == "." and (len(surname_part) == 2 or surname_part[:-2] == prefix)):
-                    # one-letter name or abbreviated name (one letter or prefix with one letter of abbreviated main part)
-                    continue
-                abbrev_surname_part = prefix + surname_part_without_prefix_and_dot[0] + "."
-                surname_parts[j] = abbrev_surname_part
-                abbrev_surname = "-".join(surname_parts)
-                name_parts[i][2][ii] = (name_parts[i][2][ii][0], abbrev_surname)
-                self.step_description.append(
-                    f"abbreviate last non-abbreviated 'surname' (non-primary) or 'famnick'\n"
-                    f"  ({i}, {repr(name_parts[i][0])}, {ii}, {repr(name_parts[i][2][ii][0])}, part {j+1})"
-                )
-                return True
-        return False
-
-    def _remove_one_given(self, name_parts):
-        for i, ii in self._iter_name_parts(name_parts):
-            if name_parts[i][2][ii][0] == "given":
-                given_names = name_parts[i][2][ii][1].split()
-                given_names_full = name_parts[i][2][ii][2].split()
-                call_or_first_given = name_parts[i][2][ii][3] or given_names_full[0]
-                for j in range(len(given_names)-1, -1, -1): # loop backwards
-                    given_orig = given_names_full[j]
-                    if given_orig == call_or_first_given:
-                        # don't remove abbreviated call or first given
-                        continue
-                    given_names[j] = ""
-                    given_names_full[j] = ""
-                    name_parts[i][2][ii] = (name_parts[i][2][ii][0], " ".join(given_names).strip(), " ".join(given_names_full).strip(), name_parts[i][2][ii][3])
-                    self.step_description.append(
-                        f"remove last 'given' (non-call or non-first)\n"
-                        f"  ({i}, {repr(name_parts[i][0])}, {ii}, {repr(name_parts[i][2][ii][0])}, given {j+1})"
-                    )
-                    return True
-        return False
-
-    def _iter_name_parts(self, name_parts):
+    def _iter_name_parts(self, name_parts, reverse=True):
         """Loop backwards ofer non-str items of name_parts.
         Yields i, ii for all useful name_parts[i][2][ii]
         """
-        for i in range(len(name_parts)-1, -1, -1):
+        if reverse:
+            reversed_ = reversed
+        else:
+            reversed_ = lambda x: x
+        for i in reversed_(range(len(name_parts))):
             if isinstance(name_parts[i], str):
                 continue
-            for ii in range(len(name_parts[i][2])-1, -1, -1):
+            for ii in reversed_(range(len(name_parts[i][2]))):
                 if isinstance(name_parts[i][2][ii], str):
                     continue
                 yield i, ii
 
-def _split_name_prefix(name, upper_main=False):
+def _split_name_at_capital_letter(name, expect_prefix=True):
+    """splits names at capital letter
+    "Abc" -> ("", "Abc") if handle_prefix else ("Abc",)
+    "AbcDef" -> ("Abc", "Def")
+    "O'Def" -> ("O'", "Def")
+    "AbcDefGhi" -> ("Abc", "Def", "Ghi")
+    """
     if len(name) == 0:
-        return ("", "")
-    if (name.isupper() and name.isalpha()) or name.islower():
-        # All upper and all lower should cannot be separated.
-        # isupper() is also true for O'BRIEN which can be separated
-        return ("", name.upper() if upper_main else name)
+        return ["", ""] if expect_prefix else [""]
+    if name.isupper() or name.islower() or all(not ch.isalpha() for ch in name):
+        # All upper, all lower and all special characters cannot be separated.
+        return ["", name] if expect_prefix else [name]
     upper_indices = [idx for idx in range(len(name)) if name[idx].isupper()]
+    if len(upper_indices) == 0:
+        return ["", name] if expect_prefix else [name]
     if upper_indices[0] == 0:
         if len(upper_indices) == 1:
             # no prefix
-            return ("", name.upper() if upper_main else name)
+            return ["", name] if expect_prefix else [name]
         idx = upper_indices[1]
     else:
         if len(upper_indices) == 0:
             # this should not be reachable
-            return ("", name.upper() if upper_main else name)
+            return ["", name] if expect_prefix else [name]
         idx = upper_indices[0]
     prefix = name[:idx]
-    name = name[idx:]
-    return (prefix, name.upper() if upper_main else name)
+    names = _split_name_at_capital_letter(name[idx:], expect_prefix=False)
+    if not expect_prefix and prefix == "":
+        return names
+    return [prefix, *names]
+
+def _upper(names, all_but_first=True):
+    if all_but_first:
+        return [names[0], *(name.upper() for name in names[1:])]
+    else:
+        return [name.upper() for name in names]
