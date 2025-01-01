@@ -32,5 +32,4 @@ register(GENERAL,
     authors_email = ["ztlxltl@gmx.net"],
     # depends_on = ["familytreeview"],
     load_on_reg = True,
-    process = "register_badges"
 )

@@ -243,10 +243,11 @@ class NumOtherFamiliesBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
 
 
 def load_on_reg(dbstate, uistate, addon):
-    return (dbstate, uistate, addon)
+    # load_on_reg can needs to return one or more functions.
+    # Each will be calles with two args: dbstate, uistate
+    return register_badges
 
-def register_badges(args):
-    dbstate, uistate, addon = args
+def register_badges(dbstate, uistate):
     NumCitationsBadgeRegisterer(dbstate, uistate).register_badges()
     NumEventsWithoutCitationsBadgeRegisterer(dbstate, uistate).register_badges()
     NumChildrenBadgeRegisterer(dbstate, uistate).register_badges()

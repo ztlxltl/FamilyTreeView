@@ -148,7 +148,9 @@ class FamilyTreeView(NavigationView):
 
         # let all badge addons register their badges
         pluginManager = GuiPluginManager.get_instance()
-        pluginManager.process_plugin_data("family_tree_view_badge_addon")
+        data = pluginManager.get_plugin_data("family_tree_view_badge_addon")
+        for fcn in data:
+            fcn(self.dbstate, self.uistate)
         self.addons_registered_badges = True
 
     def config_connect(self):

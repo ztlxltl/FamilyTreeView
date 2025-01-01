@@ -87,8 +87,8 @@ class FamilyTreeViewBadgeManager:
             if badge[0] in config_badge_active: # default to active
                 if not config_badge_active[badge[0]][key]:
                     continue
-                elif badge[i] is None:
-                    continue
+            if badge[i] is None:
+                continue
             badge_callbacks.append(badge[i])
 
         badges = []
