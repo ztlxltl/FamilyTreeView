@@ -27,8 +27,9 @@ from gramps.gen.config import config
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.datehandler import get_date
 from gramps.gen.display.name import displayer as name_displayer
-from gramps.gen.lib.eventroletype import EventRoleType
 from gramps.gen.lib.date import Date
+from gramps.gen.lib.eventroletype import EventRoleType
+from gramps.gen.lib.eventtype import EventType
 from gramps.gen.lib.family import Family
 from gramps.gen.lib.person import Person
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback, get_divorce_or_fallback
@@ -294,6 +295,9 @@ class FamilyTreeViewTimeline:
 
         timeline_label_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
+        event_types_show_description = self.ftv._config.get("appearance.familytreeview-timeline-event-types-show-description")
+        event_types_visible = self.ftv._config.get("appearance.familytreeview-timeline-event-types-visible")
+
         calendar = config.get("preferences.calendar-format-report")
         short_age = self.ftv._config.get("appearance.familytreeview-timeline-short-age")
         if not short_age:
@@ -303,6 +307,16 @@ class FamilyTreeViewTimeline:
         for i, (rel_type, rel, event, ref) in enumerate(event_and_ref_list):
             if event is None:
                 continue
+            event_name = EventType._I2EMAP[int(event.type)]
+            if event_name in event_types_visible and not event_types_visible[event_name]:
+                continue
+            if event_name in event_types_show_description and event_types_show_description[event_name]:
+                description = event.get_description() # if there is no description: ""
+            else:
+                description = ""
+            if len(description) > 0:
+                description = " " + description
+
             event_age_str = ""
             if self.start_event is not None:
                 if short_age:
@@ -326,7 +340,7 @@ class FamilyTreeViewTimeline:
                 event_place_str = ",\n" + event_place_str
 
             if rel_type is None: # primary event
-                markup = f"{event_age_str}<b>{event_type}</b>:\n{event_date_str}{event_place_str}"
+                markup = f"{event_age_str}<b>{event_type}</b>{description}:\n{event_date_str}{event_place_str}"
                 class_name = "ftv-timeline-event-own"
             else:
                 # We could also use find_backlink_handles,
@@ -356,9 +370,9 @@ class FamilyTreeViewTimeline:
                         relationship_type = "husband"
                 if isinstance(rel[-1], Person):
                     relative_name = name_displayer.display_name(rel[-1].get_primary_name())
-                    markup = f"{event_age_str}{event_type} of {relationship_type} <b>{relative_name}</b>:\n{event_date_str}{event_place_str}"
+                    markup = f"{event_age_str}{event_type} of {relationship_type} <b>{relative_name}</b>{description}:\n{event_date_str}{event_place_str}"
                 else:
-                    markup = f"{event_age_str}{event_type} of <b>{relationship_type}</b>:\n{event_date_str}{event_place_str}"
+                    markup = f"{event_age_str}{event_type} of <b>{relationship_type}</b>{description}:\n{event_date_str}{event_place_str}"
                 class_name = "ftv-timeline-event-relatives"
             event_label = Gtk.Label()
             event_label.set_markup(markup)

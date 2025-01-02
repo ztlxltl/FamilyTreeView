@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 from gi.repository import Gtk
 
 from gramps.gen.const import GRAMPS_LOCALE
+from gramps.gen.lib.eventtype import EventType
 
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
@@ -38,6 +39,10 @@ class FamilyTreeViewConfigProvider:
 
     @staticmethod
     def get_config_settings():
+        default_event_types_show_description = [
+            EventType.RELIGION,
+            EventType.OCCUPATION,
+        ]
         return (
             ("appearance.familytreeview-num-ancestor-generations-default", 2),
             ("appearance.familytreeview-num-descendant-generations-default", 2),
@@ -46,6 +51,14 @@ class FamilyTreeViewConfigProvider:
             ("appearance.familytreeview-timeline-mode-default-person", 3),
             ("appearance.familytreeview-timeline-mode-default-family", 3),
             ("appearance.familytreeview-timeline-short-age", True),
+            ("appearance.familytreeview-timeline-event-types-visible", {
+                event_name: True
+                for i, event_str, event_name in EventType._DATAMAP
+            }),
+            ("appearance.familytreeview-timeline-event-types-show-description", {
+                event_name: i in default_event_types_show_description
+                for i, event_str, event_name in EventType._DATAMAP
+            }),
 
             ("interaction.familytreeview-person-single-click-action", 1),
             ("interaction.familytreeview-person-double-click-action", 3),
@@ -162,6 +175,98 @@ class FamilyTreeViewConfigProvider:
             "appearance.familytreeview-timeline-short-age",
             stop=3 # same width as spinners and combos
         )
+
+        row += 1
+        label = configdialog.add_text(
+            grid,
+            _("Select which event types should be visible in the timeline and for which to show the description for:"),
+            row, stop=3
+        )
+        label.set_xalign(0)
+        label.set_margin_top(20)
+
+        row += 1
+        config_event_types_visible = self.ftv._config.get("appearance.familytreeview-timeline-event-types-visible")
+        config_event_types_show_description = self.ftv._config.get("appearance.familytreeview-timeline-event-types-show-description")
+
+        event_type_liststore = Gtk.TreeStore(str, str, bool, bool, bool, str)
+        for group, events in EventType._MENU:
+            treeiter = event_type_liststore.append(None, [
+                group,
+                _(group),
+                False, # no checkboxes
+                False, # placeholder
+                False, # placeholder
+                "" # empty column
+            ])
+            for event_i in events:
+                event_str = EventType._I2SMAP[event_i]
+                event_name = EventType._I2EMAP[event_i]
+                event_type_visible = config_event_types_visible.get(event_name, True) # default: visible
+                event_type_show_description = config_event_types_show_description.get(event_name, False) # default: no description
+                event_type_liststore.append(treeiter, [
+                    event_name,
+                    event_str,
+                    True, # visible checkboxes
+                    event_type_visible,
+                    event_type_show_description,
+                    "" # empty column
+                ])
+
+        event_type_list_view = Gtk.TreeView(model=event_type_liststore)
+
+        # name column
+        renderer = Gtk.CellRendererText()
+        column = Gtk.TreeViewColumn("Name", renderer, text=1)
+        event_type_list_view.append_column(column)
+
+        def _cb_event_type_toggled(widget, path, i, config_name, default):
+            event_type_liststore[path][i] = not event_type_liststore[path][i]
+            config_val = self.ftv._config.get(config_name)
+            event_name = event_type_liststore[path][0]
+            if event_name not in config_val:
+                config_val[event_name] = default
+            config_val[event_name] = event_type_liststore[path][i]
+            self.ftv._config.set(config_name, config_val)
+
+            # cb_update_config connected doesn't work, even when using a shallow or deep copy.
+            # Update explicitly:
+            self.ftv.cb_update_config(None, None, None, None)
+
+        # visible column
+        renderer = Gtk.CellRendererToggle()
+        renderer.connect("toggled", _cb_event_type_toggled, 3, "appearance.familytreeview-timeline-event-types-visible", True)
+        column = Gtk.TreeViewColumn("Visible", renderer, active=3, visible=2)
+        event_type_list_view.append_column(column)
+
+        # show description column
+        renderer = Gtk.CellRendererToggle()
+        renderer.connect("toggled", _cb_event_type_toggled, 4, "appearance.familytreeview-timeline-event-types-show-description", False)
+        column = Gtk.TreeViewColumn("Show description", renderer, active=4, visible=2)
+        event_type_list_view.append_column(column)
+
+        # empty column to fill the remaining space
+        renderer = Gtk.CellRendererText()
+        column = Gtk.TreeViewColumn("", renderer, text=5)
+        event_type_list_view.append_column(column)
+
+        scrolled_window = Gtk.ScrolledWindow()
+        scrolled_window.set_hexpand(True)
+        scrolled_window.set_vexpand(True)
+        scrolled_window.add(event_type_list_view)
+        grid.attach(scrolled_window, 1, row, 2, 1)
+
+        row += 1
+        label = configdialog.add_text(
+            grid,
+            _(
+                "In order for an event to appear on the timeline, it must have a valid date, "
+                "the selected timeline mode must allow it to be displayed, "
+                "and it's type must be checked in the Visible column above."
+            ),
+            row, stop=3
+        )
+        label.set_xalign(0)
 
         return (_("Appearance"), grid)
 
