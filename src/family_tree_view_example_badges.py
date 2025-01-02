@@ -33,19 +33,18 @@ _ = GRAMPS_LOCALE.translation.gettext
 
 class NumCitationsBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
     def register_badges(self):
-        if self.badge_manager is not None:
-            self.badge_manager.register_badges_callbacks(
-                "num_citations", "Number of citations",
-                self.cb_create_person_badges, self.cb_create_family_badges
-            )
+        self.badge_manager.register_badges_callbacks(
+            "num_citations", "Number of citations",
+            self.cb_create_person_badges, self.cb_create_family_badges
+        )
 
-    def cb_create_person_badges(self, person_handle):
-        person = self.dbstate.db.get_person_from_handle(person_handle)
+    def cb_create_person_badges(self, dbstate, uistate, person_handle):
+        person = dbstate.db.get_person_from_handle(person_handle)
         citation_list = person.get_citation_list()
         return self._cb_create_badges(citation_list)
 
-    def cb_create_family_badges(self, family_handle):
-        family = self.dbstate.db.get_family_from_handle(family_handle)
+    def cb_create_family_badges(self, dbstate, uistate, family_handle):
+        family = dbstate.db.get_family_from_handle(family_handle)
         citation_list = family.get_citation_list()
         return self._cb_create_badges(citation_list)
 
@@ -77,27 +76,26 @@ class NumCitationsBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
 
 class NumEventsWithoutCitationsBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
     def register_badges(self):
-        if self.badge_manager is not None:
-            self.badge_manager.register_badges_callbacks(
-                "num_events_without_citations", "Number of events without citations",
-                self.cb_create_person_badges, self.cb_create_family_badges
-            )
+        self.badge_manager.register_badges_callbacks(
+            "num_events_without_citations", "Number of events without citations",
+            self.cb_create_person_badges, self.cb_create_family_badges
+        )
 
-    def cb_create_person_badges(self, person_handle):
-        person = self.dbstate.db.get_person_from_handle(person_handle)
+    def cb_create_person_badges(self, dbstate, uistate, person_handle):
+        person = dbstate.db.get_person_from_handle(person_handle)
         event_ref_list = person.get_event_ref_list()
-        return self._cb_create_badges(event_ref_list)
+        return self._cb_create_badges(event_ref_list, dbstate)
 
-    def cb_create_family_badges(self, family_handle):
-        family = self.dbstate.db.get_family_from_handle(family_handle)
+    def cb_create_family_badges(self, dbstate, uistate, family_handle):
+        family = dbstate.db.get_family_from_handle(family_handle)
         event_ref_list = family.get_event_ref_list()
-        return self._cb_create_badges(event_ref_list)
+        return self._cb_create_badges(event_ref_list, dbstate)
 
-    def _cb_create_badges(self, event_ref_list):
+    def _cb_create_badges(self, event_ref_list, dbstate):
         event_handle_list = [r.ref for r in event_ref_list]
         events_without_citations = 0
         for event_handle in event_handle_list:
-            event = self.dbstate.db.get_event_from_handle(event_handle)
+            event = dbstate.db.get_event_from_handle(event_handle)
             if len(event.get_citation_list()) == 0:
                 events_without_citations += 1
         if events_without_citations == 0:
@@ -118,27 +116,26 @@ class NumEventsWithoutCitationsBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
 
 class NumChildrenBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
     def register_badges(self):
-        if self.badge_manager is not None:
-            self.badge_manager.register_badges_callbacks(
-                "num_children", "Number of children",
-                self.cb_create_person_badges, self.cb_create_family_badges
-            )
+        self.badge_manager.register_badges_callbacks(
+            "num_children", "Number of children",
+            self.cb_create_person_badges, self.cb_create_family_badges
+        )
 
-    def cb_create_person_badges(self, person_handle):
+    def cb_create_person_badges(self, dbstate, uistate, person_handle):
         def cb_open_children_quick_report():
-            person = self.dbstate.db.get_person_from_handle(person_handle)
+            person = dbstate.db.get_person_from_handle(person_handle)
             document = TextBufDoc(make_basic_stylesheet(), None)
-            document.dbstate = self.dbstate
-            document.uistate = self.uistate
+            document.dbstate = dbstate
+            document.uistate = uistate
             document.open("")
-            children_quick_report.run(self.dbstate.db, document, person)
+            children_quick_report.run(dbstate.db, document, person)
 
         num_children = 0
         num_birth_children = 0
-        person = self.dbstate.db.get_person_from_handle(person_handle)
+        person = dbstate.db.get_person_from_handle(person_handle)
         family_handles = person.get_family_handle_list()
         for family_handle in family_handles:
-            family = self.dbstate.db.get_family_from_handle(family_handle)
+            family = dbstate.db.get_family_from_handle(family_handle)
             child_refs = family.get_child_ref_list()
             for ref in child_refs:
                 num_children += 1
@@ -181,8 +178,8 @@ class NumChildrenBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
             }
         ]
 
-    def cb_create_family_badges(self, family_handle):
-        family = self.dbstate.db.get_family_from_handle(family_handle)
+    def cb_create_family_badges(self, dbstate, uistate, family_handle):
+        family = dbstate.db.get_family_from_handle(family_handle)
         num_children = len(family.get_child_ref_list())
 
         if num_children == 0:
@@ -206,15 +203,14 @@ class NumChildrenBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
 
 class NumOtherFamiliesBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
     def register_badges(self):
-        if self.badge_manager is not None:
-            self.badge_manager.register_person_badges_callback(
-                "num_other_families", "Number of other families",
-                self.cb_create_person_badges
-            )
+        self.badge_manager.register_person_badges_callback(
+            "num_other_families", "Number of other families",
+            self.cb_create_person_badges
+        )
 
-    def cb_create_person_badges(self, person_handle):
+    def cb_create_person_badges(self, dbstate, uistate, person_handle):
         num_other_families = 0
-        person = self.dbstate.db.get_person_from_handle(person_handle)
+        person = dbstate.db.get_person_from_handle(person_handle)
         family_handles = person.get_family_handle_list()
         num_other_families = len(family_handles) - 1
 
@@ -244,11 +240,11 @@ class NumOtherFamiliesBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
 
 def load_on_reg(dbstate, uistate, addon):
     # load_on_reg can needs to return one or more functions.
-    # Each will be calles with two args: dbstate, uistate
+    # Each will be called with three args: dbstate, uistate, badge_manager
     return register_badges
 
-def register_badges(dbstate, uistate):
-    NumCitationsBadgeRegisterer(dbstate, uistate).register_badges()
-    NumEventsWithoutCitationsBadgeRegisterer(dbstate, uistate).register_badges()
-    NumChildrenBadgeRegisterer(dbstate, uistate).register_badges()
-    NumOtherFamiliesBadgeRegisterer(dbstate, uistate).register_badges()
+def register_badges(dbstate, uistate, badge_manager):
+    NumCitationsBadgeRegisterer(dbstate, uistate, badge_manager).register_badges()
+    NumEventsWithoutCitationsBadgeRegisterer(dbstate, uistate, badge_manager).register_badges()
+    NumChildrenBadgeRegisterer(dbstate, uistate, badge_manager).register_badges()
+    NumOtherFamiliesBadgeRegisterer(dbstate, uistate, badge_manager).register_badges()

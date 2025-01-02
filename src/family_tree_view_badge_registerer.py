@@ -23,7 +23,7 @@ from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from family_tree_view import FamilyTreeView
+    from family_tree_view_badge_manager import FamilyTreeViewBadgeManager
 
 
 class FamilyTreeViewBadgeRegisterer(metaclass=ABCMeta):
@@ -36,21 +36,11 @@ class FamilyTreeViewBadgeRegisterer(metaclass=ABCMeta):
       In most cases each badge group should consist of only one badge.
     - Each badge contains one or more content elements.
     """
-    def __init__(self, dbstate, uistate):
+    def __init__(self, dbstate, uistate, badge_manager: "FamilyTreeViewBadgeManager"):
         self.dbstate = dbstate
         self.uistate = uistate
-
-        try:
-            self.ftv: "FamilyTreeView" = next(
-                view for view in self.uistate.viewmanager.pages
-                if view.__class__.__name__ == "FamilyTreeView"
-            )
-        except StopIteration:
-            # FamilyTreeView not loaded yet.
-            self.ftv = None
-            self.badge_manager = None
-        else:
-            self.badge_manager = self.ftv.badge_manager
+        self.badge_manager = badge_manager
+        self.ftv = self.badge_manager.ftv
 
     @abstractmethod
     def register_badges(self):

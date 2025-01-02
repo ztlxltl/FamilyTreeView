@@ -9,7 +9,7 @@ Features:
 - Info box pop-up with basic information on a person / family
 - Side panel with detailed information on a person / families including a timeline
 - Name abbreviation algorithm to fit long names into the fix-sized boxes (`AbbreviatedNameDisplay`)
-- Badges for customizable display of interesting / important information (new / custom badges can be registered)
+- Badges for customizable display of interesting / important information (new / custom badges can be [registered](docs/badge_development.md))
 - Intuitive zoom centered at mouse pointer position
 - Mini map for orientation
 

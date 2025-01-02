@@ -19,6 +19,7 @@
 #
 
 
+import traceback
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -93,7 +94,15 @@ class FamilyTreeViewBadgeManager:
 
         badges = []
         for callback in badge_callbacks:
-            callback_badges = callback(*callback_args)
+            try:
+                callback_badges = callback(self.ftv.dbstate, self.ftv.uistate, *callback_args)
+            except TypeError as e:
+                # TODO drop support for this in a future update
+                if len(traceback.extract_tb(e.__traceback__)) == 1:
+                    # Wrong signature for callback.
+                    callback_badges = callback(*callback_args)
+                else:
+                    raise
             for badge_info in callback_badges:
                 self._validate_badge_info(badge_info)
                 badges.append(badge_info)

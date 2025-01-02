@@ -20,6 +20,7 @@
 
 
 from sqlite3 import InterfaceError
+import traceback
 
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.display.place import displayer as place_displayer
@@ -150,7 +151,15 @@ class FamilyTreeView(NavigationView):
         pluginManager = GuiPluginManager.get_instance()
         data = pluginManager.get_plugin_data("family_tree_view_badge_addon")
         for fcn in data:
-            fcn(self.dbstate, self.uistate)
+            try:
+                fcn(self.dbstate, self.uistate, self.badge_manager)
+            except TypeError as e:
+                # TODO drop support for this in a future update
+                if len(traceback.extract_tb(e.__traceback__)) == 1:
+                    # Wrong signature for fnc.
+                    fcn(self.dbstate, self.uistate)
+                else:
+                    raise
         self.addons_registered_badges = True
 
     def config_connect(self):
