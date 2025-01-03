@@ -189,14 +189,19 @@ class FamilyTreeViewConfigProvider:
         config_event_types_visible = self.ftv._config.get("appearance.familytreeview-timeline-event-types-visible")
         config_event_types_show_description = self.ftv._config.get("appearance.familytreeview-timeline-event-types-show-description")
 
-        event_type_liststore = Gtk.TreeStore(str, str, bool, bool, bool, str)
+        event_type_tree_store = Gtk.TreeStore(str, str, bool, bool, bool, bool, str)
         for group, events in EventType._MENU:
-            treeiter = event_type_liststore.append(None, [
+            all_visible = all(config_event_types_visible.get(EventType._I2EMAP[event_i], True) for event_i in events)
+            none_visible = all(not config_event_types_visible.get(EventType._I2EMAP[event_i], True) for event_i in events)
+            all_show_description = all(config_event_types_show_description.get(EventType._I2EMAP[event_i], False) for event_i in events)
+            none_show_description = all(not config_event_types_show_description.get(EventType._I2EMAP[event_i], False) for event_i in events)
+            treeiter = event_type_tree_store.append(None, [
                 group,
                 _(group),
-                False, # no checkboxes
-                False, # placeholder
-                False, # placeholder
+                all_visible,
+                not all_visible and not none_visible, # inconsistent
+                all_show_description,
+                not all_show_description and not none_show_description, # inconsistent
                 "" # empty column
             ])
             for event_i in events:
@@ -204,16 +209,18 @@ class FamilyTreeViewConfigProvider:
                 event_name = EventType._I2EMAP[event_i]
                 event_type_visible = config_event_types_visible.get(event_name, True) # default: visible
                 event_type_show_description = config_event_types_show_description.get(event_name, False) # default: no description
-                event_type_liststore.append(treeiter, [
+                event_type_tree_store.append(treeiter, [
                     event_name,
                     event_str,
-                    True, # visible checkboxes
                     event_type_visible,
+                    False, # not inconsistent
                     event_type_show_description,
+                    False, # not inconsistent
                     "" # empty column
                 ])
 
-        event_type_list_view = Gtk.TreeView(model=event_type_liststore)
+        event_type_list_view = Gtk.TreeView(model=event_type_tree_store)
+        event_type_list_view.get_selection().set_mode(Gtk.SelectionMode.NONE)
 
         # name column
         renderer = Gtk.CellRendererText()
@@ -221,13 +228,43 @@ class FamilyTreeViewConfigProvider:
         event_type_list_view.append_column(column)
 
         def _cb_event_type_toggled(widget, path, i, config_name, default):
-            event_type_liststore[path][i] = not event_type_liststore[path][i]
             config_val = self.ftv._config.get(config_name)
-            event_name = event_type_liststore[path][0]
-            if event_name not in config_val:
-                config_val[event_name] = default
-            config_val[event_name] = event_type_liststore[path][i]
-            self.ftv._config.set(config_name, config_val)
+            if ":" in path:
+                # event type (not event type group)
+                event_type_tree_store[path][i] = not event_type_tree_store[path][i]
+                event_name = event_type_tree_store[path][0]
+                if event_name not in config_val:
+                    config_val[event_name] = default
+                config_val[event_name] = event_type_tree_store[path][i]
+                self.ftv._config.set(config_name, config_val)
+
+                # update checkboxes of parent / group
+                parent_path = path.rsplit(":", 1)[0]
+                group = event_type_tree_store[parent_path][0]
+                group_events = [events for gr, events in EventType._MENU if gr == group][0]
+                all_ = all(config_val.get(EventType._I2EMAP[event_i], default) for event_i in group_events)
+                none_ = all(not config_val.get(EventType._I2EMAP[event_i], default) for event_i in group_events)
+                event_type_tree_store[parent_path][i] = all_
+                event_type_tree_store[parent_path][i+1] = not all_ and not none_ # inconsistent
+            else:
+                # event type group clicked
+                # if in intermediate, select all checkboxes
+                if event_type_tree_store[path][i+1]:
+                    event_type_tree_store[path][i] = True
+                    event_type_tree_store[path][i+1] = False
+                else:
+                    event_type_tree_store[path][i] = not event_type_tree_store[path][i]
+                
+                # update all
+                for child_row in event_type_tree_store[path].iterchildren():
+                    # child_row is event_type_tree_store[child_path]
+                    # Apply checked/unchecked to child ui element and child's config.
+                    child_row[i] = event_type_tree_store[path][i]
+                    event_name = child_row[0]
+                    if event_name not in config_val:
+                        config_val[event_name] = default
+                    config_val[event_name] = event_type_tree_store[path][i]
+                self.ftv._config.set(config_name, config_val)
 
             # cb_update_config connected doesn't work, even when using a shallow or deep copy.
             # Update explicitly:
@@ -235,19 +272,19 @@ class FamilyTreeViewConfigProvider:
 
         # visible column
         renderer = Gtk.CellRendererToggle()
-        renderer.connect("toggled", _cb_event_type_toggled, 3, "appearance.familytreeview-timeline-event-types-visible", True)
-        column = Gtk.TreeViewColumn("Visible", renderer, active=3, visible=2)
+        renderer.connect("toggled", _cb_event_type_toggled, 2, "appearance.familytreeview-timeline-event-types-visible", True)
+        column = Gtk.TreeViewColumn("Visible", renderer, active=2, inconsistent=3)
         event_type_list_view.append_column(column)
 
         # show description column
         renderer = Gtk.CellRendererToggle()
         renderer.connect("toggled", _cb_event_type_toggled, 4, "appearance.familytreeview-timeline-event-types-show-description", False)
-        column = Gtk.TreeViewColumn("Show description", renderer, active=4, visible=2)
+        column = Gtk.TreeViewColumn("Show description", renderer, active=4, inconsistent=5)
         event_type_list_view.append_column(column)
 
         # empty column to fill the remaining space
         renderer = Gtk.CellRendererText()
-        column = Gtk.TreeViewColumn("", renderer, text=5)
+        column = Gtk.TreeViewColumn("", renderer, text=6)
         event_type_list_view.append_column(column)
 
         scrolled_window = Gtk.ScrolledWindow()
