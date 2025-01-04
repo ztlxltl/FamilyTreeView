@@ -19,18 +19,22 @@
 #
 
 
+from typing import TYPE_CHECKING
+
 from gi.repository import Gtk
 
 from gramps.gen.display.name import displayer as name_displayer, _F_FMT
 from gramps.gen.plug import Gramplet
 
 from abbreviated_name_display import AbbreviatedNameDisplay
+if TYPE_CHECKING:
+    from family_tree_view import FamilyTreeView
 
 
 class AbbreviatedNameDisplayInspectorGramplet(Gramplet):
 
     def init(self):
-        self.abbrev_name_display = AbbreviatedNameDisplay()
+        self.try_to_get_ftv()
 
         self.main_scrolled = Gtk.ScrolledWindow()
         self.main_scrolled.set_hexpand(True)
@@ -47,6 +51,19 @@ class AbbreviatedNameDisplayInspectorGramplet(Gramplet):
         self.fallback()
         self.gui.get_container_widget().show_all()
 
+    def try_to_get_ftv(self):
+        try:
+            self.ftv: "FamilyTreeView" = next(
+                view for view in self.uistate.viewmanager.pages
+                if view.__class__.__name__ == "FamilyTreeView"
+            )
+        except StopIteration:
+            # FamilyTreeView not loaded yet.
+            self.ftv = None
+            self.abbrev_name_display = None
+        else:
+            self.abbrev_name_display = AbbreviatedNameDisplay(self.ftv)
+
     def db_changed(self):
         self.connect(self.dbstate.db, "person-update", self.update)
 
@@ -54,6 +71,23 @@ class AbbreviatedNameDisplayInspectorGramplet(Gramplet):
         self.update()
 
     def main(self):
+        if self.ftv is None:
+            self.try_to_get_ftv()
+            if self.ftv is None:
+                self.clear_main_widget()
+                label = Gtk.Label(
+                    "Abbreviated names are not available. "
+                    "Open FamilyTreeView once to load it and make abbreviated names available."
+                    "You may need to change the active person to reload this Gramplet."
+                )
+                label.set_xalign(0)
+                label.set_line_wrap(True)
+                label.set_margin_top(10)
+                label.set_margin_left(10)
+                label.set_margin_right(10)
+                self.main_box.add(label)
+                self.gui.get_container_widget().show_all()
+                return
         active_person = self.get_active_object("Person")
         if active_person:
             self.clear_main_widget()
@@ -67,14 +101,8 @@ class AbbreviatedNameDisplayInspectorGramplet(Gramplet):
             self.fallback()
         self.gui.get_container_widget().show_all()
 
-    def get_format_str(self, name):
-        num = name.display_as
-        if num == 0:
-            num = name_displayer.get_default_format()
-        format_str = name_displayer.name_formats[num][_F_FMT]
-        return name,format_str
-
     def add_name(self, title, name, first=False):
+        num = self.abbrev_name_display.get_num_for_name_abbrev(name)
         name_label = Gtk.Label()
         name_label.set_markup(f"<b>{title}</b>")
         name_label.set_halign(Gtk.Align.START)
@@ -82,7 +110,7 @@ class AbbreviatedNameDisplayInspectorGramplet(Gramplet):
             name_label.set_margin_top(30)
         self.main_box.add(name_label)
 
-        format_str = self.abbrev_name_display._get_format_str(name)
+        format_str = self.abbrev_name_display._get_format_str(name, num=num)
         format_label = Gtk.Label("Format:\n" + format_str)
         format_label.set_halign(Gtk.Align.START)
         self.main_box.add(format_label)
@@ -95,20 +123,24 @@ class AbbreviatedNameDisplayInspectorGramplet(Gramplet):
             Gtk.PolicyType.AUTOMATIC, # horizontal
             Gtk.PolicyType.NEVER # vertical
         )
-        name_parts_label = Gtk.Label(self.get_name_parts(name))
+        name_parts_label = Gtk.Label(self.get_name_parts(name, num=num))
         name_parts_label.set_halign(Gtk.Align.START)
         name_parts_scrolled.add(name_parts_label)
         name_parts_expander.add(name_parts_scrolled)
         self.main_box.add(name_parts_expander)
 
-        abbr_name_list, step_descriptions = self.abbrev_name_display.get_abbreviated_names(name, return_step_description=True)
+        abbr_name_list, step_descriptions = self.abbrev_name_display.get_abbreviated_names(name, num=num, return_step_description=True)
 
         name_list_store = Gtk.ListStore(str, str)
-        for name, step in zip(abbr_name_list,step_descriptions):
+        for name, step_info in zip(abbr_name_list, step_descriptions):
             name_list_store.append([
                 name,
-                step,
-                # "" # empty column
+                step_info[9] + "\n" + (
+                    ""
+                    if step_info[0] is None else
+                    f"  (rule {step_info[0]}, rule step {step_info[1]}, name part {step_info[2]}: {repr(step_info[7])}, name sub-part {step_info[3]}: {repr(step_info[8])}, "
+                    f"space-separated part {step_info[4]+1}, hyphen-separated part {step_info[5]+1}, uppercase-separated part {step_info[6]+1})"
+                )
             ])
 
         name_list_view = Gtk.TreeView(model=name_list_store)
@@ -124,10 +156,6 @@ class AbbreviatedNameDisplayInspectorGramplet(Gramplet):
         column.set_resizable(True)
         name_list_view.append_column(column)
 
-        # renderer = Gtk.CellRendererText()
-        # column = Gtk.TreeViewColumn("", renderer, text=2)
-        # name_list_view.append_column(column)
-
         name_list_scrolled = Gtk.ScrolledWindow()
         name_list_scrolled.set_hexpand(True)
         name_list_scrolled.set_policy(
@@ -137,8 +165,8 @@ class AbbreviatedNameDisplayInspectorGramplet(Gramplet):
         name_list_scrolled.add(name_list_view)
         self.main_box.add(name_list_scrolled)
 
-    def get_name_parts(self, name):
-        name_parts = self.abbrev_name_display._get_name_parts(name)
+    def get_name_parts(self, name, num=None):
+        name_parts = self.abbrev_name_display._get_name_parts(name, num=num)
 
         # remove extra info of given name
         for part in name_parts:

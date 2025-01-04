@@ -19,10 +19,12 @@
 #
 
 
+from copy import deepcopy
 from typing import TYPE_CHECKING
 
 from gi.repository import Gtk
 
+from family_tree_view_config_provider_names import names_page, DEFAULT_ABBREV_RULES
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.lib.eventtype import EventType
 
@@ -68,11 +70,15 @@ class FamilyTreeViewConfigProvider:
             ("interaction.familytreeview-family-info-box-set-active-button", False),
 
             ("badges.familytreeview-badges-active", { # examples are turned off by default
-                'num_citations': {'person': False, 'family': False},
-                'num_events_without_citations': {'person': False, 'family': False},
-                'num_children': {'person': False, 'family': False},
-                'num_other_families': {'person': False, 'family': False},
+                "num_citations": {"person": False, "family": False},
+                "num_events_without_citations": {"person": False, "family": False},
+                "num_children": {"person": False, "family": False},
+                "num_other_families": {"person": False, "family": False},
             }),
+
+            ("names.familytreeview-abbrev-name-format-id", 0),
+            ("names.familytreeview-abbrev-name-format-always", True),
+            ("names.familytreeview-name-abbrev-rules", deepcopy(DEFAULT_ABBREV_RULES)),
 
             ("experimental.familytreeview-adaptive-ancestor-generation-dist", False),
             ("experimental.familytreeview-connection-follow-on-click", False),
@@ -88,6 +94,7 @@ class FamilyTreeViewConfigProvider:
         return [
             self.appearance_page,
             self.interaction_page,
+            self.names_page,
             self.badges_page,
             self.experimental_page,
         ]
@@ -384,6 +391,9 @@ class FamilyTreeViewConfigProvider:
         )
 
         return (_("Interaction"), grid)
+
+    def names_page(self, configdialog):
+        return names_page(self.ftv, configdialog)
 
     def badges_page(self, configdialog):
         grid = Gtk.Grid()

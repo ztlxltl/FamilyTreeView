@@ -127,7 +127,7 @@ class FamilyTreeView(NavigationView):
 
         self.symbols = Symbols()
         self.widget_manager = FamilyTreeViewWidgetManager(self)
-        self.abbrev_name_display = AbbreviatedNameDisplay()
+        self.abbrev_name_display = AbbreviatedNameDisplay(self)
 
         self.processed_person_handles = []
 

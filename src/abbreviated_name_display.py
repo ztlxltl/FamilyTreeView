@@ -20,6 +20,7 @@
 
 
 import re
+from typing import TYPE_CHECKING
 
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.display.name import (
@@ -27,6 +28,9 @@ from gramps.gen.display.name import (
     _PRIMARY_IN_LIST, _SURNAME_IN_LIST, _TYPE_IN_LIST, PAT_AS_SURN,
     displayer as name_displayer, _make_cmp_key, cleanup_name
 )
+
+if TYPE_CHECKING:
+    from family_tree_view import FamilyTreeView
 
 
 _ = GRAMPS_LOCALE.translation.gettext
@@ -258,60 +262,58 @@ def _raw_single_surname(raw_surn_data_list):
 
 
 class AbbreviatedNameDisplay():
-    def __init__(self):
+    def __init__(self, ftv: "FamilyTreeView"):
+        self.ftv = ftv
         self.step_description = None
 
-    def get_abbreviated_names(self, name, return_step_description=False):
+    def get_num_for_name_abbrev(self, name):
+        format_num_config_always = self.ftv._config.get("names.familytreeview-abbrev-name-format-always")
+        format_num_config = self.ftv._config.get("names.familytreeview-abbrev-name-format-id")
+        format_num_name = name.display_as
+        if format_num_config_always:
+            # always use num from config
+            num = format_num_config
+        else:
+            if format_num_name == 0:
+                # name: use default -> use num from config
+                num = format_num_config
+            else:
+                # name: use specific -> use that
+                num = format_num_name
+        num = name_displayer._is_format_valid(num)
+        return num
+
+    def get_abbreviated_names(self, name, num=None, return_step_description=False):
         """
         Returns a list of strings with abbreviations of the given name object.
         The returned list is ordered by decreasing name length.
 
-        Basic rules:
-        1. Non-call given names are abbreviated (one by one starting with last)
-        2. Call given name is abbreviated after other given names
-        3. Prefixes are abbreviated (one by one starting with last, non-primary first)
-        4. Non-primary family names are abbreviated
-        5. Non-call given name abbreviations are removed
-
-        Example:
-        - Garner von Zieliński, Lewis Anderson Sr
-        - Garner von Zieliński, L. Anderson Sr
-        - Garner von Zieliński, L. A. Sr
-        - Garner v. Zieliński, L. A. Sr
-        - G. v. Zieliński, L. A. Sr
-        - G. v. Zieliński, A. Sr
+        Rules are defined with FTV's configs.
 
         Prefixes which are part of a surname are not abbreviated (e.g. MacCarthy -> MacC., O'Brien -> O'B.)
+        Given names, prefixes etc. are abbreviated step by step (examples with reverse=True: 
+        Mary Ann -> Mary A. -> M. A., Mary-Ann -> Mary-A. -> M.-A., MaryAnn -> MaryA. -> M.A., van der -> van d. -> v. d.)
         """
 
         self.step_description = []
 
-        name_parts = self._get_name_parts(name)
+        name_parts = self._get_name_parts(name, num=num)
 
         abbrev_name_list = []
 
         # full name
         full_name = self._name_from_parts(name_parts)
         abbrev_name_list.append(full_name)
-        self.step_description.append("full name\n")
+        self.step_description.append((
+            None, None, None, None, None, None, None,
+            None, None,
+            "full name"
+        ))
 
-        abbrev_rules = [
-            ("abbrev", ["given[ncnf]", "nick", "given0", "call"], True),
-            ("abbrev", ["given"], True),
-            ("abbrev", ["prefix", "connector", "primary-connector"], True),
-            ("abbrev", ["primary-prefix"], True),
-            ("abbrev", ["surname", "famnick"], True),
-            ("remove", ["given[ncnf]"], True),
-            ("remove", ["prefix", "connector"], True),
-            ("remove", ["title", "suffix"], True),
-            ("remove", ["primary-prefix", "primary-connector"], True),
-            ("remove", ["surname", "famnick"], True),
-            ("abbrev", ["primary-surname"], True),
-            ("remove", ["given", "nick", "given0", "call"], True),
-        ]
-        for action, name_part_types, reverse in abbrev_rules:
-            while True:
-                if not self._apply_rule_once(name_parts, action, name_part_types, reverse):
+        abbrev_rules = self.ftv._config.get("names.familytreeview-name-abbrev-rules")
+        for rule_i, (action, name_part_types, reverse) in enumerate(abbrev_rules):
+            for rule_step_i in range(1000):
+                if not self._apply_rule_once(name_parts, action, name_part_types, reverse, rule_i, rule_step_i):
                     break
                 abbrev_name_list.append(self._name_from_parts(name_parts))
 
@@ -321,8 +323,8 @@ class AbbreviatedNameDisplay():
             return abbrev_name_list, step_description
         return abbrev_name_list
 
-    def _get_name_parts(self, name):
-        format_str = self._get_format_str(name)
+    def _get_name_parts(self, name, num=None):
+        format_str = self._get_format_str(name, num=num)
         d = {
             "t": ("('title', title)","title", _("Person|title")),
             "f": ("('given', first, first, call)","given", _("given")), # first two times so one can be abbreviated and second can be checked for call afterwards
@@ -384,8 +386,9 @@ class AbbreviatedNameDisplay():
 
         return display_name_parts
 
-    def _get_format_str(self, name):
-        num = name.display_as
+    def _get_format_str(self, name, num=None):
+        if num is None:
+            num = name.display_as
         if num == 0:
             num = name_displayer.get_default_format()
         format_str = name_displayer.name_formats[num][_F_FMT]
@@ -500,7 +503,7 @@ class AbbreviatedNameDisplay():
 
         return clean_name_str
 
-    def _apply_rule_once(self, name_parts, action, name_part_types, reverse):
+    def _apply_rule_once(self, name_parts, action, name_part_types, reverse, rule_i, rule_step_i):
         if reverse:
             reversed_ = reversed
         else:
@@ -616,10 +619,11 @@ class AbbreviatedNameDisplay():
                                     for p in name_part_types[:-1]
                                 )
                                 + " or " + repr(name_part_types[-1]))
-                        self.step_description.append(
-                            f"{action_str} {last_or_first} {extra_str}{name_part_types_str}\n"
-                            f"  ({i}, {repr(name_parts[i][0])}, {ii}, {repr(name_parts[i][2][ii][0])}, space-separated part {j+1}, hyphen-separated part {k+1}, uppercase-separated part {l+1})"
-                        )
+                        self.step_description.append((
+                            rule_i, rule_step_i, i, ii, j, k, l,
+                            name_parts[i][0], name_parts[i][2][ii][0],
+                            f"{action_str} {last_or_first} {extra_str}{name_part_types_str}"
+                        ))
                         return True
         return False
 

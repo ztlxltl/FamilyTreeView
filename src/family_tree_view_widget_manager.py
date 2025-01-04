@@ -26,7 +26,7 @@ from gi.repository import Gdk, GLib, Gtk
 from gramps.gen.config import config
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.datehandler import get_date
-from gramps.gen.display.name import displayer as name_displayer
+from gramps.gen.display.name import displayer as name_displayer, _F_FN
 from gramps.gen.utils.alive import probably_alive
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback
 from gramps.gui.utils import color_graph_box, color_graph_family
@@ -139,8 +139,10 @@ class FamilyTreeViewWidgetManager:
     def add_person(self, person_handle, x, person_generation, alignment):
         person = self.ftv.get_person_from_handle(person_handle)
 
-        name_str = name_displayer.display_name(person.get_primary_name())
-        abbr_name_strs = self.ftv.abbrev_name_display.get_abbreviated_names(person.get_primary_name())
+        name = person.get_primary_name()
+        num = self.ftv.abbrev_name_display.get_num_for_name_abbrev(name)
+        name_str = name_displayer.name_formats[num][_F_FN](name) # name_displayer has no function taking name and num (only person and num).
+        abbr_name_strs = self.ftv.abbrev_name_display.get_abbreviated_names(name, num=num)
         birth_or_fallback = get_birth_or_fallback(self.ftv.dbstate.db, person)
         death_or_fallback = get_death_or_fallback(self.ftv.dbstate.db, person)
         if birth_or_fallback is not None:
