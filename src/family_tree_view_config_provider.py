@@ -417,8 +417,18 @@ class FamilyTreeViewConfigProvider:
         grid.set_border_width(12)
         grid.set_column_spacing(6)
         grid.set_row_spacing(6)
+        row = -1
 
-        badge_liststore = Gtk.ListStore(str, bool, bool, bool, bool, str)
+        row += 1
+        label = configdialog.add_text(
+            grid,
+            _("Choose which badges to display where:"),
+            row, stop=3
+        )
+        label.set_xalign(0)
+
+        row += 1
+        badge_list_store = Gtk.ListStore(str, bool, bool, bool, bool, str)
         config_badges_active = self.ftv._config.get("badges.familytreeview-badges-active")
         for badge_id, badge_name, person_callback, family_callback in self.badge_manager.badges:
             badge_active = config_badges_active.get(badge_id, {
@@ -426,7 +436,7 @@ class FamilyTreeViewConfigProvider:
                 "person": person_callback is not None,
                 "family": family_callback is not None
             })
-            badge_liststore.append([
+            badge_list_store.append([
                 badge_name,
                 badge_active["person"], # person active
                 person_callback is not None, # person available
@@ -435,49 +445,48 @@ class FamilyTreeViewConfigProvider:
                 "" # empty column
             ])
 
-        badge_list_view = Gtk.TreeView(model=badge_liststore)
+        badge_tree_view = Gtk.TreeView(model=badge_list_store)
+        badge_tree_view.get_selection().set_mode(Gtk.SelectionMode.NONE)
 
         # name column
         renderer = Gtk.CellRendererText()
-        column = Gtk.TreeViewColumn("Name", renderer, text=0)
-        badge_list_view.append_column(column)
+        column = Gtk.TreeViewColumn(_("Name"), renderer, text=0)
+        badge_tree_view.append_column(column)
 
-        def _get_cb_badge_toggled(i):
-            def _cb_badge_toggled(widget, path):
-                badge_liststore[path][2*i+1] = not badge_liststore[path][2*i+1] # +1 to skip name column, factor 2 because of available columns
-                config_badges_active = self.ftv._config.get("badges.familytreeview-badges-active")
-                badge_id = self.badge_manager.badges[int(path)][0]
-                if badge_id not in config_badges_active:
-                    config_badges_active[badge_id] = {
-                        # by default, turn all badges on, if they are provided
-                        "person": person_callback is not None,
-                        "family": family_callback is not None
-                    }
-                config_badges_active[badge_id][["person", "family"][i]] = badge_liststore[path][2*i+1]
-                self.ftv._config.set("badges.familytreeview-badges-active", config_badges_active)
+        def _cb_badge_toggled(widget, path, i):
+            badge_list_store[path][2*i+1] = not badge_list_store[path][2*i+1] # +1 to skip name column, factor 2 because of available columns
+            config_badges_active = self.ftv._config.get("badges.familytreeview-badges-active")
+            badge_id = self.badge_manager.badges[int(path)][0]
+            if badge_id not in config_badges_active:
+                config_badges_active[badge_id] = {
+                    # by default, turn all badges on, if they are provided
+                    "person": person_callback is not None,
+                    "family": family_callback is not None
+                }
+            config_badges_active[badge_id][["person", "family"][i]] = badge_list_store[path][2*i+1]
+            self.ftv._config.set("badges.familytreeview-badges-active", config_badges_active)
 
-                # cb_update_config connected doesn't work, even when using a shallow or deep copy.
-                # Update explicitly:
-                self.ftv.cb_update_config(None, None, None, None)
-            return _cb_badge_toggled
+            # cb_update_config connected doesn't work, even when using a shallow or deep copy.
+            # Update explicitly:
+            self.ftv.cb_update_config(None, None, None, None)
 
         # checkbox column
-        for i, column_title in enumerate(["Person", "Family"]):
+        for i, column_title in enumerate([_("Person box"), _("Family box")]):
             renderer = Gtk.CellRendererToggle()
-            renderer.connect("toggled", _get_cb_badge_toggled(i))
+            renderer.connect("toggled", _cb_badge_toggled, i)
             column = Gtk.TreeViewColumn(column_title, renderer, active=2*i+1, activatable=2*i+2)
-            badge_list_view.append_column(column)
+            badge_tree_view.append_column(column)
 
         # empty column to fill the remaining space
         renderer = Gtk.CellRendererText()
         column = Gtk.TreeViewColumn("", renderer, text=5)
-        badge_list_view.append_column(column)
+        badge_tree_view.append_column(column)
 
         scrolled_window = Gtk.ScrolledWindow()
         scrolled_window.set_hexpand(True)
         scrolled_window.set_vexpand(True)
-        scrolled_window.add(badge_list_view)
-        grid.attach(scrolled_window, 1, 0, 8, 1) # these are the default with of widgets created by configdialog's methods
+        scrolled_window.add(badge_tree_view)
+        grid.attach(scrolled_window, 1, row, 8, 1) # these are the default with of widgets created by configdialog's methods
 
         return (_("Badges"), grid)
 
