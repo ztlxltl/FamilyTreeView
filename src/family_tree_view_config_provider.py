@@ -24,10 +24,11 @@ from typing import TYPE_CHECKING
 
 from gi.repository import Gtk
 
-from family_tree_view_config_provider_names import names_page, DEFAULT_ABBREV_RULES
+from gramps.gen.config import config
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.lib.eventtype import EventType
 
+from family_tree_view_config_provider_names import names_page, DEFAULT_ABBREV_RULES
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
 
@@ -335,6 +336,22 @@ class FamilyTreeViewConfigProvider:
         grid.set_column_spacing(6)
         grid.set_row_spacing(6)
         row = -1
+
+        row += 1
+        checkbox = configdialog.add_checkbox(
+            grid,
+            _(
+                "Prepend FamilyTreeView to the plugin list instead of appending it. (Requires restart.)\n"
+                "If no other chart view is prepended, this makes FamilyTreeView the first and default chart view.\n"
+                "Since FamilyTreeView is still in beta stage, be cautious with this option."
+            ),
+            row,
+            "interface.familytreeview-order-start",
+            stop=3, # same width as spinners and combos
+            config=config, # This is stored in Gramps' config to be available when registering the plugin.
+        )
+        label = checkbox.get_child()
+        label.set_line_wrap(True)
 
         row += 1
         configdialog.add_combo(

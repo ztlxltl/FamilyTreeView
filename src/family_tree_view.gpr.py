@@ -19,13 +19,26 @@
 #
 
 
+from gramps.gen.config import config
+
+
 if locals().get('uistate'): # don't start GUI if in CLI mode, just ignore
     from gi.repository import Gtk
     import os
     from gramps.gen.const import USER_PLUGINS
-    fname = os.path.join(USER_PLUGINS, 'FamilyTreeView','src','icons')
+    fname = os.path.join(USER_PLUGINS, 'FamilyTreeView', 'src', 'icons')
     icons = Gtk.IconTheme().get_default()
     icons.append_search_path(fname)
+
+if not config.has_default("interface.familytreeview-order-start"):
+    config.register("interface.familytreeview-order-start", False)
+    config.save()
+order_start = config.get("interface.familytreeview-order-start")
+
+if order_start:
+    order = START
+else:
+    order = END
 
 register(VIEW,
     id = "family_tree_view",
@@ -44,4 +57,5 @@ register(VIEW,
     ],
     viewclass = "FamilyTreeView",
     stock_icon = "gramps-family-tree-view",
+    order = order,
 )
