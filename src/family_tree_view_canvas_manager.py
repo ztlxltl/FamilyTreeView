@@ -101,8 +101,6 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.default_y = -self.person_height/2
         self.reset_transform()
 
-        self.click_callback = self.click_handler
-
         self.reset_canvas()
 
     def reset_canvas(self):
@@ -116,8 +114,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
 
         # group
         group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
-        if click_callback is not None:
-            group.connect("button-press-event", click_callback)
+        group.connect("button-press-event", self.click_callback, click_callback)
         parent = group
 
         # box
@@ -292,8 +289,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
 
         # group
         group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
-        if click_callback is not None:
-            group.connect("button-press-event", click_callback)
+        group.connect("button-press-event", self.click_callback, click_callback)
         parent = group
 
         # box
@@ -415,8 +411,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             line_width=5,
             stroke_color=None
         )
-        if click_callback:
-            path.connect("button-press-event", click_callback, ym)
+        path.connect("button-press-event", self.click_callback, click_callback, ym)
 
     def add_badges(self, badges, x, y):
         # add badges right-aligned and right to left starting from (x, y), vertically centered
@@ -494,10 +489,14 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             badge_rect.props.x = x
             badge_rect.props.width = w
 
-    def click_handler(self, root_item, target, event):
+    def click_callback(self, root_item, target, event, other_callback=None, *other_args, **other_kwargs):
+        if self.widget_manager.search_widget is not None:
+            self.widget_manager.search_widget.hide_search_popover()
         if target is None:
             # background click
             return self.widget_manager.info_box_manager.close_info_box()
+        if other_callback is not None:
+            return other_callback(root_item, target, event, *other_args, **other_kwargs)
         return False
 
     def adjust_bounds(self, left, top, right, bottom):

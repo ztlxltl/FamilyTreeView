@@ -37,7 +37,6 @@ class FamilyTreeViewCanvasManagerBase:
         self.default_x = 0
         self.default_y = 0
         self.clicking_canvas = False
-        self.click_callback = None
         self.dragging_canvas = False
         self.drag_canvas_last_x = 0
         self.drag_canvas_last_y = 0
@@ -150,6 +149,10 @@ class FamilyTreeViewCanvasManagerBase:
     # navigation: pan
     ################################
 
+    def click_callback(self, root_item, target, event):
+        """To be implemented by subclass."""
+        return False
+
     def mouse_button_press(self, _, __, event):
         button = event.get_button()[1]
         if button == 1 or button == 2:
@@ -161,10 +164,7 @@ class FamilyTreeViewCanvasManagerBase:
 
     def mouse_button_release(self, root_item, target, event):
         if self.clicking_canvas:
-            if self.click_callback is not None:
-                ret = self.click_callback(root_item, target, event)
-            else:
-                ret = False
+            ret = self.click_callback(root_item, target, event)
             self.clicking_canvas = False
             self.dragging_canvas = False
             return ret

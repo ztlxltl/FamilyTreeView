@@ -19,12 +19,14 @@
 #
 
 
+import os
+import sys
 from typing import TYPE_CHECKING
 
 from gi.repository import Gdk, GLib, Gtk
 
 from gramps.gen.config import config
-from gramps.gen.const import GRAMPS_LOCALE
+from gramps.gen.const import GRAMPS_LOCALE, USER_PLUGINS
 from gramps.gen.datehandler import get_date
 from gramps.gen.display.name import displayer as name_displayer, _F_FN
 from gramps.gen.utils.alive import probably_alive
@@ -40,6 +42,14 @@ from family_tree_view_utils import import_GooCanvas
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
 
+
+sys.path.append(os.path.join(USER_PLUGINS, 'GraphView'))
+try:
+    from search_widget import SearchWidget, Popover
+except ModuleNotFoundError:
+    search_widget_available = False
+else:
+    search_widget_available = True
 
 GooCanvas = import_GooCanvas()
 
@@ -58,7 +68,40 @@ class FamilyTreeViewWidgetManager:
         self.main_widget = Gtk.Box(spacing=4, orientation=Gtk.Orientation.VERTICAL)
         self.main_widget.set_border_width(4)
 
+        self.person_handle_list = []
+
         self.toolbar = Gtk.Box(spacing=4, orientation=Gtk.Orientation.HORIZONTAL)
+        if search_widget_available:
+            self.search_widget = SearchWidget(
+                self.ftv.dbstate,
+                lambda *args, **kwargs: None, # no image for now
+                bookmarks=self.ftv.bookmarks
+            )
+
+            # Use "view" instead of "graph" in result popover.
+            self.search_widget.popover_widget = Popover(
+                _('Persons from current view'),
+                _('Other persons from database')
+            )
+            self.search_widget.popover_widget.set_relative_to(self.search_widget.search_entry)
+            self.search_widget.popover_widget.connect('item-activated', self.search_widget.activate_item)
+            self.search_widget.popover_widget.connect('closed', self.search_widget.stop_search)
+
+            self.search_widget.set_options(show_images=False)
+            def item_activated(_widget, person_handle):
+                self.search_widget.hide_search_popover()
+                self.ftv.goto_handle(person_handle)
+            self.search_widget.connect('item-activated', item_activated)
+            # Argument to set_items_list doesn't need to be a list of GooCanvas.CanvasGroup objects. Also works with handles.
+            self.search_widget.set_items_list(self.person_handle_list)
+            search_box = self.search_widget.get_widget()
+            self.toolbar.add(search_box)
+        else:
+            self.search_widget = None
+            label = Gtk.Label(_("Search is not available. Install the Graph View addon to make SearchWidget available."))
+            label.set_line_wrap(True)
+            label.set_xalign(0)
+            self.toolbar.add(label)
         self.main_widget.pack_start(self.toolbar, False, False, 0)
 
         self.main_container_paned = Gtk.Paned()
@@ -136,6 +179,11 @@ class FamilyTreeViewWidgetManager:
         self.canvas_manager.reset_canvas()
         self.minimap_manager.reset_minimap()
 
+        self.person_handle_list = []
+        if self.search_widget is not None:
+            self.search_widget.hide_search_popover()
+            self.search_widget.set_items_list(self.person_handle_list)
+
     def add_person(self, person_handle, x, person_generation, alignment):
         person = self.ftv.get_person_from_handle(person_handle)
 
@@ -175,6 +223,7 @@ class FamilyTreeViewWidgetManager:
         )
         self.minimap_manager.add_person(x, person_generation, background_color)
 
+        self.person_handle_list.append(person_handle)
         self.position_of_handle[person_handle] = [person_bounds["oc_x"], person_bounds["oc_y"]]
 
         return person_bounds
