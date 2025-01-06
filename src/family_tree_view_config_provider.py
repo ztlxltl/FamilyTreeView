@@ -79,6 +79,7 @@ class FamilyTreeViewConfigProvider:
 
             ("names.familytreeview-abbrev-name-format-id", 0),
             ("names.familytreeview-abbrev-name-format-always", True),
+            ("names.familytreeview-abbrev-name-all-caps-style", 0),
             ("names.familytreeview-name-abbrev-rules", deepcopy(DEFAULT_ABBREV_RULES)),
 
             ("experimental.familytreeview-adaptive-ancestor-generation-dist", False),

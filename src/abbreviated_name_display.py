@@ -21,6 +21,7 @@
 
 import re
 from typing import TYPE_CHECKING
+import unicodedata
 
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.display.name import (
@@ -455,7 +456,7 @@ class AbbreviatedNameDisplay():
                         "part[0].upper(), "
                         "*part[1:]"
                     ") if isinstance(part, tuple) "
-                    "else part.upper() " # This should only be a space or an empty string.
+                    "else part " # This should only be a space or an empty string.
                     # There should only be strings (e.g. spaces) and list of tuples
                     # (list of tuples: 'surname', tuple which needs to be converted: 'given').
                     # A lambda is used so field doesn't have to be evaluated multiple times (e.g. if it's a function).
@@ -467,6 +468,21 @@ class AbbreviatedNameDisplay():
         return res
 
     def _name_from_parts(self, display_name_parts):
+        all_caps_style = self.ftv._config.get("names.familytreeview-abbrev-name-all-caps-style")
+        if all_caps_style == 0:
+            style_fcn = _upper
+        elif all_caps_style == 1:
+            style_fcn = _fake_small_caps
+        elif all_caps_style == 2:
+            style_fcn = lambda names, **kwargs: _fake_small_caps(names, petite_caps=True, **kwargs)
+        else:
+            if all_caps_style == 3:
+                style_tag = "b"
+            elif all_caps_style == 4:
+                style_tag = "i"
+            elif all_caps_style == 5:
+                style_tag = "u"
+            style_fcn = lambda names, **kwargs: [f"<{style_tag}>"+name+f"</{style_tag}>" for name in names]
         name_str = ""
         for name_part in display_name_parts:
             if isinstance(name_part, str):
@@ -481,7 +497,7 @@ class AbbreviatedNameDisplay():
                             prefix_possible = sub_part[0].lower() in ["surname", "primary-surname", "famnick"]
                             part_str += " ".join(
                                 "-".join(
-                                    "".join(_upper(
+                                    "".join(style_fcn(
                                         _split_name_at_capital_letter(
                                             hysep_part,
                                             expect_prefix=prefix_possible
@@ -674,8 +690,55 @@ def _split_name_at_capital_letter(name, expect_prefix=True):
         return names
     return [prefix, *names]
 
-def _upper(names, all_but_first=True):
+def _upper(names, all_but_first=True, **kwargs):
     if all_but_first:
         return [names[0], *(name.upper() for name in names[1:])]
     else:
         return [name.upper() for name in names]
+
+def _fake_small_caps(names, petite_caps=False, **kwargs):
+    # Pango's <span variant="small-caps"> doesn't scale well when zooming the canvas and a Pango warning appears:
+    # "failed to create cairo scaled font, expect ugly output. the offending font is ..."
+    # This function creates fake small caps instead.
+    small_caps_names = []
+    for name in names:
+        if len(name) == 0:
+            continue
+
+        # get char groups, equivalent to char_groups = re.findall(r'[^a-z]+|[a-z]+', name) but with all unicode Ll characters.
+        char_groups = []
+        group = ""
+        for char in name:
+            char_is_lowercase = unicodedata.category(char) == "Ll"
+            if len(group) == 0:
+                if char_is_lowercase:
+                    # second group is first lowercase group
+                    char_groups.append("")
+                # new group
+                group += char
+                group_is_lowercase = char_is_lowercase
+            elif char_is_lowercase == group_is_lowercase:
+                group += char
+            else:
+                # end of group
+                if len(group) > 0:
+                    char_groups.append(group)
+                # new group
+                group = char
+                group_is_lowercase = char_is_lowercase
+        if len(group) > 0:
+            # last group
+            char_groups.append(group)
+
+        for i in range(1, len(char_groups), 2): # every second group is lowercase
+            if char_groups[i] == "":
+                continue
+            # Use these to see how it looks. It has wrong size when zoomed.
+            # char_groups[i] = '<span variant="small-caps">' + char_groups[i] + "</span>"
+            # char_groups[i] = '<span variant="petite-caps">' + char_groups[i] + "</span>"
+            if petite_caps:
+                char_groups[i] = "<small><small>" + char_groups[i].upper() + "</small></small>" # similar to petite caps
+            else:
+                char_groups[i] = "<small>" + char_groups[i].upper() + "</small>" # similar to small caps
+        small_caps_names.append(''.join(char_groups))
+    return small_caps_names

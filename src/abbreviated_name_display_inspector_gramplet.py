@@ -147,7 +147,7 @@ class AbbreviatedNameDisplayInspectorGramplet(Gramplet):
         name_list_view.set_hexpand(True)
 
         renderer = Gtk.CellRendererText()
-        column = Gtk.TreeViewColumn("Abbreviated Name", renderer, text=0)
+        column = Gtk.TreeViewColumn("Abbreviated Name", renderer, markup=0)
         column.set_resizable(True)
         name_list_view.append_column(column)
 

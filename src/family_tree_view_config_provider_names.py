@@ -83,7 +83,11 @@ def names_page(ftv: "FamilyTreeView", configdialog):
         (0, _("Default format (defined by Gramps preferences)"), "", True)
     ]
     name_formats.extend(name_displayer.get_name_format())
-    for num, name, fmt_str, act in name_formats:
+    active_num = ftv._config.get("names.familytreeview-abbrev-name-format-id")
+    active_i = None
+    for i, (num, name, fmt_str, act) in enumerate(name_formats):
+        if active_i is None and num == active_num:
+            active_i = i
         if num == 0:
             name_format_options.append((num, name))
             continue
@@ -97,7 +101,7 @@ def names_page(ftv: "FamilyTreeView", configdialog):
         name_format_options.append((num, translation))
 
     row += 1
-    def _cb_combo_changed(combo, constant):
+    def _cb_name_format_combo_changed(combo, constant):
         ftv._config.set(constant, name_format_options[combo.get_active()][0])
         _fill_preview_model(ftv, preview_model)
     name_format_combo = configdialog.add_combo(
@@ -106,7 +110,8 @@ def names_page(ftv: "FamilyTreeView", configdialog):
         row,
         "names.familytreeview-abbrev-name-format-id",
         name_format_options,
-        callback=_cb_combo_changed
+        callback=_cb_name_format_combo_changed,
+        setactive=active_i,
     )
     name_format_combo.get_cells()[0].set_property("ellipsize", Pango.EllipsizeMode.END)
     combo_label = grid.get_child_at(1, row)
@@ -119,11 +124,41 @@ def names_page(ftv: "FamilyTreeView", configdialog):
     row += 1
     configdialog.add_checkbox(
         grid,
-        _("Use always this name format (never name-specific \"Display as:\" name format)"),
+        _("Use always this name format in the tree (never name-specific \"Display as:\" name format)"),
         row,
         "names.familytreeview-abbrev-name-format-always",
         stop=3 # same width as spinners and combos
     )
+
+    row += 1
+    all_caps_style_options = [
+        (0, _("ALL CAPS (keep as defined)")),
+        # Use <small> since proper small caps doesn't work with canvas zooming.
+        (1, _("S<small>MALL</small> C<small>APS</small>")),
+        (2, _("P<small><small>ETITE</small></small> C<small><small>APS</small></small>")),
+        (3, _("<b>Bold</b>")),
+        (4, _("<i>Italic</i>")),
+        (5, _("<u>Underline</u>")),
+    ]
+    def _cb_all_caps_combo_changed(combo, constant):
+        ftv._config.set(constant, combo.get_active())
+        _fill_preview_model(ftv, preview_model)
+    all_caps_combo = configdialog.add_combo(
+        grid,
+        _("Display ALL CAPS name parts in the tree as"),
+        row,
+        "names.familytreeview-abbrev-name-all-caps-style",
+        all_caps_style_options,
+        callback=_cb_all_caps_combo_changed,
+    )
+    cell = all_caps_combo.get_cells()[0]
+    all_caps_combo.clear_attributes(cell)
+    all_caps_combo.add_attribute(cell, "markup", 1)
+    combo_label = grid.get_child_at(1, row)
+    grid.remove(combo_label)
+    grid.remove(all_caps_combo)
+    grid.attach(combo_label, 1, row, 1, 1)
+    grid.attach(all_caps_combo, 2, row, 2, 1)
 
     row += 1
     label = configdialog.add_text(
@@ -426,7 +461,7 @@ def names_page(ftv: "FamilyTreeView", configdialog):
     preview_tree_view.get_selection().set_mode(Gtk.SelectionMode.NONE)
 
     renderer = Gtk.CellRendererText()
-    column = Gtk.TreeViewColumn("Abbreviated Name", renderer, text=0)
+    column = Gtk.TreeViewColumn("Abbreviated Name", renderer, markup=0)
     preview_tree_view.append_column(column)
 
     renderer = Gtk.CellRendererText()

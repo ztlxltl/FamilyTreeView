@@ -220,7 +220,8 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             parent=parent,
             x=x,
             y=y-self.person_height+self.padding+img_max_height+sep_below_image,
-            text=name,
+            text=abbr_names[0],
+            use_markup=True,
             alignment=Pango.Alignment.CENTER,
             anchor=GooCanvas.CanvasAnchorType.NORTH,
             width=self.person_width-2*self.padding,
@@ -233,7 +234,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         ppi = self.ppi # TODO assumption: 96
         size_px = size_pt * ppi/72
         line_height_px = size_px * 1.2 # TODO how to compute this ? (current value seems to work)
-        for abbr_name in abbr_names:
+        for abbr_name in abbr_names[1:]: # skip full name used above
             ink_extend_rect, logical_extend_rect = name_label.get_natural_extents()
             Pango.extents_to_pixels(logical_extend_rect)
             # NOTE: logical_extend_rect is independent of the canvas scale
