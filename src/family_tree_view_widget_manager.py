@@ -128,6 +128,7 @@ class FamilyTreeViewWidgetManager:
         self.panel_manager = FamilyTreeViewPanelManager(self)
         self.main_container_paned.pack2(self.panel_manager.panel_widget)
         self.main_widget.pack_start(self.main_container_paned, True, True, 0)
+        self.external_panel = False
 
         self.panel_hidden = True
 
@@ -135,13 +136,39 @@ class FamilyTreeViewWidgetManager:
 
         self.position_of_handle = {} # keep record of what is placed where
 
+    def use_internal_handle(self):
+        # TODO skip if Gramps is closed
+        if self.panel_manager.panel_widget.get_parent() != self.main_container_paned:
+            if self.panel_manager.panel_widget.get_parent() is not None:
+                self.panel_manager.panel_widget.get_parent().remove(self.panel_manager.panel_widget)
+            self.main_container_paned.pack2(self.panel_manager.panel_widget)
+        if self.panel_manager.panel_scrolled.get_parent() != self.panel_manager.panel_widget:
+            if self.panel_manager.panel_scrolled.get_parent() is not None:
+                self.panel_manager.panel_scrolled.get_parent().remove(self.panel_manager.panel_scrolled)
+            self.panel_manager.panel_widget.add(self.panel_manager.panel_scrolled)
+        self.external_panel = False
+
+    def use_external_panel(self, new_container, show_panel_header_in_external_panel=False):
+        if show_panel_header_in_external_panel:
+            self.main_container_paned.remove(self.panel_manager.panel_widget)
+            new_container.add(self.panel_manager.panel_widget)
+        else:
+            self.panel_manager.panel_widget.remove(self.panel_manager.panel_scrolled)
+            new_container.add(self.panel_manager.panel_scrolled)
+            # remove empty panel (only header)
+            self.main_container_paned.remove(self.panel_manager.panel_widget)
+        self.external_panel = True
+
     def show_panel(self):
-        paned_width = self.main_container_paned.get_allocation().width
-        if self.panel_hidden:
-            self.main_container_paned.set_position(round(paned_width*0.8)) # default value
-            # if not hidden, keep position
-        self.main_container_paned.show_all()
-        self.panel_hidden = False
+        if self.external_panel:
+            self.panel_manager.panel_scrolled.show_all()
+        else:
+            paned_width = self.main_container_paned.get_allocation().width
+            if self.panel_hidden:
+                self.main_container_paned.set_position(round(paned_width*0.8)) # default value
+                # if not hidden, keep position
+            self.main_container_paned.show_all()
+            self.panel_hidden = False
 
     def close_panel(self):
         self.panel_manager.reset_panel()

@@ -52,6 +52,8 @@ class FamilyTreeViewPanelManager(FamilyTreeViewInfoWidgetManager):
         self.panel_scrolled.add(self.panel_content)
         self.panel_widget.add(self.panel_scrolled)
 
+        self.displayed_object = None
+
     def create_panel_header(self):
         panel_header_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         panel_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, halign=Gtk.Align.END)
@@ -68,6 +70,7 @@ class FamilyTreeViewPanelManager(FamilyTreeViewInfoWidgetManager):
     def reset_panel(self):
         for child in self.panel_content.get_children():
             self.panel_content.remove(child)
+        self.displayed_object = None
 
     def open_person_panel(self, person_handle):
         self.reset_panel()
@@ -133,6 +136,8 @@ class FamilyTreeViewPanelManager(FamilyTreeViewInfoWidgetManager):
 
         self.widget_manager.show_panel()
 
+        self.displayed_object = ("person", person_handle)
+
         return True
 
     def open_family_panel(self, family_handle):
@@ -172,5 +177,7 @@ class FamilyTreeViewPanelManager(FamilyTreeViewInfoWidgetManager):
         self.panel_content.add(attributes_expander)
 
         self.widget_manager.show_panel()
+
+        self.displayed_object = ("family", family_handle)
 
         return True

@@ -19,47 +19,30 @@
 #
 
 
-from typing import TYPE_CHECKING
-
 from gi.repository import Gtk
 
-from gramps.gen.display.name import displayer as name_displayer, _F_FMT
-from gramps.gen.plug import Gramplet
+from gramps.gen.const import GRAMPS_LOCALE
 
 from abbreviated_name_display import AbbreviatedNameDisplay
-if TYPE_CHECKING:
-    from family_tree_view import FamilyTreeView
+from family_tree_view_gramplet import FamilyTreeViewGramplet
 
 
-class AbbreviatedNameDisplayInspectorGramplet(Gramplet):
+_ = GRAMPS_LOCALE.translation.gettext
+
+class AbbreviatedNameDisplayInspectorGramplet(FamilyTreeViewGramplet):
 
     def init(self):
         self.try_to_get_ftv()
 
-        self.main_scrolled = Gtk.ScrolledWindow()
-        self.main_scrolled.set_hexpand(True)
-        self.main_scrolled.set_vexpand(True)
-        self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.main_box.set_hexpand(True)
-        self.main_box.set_vexpand(True)
-        self.main_box.set_spacing(5)
-        self.main_scrolled.add(self.main_box)
-        self.gui.get_container_widget().remove(self.gui.textview)
-        self.gui.get_container_widget().add(self.main_scrolled)
+        self.build_widget()
 
         self.uistate.connect("nameformat-changed", self.update)
         self.fallback()
         self.gui.get_container_widget().show_all()
 
     def try_to_get_ftv(self):
-        try:
-            self.ftv: "FamilyTreeView" = next(
-                view for view in self.uistate.viewmanager.pages
-                if view.__class__.__name__ == "FamilyTreeView"
-            )
-        except StopIteration:
-            # FamilyTreeView not loaded yet.
-            self.ftv = None
+        super().try_to_get_ftv()
+        if self.ftv is None:
             self.abbrev_name_display = None
         else:
             self.abbrev_name_display = AbbreviatedNameDisplay(self.ftv)
@@ -74,19 +57,11 @@ class AbbreviatedNameDisplayInspectorGramplet(Gramplet):
         if self.ftv is None:
             self.try_to_get_ftv()
             if self.ftv is None:
-                self.clear_main_widget()
-                label = Gtk.Label(
+                self.show_replacement_text(_(
                     "Abbreviated names are not available. "
                     "Open FamilyTreeView once to load it and make abbreviated names available."
                     "You may need to change the active person to reload this Gramplet."
-                )
-                label.set_xalign(0)
-                label.set_line_wrap(True)
-                label.set_margin_top(10)
-                label.set_margin_left(10)
-                label.set_margin_right(10)
-                self.main_box.add(label)
-                self.gui.get_container_widget().show_all()
+                ))
                 return
         active_person = self.get_active_object("Person")
         if active_person:
@@ -182,12 +157,3 @@ class AbbreviatedNameDisplayInspectorGramplet(Gramplet):
         s += "]"
 
         return s
-
-    def fallback(self):
-        self.clear_main_widget()
-        label = Gtk.Label("Noting to show.\nMaybe no database is loaded.")
-        self.main_box.add(label)
-
-    def clear_main_widget(self):
-        for child in self.main_box.get_children():
-            self.main_box.remove(child)

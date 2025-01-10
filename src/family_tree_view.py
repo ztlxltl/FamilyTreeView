@@ -171,7 +171,6 @@ class FamilyTreeView(NavigationView):
         self.rebuild_tree()
 
     def _get_configure_page_funcs(self):
-        self.widget_manager.close_panel()
         return self.config_provider.get_configure_page_funcs()
 
     def _cb_db_changed(self, db):

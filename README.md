@@ -19,6 +19,8 @@ Screenshot:
 This repository includes the following addons, which are registered individually:
 - FamilyTreeView, the main addon of this repository
 - FamilyTreeView Example Badges, registers example badges which can be activated in FamilyTreeView's configuration window
+- FamilyTreeView Panel Gramplet, can be used to move the integrated panel into the sidebar
+  This can be useful if you don't want to hide the sidebar (View -> uncheck Sidebar) because you have other Gramplets open, but you don't want to waste too much of your window/screen width with the panel and the sidebar taking up space.
 - Children Quick View, quick view/report listing children, used as a callback example for clicking on badges
 - AbbreviatedNameDisplay Inspector Gramplet, lists the abbreviations of the names of the active person (audience=DEVELOPER)
 
