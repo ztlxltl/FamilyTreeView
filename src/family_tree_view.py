@@ -22,6 +22,8 @@
 from sqlite3 import InterfaceError
 import traceback
 
+from gi.repository import Gtk
+
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.errors import HandleError
@@ -45,6 +47,15 @@ _ = GRAMPS_LOCALE.translation.gettext
 
 class FamilyTreeView(NavigationView):
     ADDITIONAL_UI = [
+        # "Edit" menu:
+        """
+        <section id="CommonEdit" groups="RW">
+            <item>
+                <attribute name="action">win.PrintView</attribute>
+                <attribute name="label" translatable="yes">Print...</attribute>
+            </item>
+        </section>
+        """,
         # "Go" menu:
         """
         <placeholder id="CommonGo">
@@ -106,7 +117,23 @@ class FamilyTreeView(NavigationView):
                 </packing>
             </child>
         </placeholder>
+        """,
         """
+        <placeholder id="BarCommonEdit">
+            <child groups="RO">
+                <object class="GtkToolButton">
+                    <property name="icon-name">document-print</property>
+                    <property name="action-name">win.PrintView</property>
+                    <property name="tooltip_text" translatable="yes">Print or save the tree</property>
+                    <property name="label" translatable="yes">Print...</property>
+                    <property name="use-underline">True</property>
+                </object>
+                <packing>
+                    <property name="homogeneous">False</property>
+                </packing>
+            </child>
+        </placeholder>
+        """,
     ]
 
     CONFIGSETTINGS = FamilyTreeViewConfigProvider.get_config_settings()
@@ -132,6 +159,8 @@ class FamilyTreeView(NavigationView):
         self.processed_person_handles = []
 
         self.addons_registered_badges = False
+
+        self.print_settings = None
 
     def navigation_type(self):
         return "Person"
@@ -161,6 +190,10 @@ class FamilyTreeView(NavigationView):
                 else:
                     raise
         self.addons_registered_badges = True
+
+    def define_actions(self):
+        super().define_actions()
+        self._add_action("PrintView", self.print_view, "<PRIMARY><SHIFT>P")
 
     def config_connect(self):
         self.config_provider.config_connect(self._config, self.cb_update_config)
@@ -400,3 +433,42 @@ class FamilyTreeView(NavigationView):
         family = self.dbstate.db.get_family_from_handle(family_handle)
         if family is not None:
             EditFamily(self.dbstate, self.uistate, [], family)
+
+    # printing
+
+    def print_view(self, *args):
+        print_operation = Gtk.PrintOperation()
+        if (self.print_settings is not None):
+            print_operation.set_print_settings(self.print_settings)
+
+        # Since there is no universal way to split the tree across multiple pages,
+        # the entire tree is printed on a custom page that can be pre-processed.
+        print_operation.set_n_pages(1)
+        page_setup = Gtk.PageSetup()
+        margin = 10
+        page_setup.set_left_margin(margin, Gtk.Unit.POINTS)
+        page_setup.set_top_margin(margin, Gtk.Unit.POINTS)
+        page_setup.set_right_margin(margin, Gtk.Unit.POINTS)
+        page_setup.set_bottom_margin(margin, Gtk.Unit.POINTS)
+        canvas_bounds = self.widget_manager.canvas_manager.canvas_bounds
+        padding = self.widget_manager.canvas_manager.canvas_padding
+        paper_width = canvas_bounds[2] - canvas_bounds[0] - 2*padding + 2*margin
+        paper_height = canvas_bounds[3] - canvas_bounds[1] - 2*padding + 2*margin
+        paper_size = Gtk.PaperSize.new_custom("custom-matching-tree", "Tree Size", paper_width, paper_height, Gtk.Unit.POINTS)
+        page_setup.set_paper_size(paper_size)
+        print_operation.set_default_page_setup(page_setup)
+
+        print_operation.connect("draw-page", self.draw_page)
+        # print_operation.connect("paginate", lambda print_operation, print_context: True) # True = done
+        res = print_operation.run(Gtk.PrintOperationAction.PRINT_DIALOG, self.uistate.window)
+        if res == Gtk.PrintOperationResult.APPLY:
+            self.print_settings = print_operation.get_print_settings()
+
+    def draw_page(self, print_operation, print_context, page_nr):
+        # NOTE: Zoom of canvas doesn't need to be considered here
+        cr = print_context.get_cairo_context()
+        canvas_bounds = self.widget_manager.canvas_manager.canvas_bounds
+        padding = self.widget_manager.canvas_manager.canvas_padding
+        cr.translate(-canvas_bounds[0]-padding, -canvas_bounds[1]-padding)
+        bounds = None # entire canvas
+        self.widget_manager.canvas_manager.canvas.render(cr, bounds, 0.0)
