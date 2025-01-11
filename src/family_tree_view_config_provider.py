@@ -320,7 +320,7 @@ class FamilyTreeViewConfigProvider:
         personOptions = [
             (0, _("Do nothing")),
             (1, _("Open info box")),
-            (2, _("Open side padel")),
+            (2, _("Open side panel")),
             (3, _("Edit person")),
             (4, _("Set as active person")),
             (5, _("Set as home person")),
@@ -328,7 +328,7 @@ class FamilyTreeViewConfigProvider:
         familyOptions = [
             (0, _("Do nothing")),
             (1, _("Open info box")),
-            (2, _("Open side padel")),
+            (2, _("Open side panel")),
             (3, _("Edit family")),
         ]
 

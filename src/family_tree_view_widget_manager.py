@@ -395,7 +395,11 @@ class FamilyTreeViewWidgetManager:
     def _process_click(self, is_single_click, function, *data):
         if is_single_click:
             interval = self.ftv._config.get("interaction.familytreeview-double-click-timeout-milliseconds")
-            click_event_source_id = GLib.timeout_add(interval, function, *data)
+            def cb_call_function_once():
+                # Make sure the callback returns False so that it's called repeatedly.
+                function(*data)
+                return False
+            click_event_source_id = GLib.timeout_add(interval, cb_call_function_once)
             self.click_event_sources.append(GLib.main_context_default().find_source_by_id(click_event_source_id))
         else:
             for source in self.click_event_sources:
