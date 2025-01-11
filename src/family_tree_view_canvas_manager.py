@@ -41,6 +41,9 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
 
         self.canvas.props.has_tooltip = True
 
+        self.scale_factor_min = 1/100
+        self.canvas_padding = 100_000
+
         # inside boxes
         self.padding = 10
         self.border_width = 2
@@ -501,10 +504,9 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         return False
 
     def adjust_bounds(self, left, top, right, bottom):
-        padding = 10_000
-        self.canvas_bounds[0] = min(self.canvas_bounds[0], left-padding)
-        self.canvas_bounds[1] = min(self.canvas_bounds[1], top-padding)
-        self.canvas_bounds[2] = max(self.canvas_bounds[2], right+padding)
-        self.canvas_bounds[3] = max(self.canvas_bounds[3], bottom+padding)
+        self.canvas_bounds[0] = min(self.canvas_bounds[0], left-self.canvas_padding)
+        self.canvas_bounds[1] = min(self.canvas_bounds[1], top-self.canvas_padding)
+        self.canvas_bounds[2] = max(self.canvas_bounds[2], right+self.canvas_padding)
+        self.canvas_bounds[3] = max(self.canvas_bounds[3], bottom+self.canvas_padding)
 
         self.canvas.set_bounds(*self.canvas_bounds)
