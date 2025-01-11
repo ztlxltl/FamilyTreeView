@@ -355,7 +355,7 @@ class FamilyTreeViewWidgetManager:
             function = self.info_box_manager.open_family_info_box
             data = [family_handle, x, family_generation]
         elif action == 2: # side panel
-            function = self.panel_manager.open_person_panel
+            function = self.panel_manager.open_family_panel
             data = [family_handle]
         elif action == 3: # edit
             function = self.ftv.edit_family
