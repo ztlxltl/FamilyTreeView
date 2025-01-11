@@ -54,6 +54,7 @@ class FamilyTreeViewMinimapManager:
         self.minimap_width = 150
         self.minimap_height = 150
         self.minimap_padding = 5
+        self.mouse_pressed = False
 
         self.minimap_outer_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.minimap_outer_container.set_name("minimap-outer-container")
@@ -74,6 +75,9 @@ class FamilyTreeViewMinimapManager:
         self.minimap_canvas.set_name("minimap-canvas")
         self.minimap_canvas.set_scale(1/10)
         self.minimap_canvas.set_size_request(self.minimap_width, self.minimap_height)
+        self.minimap_canvas.connect("button-press-event", self.minimap_pressed)
+        self.minimap_canvas.connect("button-release-event", self.minimap_released)
+        self.minimap_canvas.connect("motion-notify-event", self.minimap_move)
         self.minimap_inner_container.add(self.minimap_canvas)
         self.minimap_outer_container.add(self.minimap_inner_container)
 
@@ -174,3 +178,34 @@ class FamilyTreeViewMinimapManager:
             self.minimap_inner_container.set_visible(True)
             arrow_type = Gtk.ArrowType.DOWN
         self.arrow.set(arrow_type=arrow_type, shadow_type=Gtk.ShadowType.NONE)
+
+    def minimap_pressed(self, _widget, event):
+        self.mouse_pressed = True
+        self.move_minimap(event.x, event.y)
+
+    def move_minimap(self, mouse_x, mouse_y):
+        canvas_bounds = self.canvas_manager.canvas.get_bounds()
+        minimap_bounds = self.minimap_canvas.get_bounds()
+        minimap_scale = self.minimap_canvas.get_scale()
+        canvas_scale = self.canvas_manager.get_scale()
+        canvas_allocation = self.canvas_manager.canvas_container.get_allocation()
+
+        hadj = (mouse_x/minimap_scale) + minimap_bounds.left - canvas_bounds.left
+        vadj = (mouse_y/minimap_scale) + minimap_bounds.top - canvas_bounds.top
+
+        hadj *= canvas_scale
+        vadj *= canvas_scale
+
+        # Move to center
+        hadj -= canvas_allocation.width/2
+        vadj -= canvas_allocation.height/2
+
+        self.canvas_manager.hadjustment.set_value(hadj)
+        self.canvas_manager.vadjustment.set_value(vadj)
+
+    def minimap_released(self, *_):
+        self.mouse_pressed = False
+
+    def minimap_move(self, _widget, event):
+        if self.mouse_pressed:
+            self.move_minimap(event.x, event.y)
