@@ -429,7 +429,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
             if "click_callback" in badge_info:
                 group.connect(
-                    "button-press-event",
+                    "button-release-event",
                     lambda *_: badge_info.get(
                         "click_callback",
                         # This is workaround since multiple users reported a KeyError.
