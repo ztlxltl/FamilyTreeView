@@ -51,17 +51,15 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
 
         self.max_name_line_count = 2
 
-        self.toggler_sep = 8
+        self.expander_sep = 5 # distance between expander and nearby boxes/expanders 
 
         # horizontal seps
         self.spouse_sep = 10 # horizontal space between spouses
-        self.child_sep = 50 # horizontal space between children
         self.grandparent_families_sep = 80 # horizontal space between the parental and maternal ancestors of active person
         self.ancestor_sep = 50 # horizontal space between the ancestor families
 
         # vertical seps
         self.above_family_sep = 10 # vertical space between family box and spouses above it
-        self.line_sep = 10
 
         # box sizes
         self.corner_radius = 10
@@ -76,7 +74,13 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.person_info_box_height = 1.0 * self.person_height
         self.family_info_box_width = 1.5 * self.family_width
         self.family_info_box_height = 0.75 * self.person_info_box_height
-        self.toggler_size = 20
+        self.expander_size = 20
+
+        # badges
+        self.badge_sep = 5
+        self.badge_padding = 5
+        self.badge_radius = 10
+        self.badge_content_sep = 2
 
         # connections
         self.connection_radius = 10
@@ -84,20 +88,15 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
 
         # combinations
         self.bottom_family_offset = self.above_family_sep + self.family_height # vertical offset between bottom of family and bottom of spouses above it
-        self.toggler_space_needed = self.toggler_sep + self.toggler_size + self.toggler_sep
-        self.below_family_sep = self.toggler_space_needed + 2*self.connection_radius + self.toggler_space_needed
+        self.expander_space_needed = self.expander_sep + self.expander_size + self.expander_sep
+        self.below_family_sep = self.expander_space_needed + 2*self.connection_radius + self.expander_space_needed + self.badge_radius
         self.generation_sep = self.bottom_family_offset + self.below_family_sep # vertical space between persons from consecutive generations (generation < 3)
         self.generation_offset = self.generation_sep + self.person_height
-        self.child_subtree_sep = 3*self.toggler_sep + 2*self.toggler_size + 5
-        self.sibling_sep = 3*self.toggler_sep + 2*self.toggler_size + 5
-        self.multiple_families_sep = self.sibling_sep # horizontal space between families with sharing a spouse
-        self.multiple_parent_families_sep = self.sibling_sep
-
-        # badges
-        self.badge_sep = 5
-        self.badge_padding = 5
-        self.badge_radius = 10
-        self.badge_content_sep = 2
+        sep_for_two_expanders = 2*self.expander_space_needed # with double self.expander_sep in the middle
+        self.child_subtree_sep = sep_for_two_expanders
+        self.sibling_sep = sep_for_two_expanders
+        self.other_families_sep = sep_for_two_expanders # horizontal space between families with sharing a spouse
+        self.other_parent_families_sep = sep_for_two_expanders
 
         # defaults
         self.default_scale = 1
@@ -345,8 +344,9 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             "x": x
         }
 
-    def add_connection(self, x1, y1, x2, y2, m=None, dashed=False, click_callback=None):
-        ym = (y1 + y2) / 2 # middle
+    def add_connection(self, x1, y1, x2, y2, ym=None, m=None, dashed=False, click_callback=None):
+        if ym is None:
+            ym = (y1 + y2) / 2 # middle
         if x1 == x2:
             data = f"""
                 M {x1} {y1}
@@ -492,6 +492,34 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                 badge_rect.props.radius_y = w/2
             badge_rect.props.x = x
             badge_rect.props.width = w
+
+    def add_expander(self, x, y, ang, click_callback):
+        group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
+        group.connect("button-press-event", self.click_callback, click_callback)
+        parent = group
+
+        GooCanvas.CanvasEllipse(
+            parent=parent,
+            center_x=x,
+            center_y=y,
+            radius_x=self.expander_size/2,
+            radius_y=self.expander_size/2,
+            fill_color="#ccc",
+            stroke_color=None,
+        )
+
+        # Use path instead of pixbuf with icon as icon is pixelated.
+        # (tried Gtk.IconLookupFlags.FORCE_SVG, doesn't work)
+        l = 5
+        data = f"""
+            M {x-l/2} {y-l}
+            L {x+l/2} {y}
+            L {x-l/2} {y+l}
+        """
+        GooCanvas.CanvasPath(
+            parent=parent,
+            data=data,
+        ).rotate(ang, x, y)
 
     def click_callback(self, root_item, target, event, other_callback=None, *other_args, **other_kwargs):
         if self.widget_manager.search_widget is not None:

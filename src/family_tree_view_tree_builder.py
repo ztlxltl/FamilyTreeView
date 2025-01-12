@@ -36,15 +36,28 @@ class FamilyTreeViewTreeBuilder():
         self.uistate = self.ftv.uistate
         self.canvas_manager = self.widget_manager.canvas_manager
 
+        self.reset()
+
     def reset(self):
+        """Should be called if the new tree is not closely related to the previous one, e.g. based on a different person."""
+        # Reset what was expanded and what not.
+        self.expanded = {}
+
+        # In some cases this will be called again.
+        self.prepare_redraw()
+
+    def prepare_redraw(self):
         # NOTE: ancestors have positive generation number (descendants negative)
         self.generation_spread = {}
-        
+
         # To only allocate the vertical space required for the connections between two ancestor generations,
         # we keep track of the number of connections in each generation (left and right side separately)
         self.num_connections_per_generation = {} # key i: number of connections between gen i and gen i+1
         # After dry run, keep track where we are using this property.
         self.i_connections_per_generation = {}
+
+        self.expander_types_shown = self.ftv._config.get("expanders.familytreeview-expander-types-shown")
+        self.expander_types_expanded = self.ftv._config.get("expanders.familytreeview-expander-types-expanded")
 
     def get_y_of_generation(self, generation):
         # negative y is up
@@ -75,10 +88,6 @@ class FamilyTreeViewTreeBuilder():
         ahnentafel=None, # needed for non-overlapping connection between ancestors
     ):
         person_width = self.canvas_manager.person_width
-
-        if x_person == 0 and person_generation == 0:
-            # this is a new active person
-            self.reset()
 
         # initialize subtree left and right bounds
         person_bounds = {"st_l": 0, "st_r": 0} # wrt x (left is usually negative, right is usually positive)
@@ -127,24 +136,57 @@ class FamilyTreeViewTreeBuilder():
 
         return person_bounds
 
-    def process_families(self, person_handle, person_bounds, x_person, person_generation, dry_run, process_descendants):
+    def process_families(self, person_handle, person_bounds, x_person, person_generation, dry_run, process_descendants, skip_family_handle=None):
         family_width = self.canvas_manager.family_width
         person_width = self.canvas_manager.person_width
         spouse_sep = self.canvas_manager.spouse_sep
 
         person = self.ftv.get_person_from_handle(person_handle)
         family_handles = person.get_family_handle_list()
+        if len(family_handles) > 1:
+            if skip_family_handle is None:
+                key = "other_families"
+            else:
+                key = "spouses_other_families"
+            expand_other_families = self.expanded.get(person_handle, {}).get(key, None)
+            if expand_other_families is None:
+                expand_other_families = self.expander_types_expanded[key]
+                self.expanded.setdefault(person_handle, {})[key] = expand_other_families
+        else:
+            expand_other_families = False
         is_primary_family = True
         for i_family, family_handle in enumerate(family_handles):
-            is_primary_family = i_family == 0
-            if not is_primary_family: # TODO for now
+            if skip_family_handle is None:
+                is_primary_family = i_family == 0
+            elif skip_family_handle == family_handle:
+                # This family has already been processed.
+                continue
+            else:
+                is_primary_family = False
+            if not is_primary_family and not expand_other_families:
                 continue
 
             family = self.dbstate.db.get_family_from_handle(family_handle)
             father_handle = family.get_father_handle()
             mother_handle = family.get_mother_handle()
             person_is_s1 = father_handle == person_handle
-            x_family = x_person + (-1+2*person_is_s1)*(person_width/2+spouse_sep/2)
+            if is_primary_family:
+                x_family = x_person + (-1+2*person_is_s1)*(person_width/2+spouse_sep/2)
+            elif process_descendants:
+                # Do a dry run to know how much space the children of the other families will need.
+                # continue
+                dummy_bounds = {"st_l": 0, "st_r": 0}
+                dummy_x = 0
+                dummy_dry_run = True
+                x_family = 0 # for dry-run
+                family_bounds = None # family_bounds is not needed for dry run of self.process_children
+                children_bounds = self.process_children(dummy_bounds, dummy_x, person_generation, dummy_dry_run, family, x_family, family_bounds)
+                # The primary family is processed before so the width their children is known, no dry-run required.
+                if person_is_s1:
+                    # Family will be on the left
+                    x_family = x_person + person_bounds["st_l"] - max(family_width/2, children_bounds["st_r"]) - self.canvas_manager.other_families_sep
+                else:
+                    x_family = x_person + person_bounds["st_r"] + max(family_width/2, -children_bounds["st_l"]) + self.canvas_manager.other_families_sep
 
             if not dry_run:
                 family_bounds = self.widget_manager.add_family(family_handle, x_family, person_generation)
@@ -156,36 +198,62 @@ class FamilyTreeViewTreeBuilder():
             # spouse
             if person_is_s1: # (father), spouse is mother
                 spouse_handle = mother_handle
-                x_spouse = x_person+person_width+spouse_sep
+                x_spouse = x_family+spouse_sep/2+person_width/2
                 spouse_alignment = "l"
             else: # person is s2 (mother), spouse is father
                 spouse_handle = father_handle
-                x_spouse = x_person-person_width-spouse_sep
+                x_spouse = x_family-spouse_sep/2-person_width/2
                 spouse_alignment = "r"
 
             if not dry_run:
                 if spouse_handle is not None:
-                    self.widget_manager.add_person(spouse_handle, x_spouse, person_generation, spouse_alignment)
+                    spouse_bounds = self.widget_manager.add_person(spouse_handle, x_spouse, person_generation, spouse_alignment)
                 else:
                     # missing person
-                    self.widget_manager.add_missing_person(x_spouse, person_generation, spouse_alignment)
+                    spouse_bounds = self.widget_manager.add_missing_person(x_spouse, person_generation, spouse_alignment)
+            else:
+                spouse_bounds = {}
 
+            if not dry_run:
                 # connections between family and spouses
-                self.widget_manager.add_connection(x_person, person_bounds["bx_b"], x_person, family_bounds["bx_t"]) # very short, no handles
-                self.widget_manager.add_connection(x_spouse, person_bounds["bx_b"], x_spouse, family_bounds["bx_t"])
+                x_person_family = x_family - (-1+2*person_is_s1)*(person_width/2+spouse_sep/2)
+                self.widget_manager.add_connection(x_person, person_bounds["bx_b"], x_person_family, family_bounds["bx_t"]) # very short, no handles
+                self.widget_manager.add_connection(x_spouse, spouse_bounds["bx_b"], x_spouse, family_bounds["bx_t"])
 
-            # This is not required if family edges aligns with spouse edges.
-            # (They do in the current / default configuration.)
-            person_bounds["st_l"] = min(person_bounds["st_l"], x_spouse-x_person-person_width/2)
-            person_bounds["st_r"] = max(person_bounds["st_r"], x_spouse-x_person+person_width/2)
+                if len(family_handles) > 1 and self.expander_types_shown["other_families"]["default_hidden"]:
+                    self.add_other_families_expander(person_handle, x_person, person_generation, person_is_s1, "other_families", expand_other_families)
+
+            person_bounds["st_l"] = min(person_bounds["st_l"], (x_spouse - x_person) - person_width/2)
+            person_bounds["st_r"] = max(person_bounds["st_r"], (x_spouse - x_person) + person_width/2)
 
             # children
             if process_descendants:
                 person_bounds = self.process_children(person_bounds, x_person, person_generation, dry_run, family, x_family, family_bounds)
+
+            # Spouse's other families after children, so there is enough space for all children.
+            if spouse_handle is not None:
+                # Since spouse is not processed (self.process_person()) and children's subtree size is in person_bounds:
+                spouse_bounds["st_l"] = person_bounds["st_l"] - (x_spouse - x_person)
+                spouse_bounds["st_r"] = person_bounds["st_r"] - (x_spouse - x_person)
+
+                spouse = self.ftv.get_person_from_handle(spouse_handle)
+                spouse_family_handles = spouse.get_family_handle_list()
+                if len(spouse_family_handles) > 1:
+                    spouse_bounds = self.process_families(spouse_handle, spouse_bounds, x_spouse, person_generation, dry_run, process_descendants, skip_family_handle=family_handle)
+                    if not dry_run and self.expander_types_shown["spouses_other_families"]["default_hidden"]:
+                        expand_spouses_other_families = self.expanded.get(spouse_handle, {}).get("spouses_other_families", None)
+                        if expand_spouses_other_families is None:
+                            expand_spouses_other_families = self.expander_types_expanded["spouses_other_families"]
+                            self.expanded.setdefault(spouse_handle, {})["spouses_other_families"] = expand_spouses_other_families
+                        self.add_other_families_expander(spouse_handle, x_spouse, person_generation, not person_is_s1, "spouses_other_families", expand_spouses_other_families)
+
+                person_bounds["st_l"] = min(person_bounds["st_l"], (x_spouse - x_person) + spouse_bounds["st_l"])
+                person_bounds["st_r"] = max(person_bounds["st_r"], (x_spouse - x_person) + spouse_bounds["st_r"])
+
         return person_bounds
 
     def process_children(self, person_bounds, x_person, person_generation, dry_run, family, x_family, family_bounds):
-        child_sep = self.canvas_manager.child_sep
+        child_sep = self.canvas_manager.child_subtree_sep
 
         min_generation = -self.ftv._config.get("appearance.familytreeview-num-descendant-generations-default")
 
@@ -195,8 +263,23 @@ class FamilyTreeViewTreeBuilder():
             return person_bounds
 
         child_generation = person_generation - 1
-        if child_generation < min_generation:
-            # Only add children if person's children not exceeding min. generation limit.
+
+        # children expander
+        family_handle = family.get_handle()
+        expand_children = self.expanded.get(family_handle, {}).get("children", None)
+        if expand_children is None:
+            expand_children = child_generation >= min_generation
+            self.expanded.setdefault(family_handle, {})["children"] = expand_children
+        if not dry_run and self.expander_types_shown["children"]["default_shown" if child_generation >= min_generation else "default_hidden"]:
+            bottom_family_offset = self.canvas_manager.bottom_family_offset
+            expander_sep = self.canvas_manager.expander_sep
+            expander_size = self.canvas_manager.expander_size
+            x_expander = x_family
+            y_expander = self.get_y_of_generation(person_generation) + bottom_family_offset + expander_sep + expander_size/2
+            ang = 90
+            self.add_expander(x_expander, y_expander, expand_children, ang, family_handle, "children")
+
+        if not expand_children:
             return person_bounds
 
         child_handles = [ref.ref for ref in child_refs]
@@ -218,7 +301,9 @@ class FamilyTreeViewTreeBuilder():
                 child_bounds = self.process_person(child_handle, x_child, child_generation, dry_run=False, process_ancestors=False)
                 dashed = self.get_dashed(family, child_handle)
                 self.widget_manager.add_connection(
-                    x_family, family_bounds["bx_b"], x_child, child_bounds["bx_t"], dashed=dashed,
+                    x_family, family_bounds["bx_b"], x_child, child_bounds["bx_t"],
+                    ym=(family_bounds["bx_b"]+child_bounds["bx_t"]-self.canvas_manager.badge_radius)/2,
+                    dashed=dashed,
                     # For multiple children, clicking near the parents is ambiguous.
                     handle1=family.handle, handle2=child_handle if len(child_handles) == 1 else None
                 )
@@ -236,7 +321,22 @@ class FamilyTreeViewTreeBuilder():
 
         parent_generation = person_generation + 1
         max_generation = self.ftv._config.get("appearance.familytreeview-num-ancestor-generations-default")
-        if parent_generation > max_generation:
+
+        # parents expander
+        person_handle = person.get_handle()
+        expand_parents = self.expanded.get(person_handle, {}).get("parents", None)
+        if expand_parents is None:
+            expand_parents = parent_generation <= max_generation
+            self.expanded.setdefault(person_handle, {})["parents"] = expand_parents
+        if not dry_run and self.expander_types_shown["parents"]["default_shown" if parent_generation <= max_generation else "default_hidden"]:
+            person_height = self.canvas_manager.person_height
+            badge_radius = self.canvas_manager.badge_radius # prevent overlap
+            expander_sep = self.canvas_manager.expander_sep
+            expander_size = self.canvas_manager.expander_size
+            y_expander = self.get_y_of_generation(person_generation) - person_height - badge_radius - expander_sep - expander_size/2
+            self.add_expander(x_person, y_expander, expand_parents, -90, person_handle, "parents")
+
+        if not expand_parents:
             return
 
         if person_generation >= 1:
@@ -343,7 +443,11 @@ class FamilyTreeViewTreeBuilder():
             parent_family = self.dbstate.db.get_family_from_handle(parent_family_handle)
             dashed = self.get_dashed(parent_family, person.handle)
 
-            self.widget_manager.add_connection(family_bounds["x"], family_bounds["bx_b"], x_person, person_bounds["bx_t"], m=m, dashed=dashed, handle1=parent_family_handle, handle2=person.handle)
+            self.widget_manager.add_connection(
+                family_bounds["x"], family_bounds["bx_b"], x_person, person_bounds["bx_t"],
+                ym=(family_bounds["bx_b"]+person_bounds["bx_t"]-self.canvas_manager.badge_radius)/2,
+                m=m, dashed=dashed, handle1=parent_family_handle, handle2=person.handle
+            )
 
     def add_missing_person(self, x_person, person_generation, alignment, dry_run=False):
         person_width = self.canvas_manager.person_width
@@ -362,3 +466,28 @@ class FamilyTreeViewTreeBuilder():
         child_ref = [ref for ref in family.get_child_ref_list() if ref.ref == child_handle][0]
         dashed = int(child_ref.get_father_relation()) != ChildRefType.BIRTH or int(child_ref.get_mother_relation()) != ChildRefType.BIRTH
         return dashed
+
+    def add_expander(self, x_expander, y_expander, expanded, ang_collapsed, handle, key):
+        def expander_clicked(root_item, target, event):
+            # The fallback False should not be used, because self.expanded.setdefault()[key] = val is used before each call of self.add_expander().
+            expand = not self.expanded.get(handle, {}).get(key, False) # 
+            self.expanded.setdefault(handle, {})[key] = expand
+            offset = self.canvas_manager.get_center_in_units()
+            self.ftv.close_info_and_rebuild(self, offset=offset)
+        if expanded:
+            ang = ang_collapsed + 180
+        else:
+            ang = ang_collapsed
+        self.widget_manager.add_expander(x_expander, y_expander, ang, expander_clicked)
+
+    def add_other_families_expander(self, person_handle, x_person, person_generation, person_is_s1, key, expanded):
+        person_width = self.canvas_manager.person_width
+
+        # We can't use a button since canvas can be zoomed.
+        expander_size = self.canvas_manager.expander_size
+        expander_sep = self.canvas_manager.expander_sep
+        # Expander for other families always on the outside of the main family:
+        x_expander = x_person - (-1+2*person_is_s1)*(person_width/2 + expander_size/2 + expander_sep)
+        y_expander = self.get_y_of_generation(person_generation) - expander_size/2
+        ang = 0 + person_is_s1*180
+        self.add_expander(x_expander, y_expander, expanded, ang, person_handle, key)

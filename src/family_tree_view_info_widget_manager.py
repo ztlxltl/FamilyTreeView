@@ -290,8 +290,7 @@ class FamilyTreeViewInfoWidgetManager:
 
         set_active_button = self.create_button("Set active", char="\u2794") # rightwards arrow
         set_active_button.set_sensitive(self.ftv.get_active() != person_handle)
-        offset = None # TODO
-        set_active_button.connect("clicked", lambda *_: self.ftv.set_active_person(person_handle, offset=offset))
+        set_active_button.connect("clicked", lambda *_: self.ftv.set_active_person(person_handle))
         buttons.pack_start(set_active_button, False, False, 0)
 
         if panel_button:

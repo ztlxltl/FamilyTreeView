@@ -6,8 +6,9 @@ Note that this addon is currently under development and should not be considered
 
 Features:
 - Tree visualization of relatives of the active person
-- Info box pop-up with basic information on a person / family
-- Side panel with detailed information on a person / families including a timeline
+- Info box pop-up with basic information on a person or family (not visible in screenshot below)
+- Side panel with detailed information on a person or families including a timeline
+- Expanders to show more (or less) ancestors or descendants of corresponding persons or families (not visible in screenshot below)
 - Name abbreviation algorithm to fit long names into the fix-sized boxes (`AbbreviatedNameDisplay`)
 - Badges for customizable display of interesting / important information (new / custom badges can be [registered](docs/badge_development.md))
 - Intuitive zoom centered at mouse pointer position
@@ -62,13 +63,10 @@ If you have feedback or bug reports that are not listed below or tracked by a Gi
 
 - tree:
   - move siblings closer together if positioning of their descendants allow it
-  - expanders (expand more ancestors / descendants / relatives of a specific person / family)
-    - expand ancestor of a person (which are not visible due to selected maximum generation)
-    - expand descendants of a family (which are not visible due to selected minimum generation)
-    - expand other families / spouses of a person
-    - expand siblings of a person
-    - expand parents and siblings of spouse of active person
-    - expand other parents of active person or ancestor
+  - more expanders (expand more relatives of a specific person / family)
+    - expand siblings of the active person or an ancestor
+    - expand parents and siblings of spouse of the active person
+    - expand other parents of the active person or an ancestor
     - maybe more
 - context menus (edit, add new person as parent, spouse, child etc.)
 - implement "add relative" button functionality

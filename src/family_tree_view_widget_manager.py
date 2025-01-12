@@ -295,7 +295,7 @@ class FamilyTreeViewWidgetManager:
 
         return family_bounds
 
-    def add_connection(self, x1, y1, x2, y2, m=None, dashed=False, handle1=None, handle2=None):
+    def add_connection(self, x1, y1, x2, y2, ym=None, m=None, dashed=False, handle1=None, handle2=None):
         # assuming y1 < y2 (e.g. handle1 is ancestor)
         follow_on_click = self.ftv._config.get("experimental.familytreeview-connection-follow-on-click")
         if not follow_on_click or (handle1 is None and handle2 is None):
@@ -303,9 +303,12 @@ class FamilyTreeViewWidgetManager:
         else:
             click_callback = lambda item, target, event, ym: self._db_connection_clicked(handle1, handle2, event, ym)
         self.canvas_manager.add_connection(
-            x1, y1, x2, y2, m=m, dashed=dashed,
+            x1, y1, x2, y2, ym=ym, m=m, dashed=dashed,
             click_callback=click_callback
         )
+
+    def add_expander(self, x, y, ang, click_callback):
+        self.canvas_manager.add_expander(x, y, ang, click_callback)
 
     # callbacks
 

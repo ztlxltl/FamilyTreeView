@@ -199,9 +199,11 @@ class FamilyTreeView(NavigationView):
         self.config_provider.config_connect(self._config, self.cb_update_config)
 
     def cb_update_config(self, client, connection_id, entry, data):
-        self.widget_manager.info_box_manager.close_info_box()
-        self.widget_manager.close_panel()
-        self.rebuild_tree()
+
+        # Required to apply changed number of generations to show.
+        self.widget_manager.tree_builder.reset()
+
+        self.close_info_and_rebuild()
 
     def _get_configure_page_funcs(self):
         return self.config_provider.get_configure_page_funcs()
@@ -247,11 +249,11 @@ class FamilyTreeView(NavigationView):
         self.callman.add_db_signal("person-update", self.close_info_and_rebuild)
         self.callman.add_db_signal("family-update", self.close_info_and_rebuild)
         self.callman.add_db_signal("event-update", self.close_info_and_rebuild)
-    
-    def close_info_and_rebuild(self, *_): # *_ required when used as callback
+
+    def close_info_and_rebuild(self, *_, offset=None): # *_ required when used as callback
         self.widget_manager.info_box_manager.close_info_box()
         self.widget_manager.close_panel()
-        self.rebuild_tree()
+        self.rebuild_tree(offset=offset)
 
     def rebuild_tree(self, offset=None):
         self.uistate.set_busy_cursor(True)
@@ -267,10 +269,16 @@ class FamilyTreeView(NavigationView):
                 # TODO Can this still happen?
                 root_person_handle = root_person_handle[0]
 
-            if root_person_handle is not None and len(root_person_handle) > 0: # handle can be empty string 
+            if root_person_handle is not None and len(root_person_handle) > 0: # handle can be empty string
+                if offset is None:
+                    # If there is no offset, the new tree is not closely related to the previous one.
+                    self.widget_manager.tree_builder.reset()
+                self.widget_manager.tree_builder.prepare_redraw()
                 self.widget_manager.tree_builder.process_person(root_person_handle, 0, 0, ahnentafel=1)
-                self.widget_manager.canvas_manager.move_to_center()
-
+                if offset is None:
+                    self.widget_manager.canvas_manager.move_to_center()
+                else:
+                    self.widget_manager.canvas_manager.move_to_center(*offset)
         self.uistate.set_busy_cursor(False)
 
     def check_and_handle_special_db_cases(self):
@@ -359,11 +367,11 @@ class FamilyTreeView(NavigationView):
                 self.widget_manager.info_box_manager.close_info_box()
                 self.rebuild_tree()
 
-    def set_active_person(self, person_handle, offset=None):
+    def set_active_person(self, person_handle):
         if self.get_person_from_handle(person_handle) is not None:
             self.change_active(person_handle)
             self.widget_manager.info_box_manager.close_info_box()
-            self.rebuild_tree(offset=offset)
+            self.rebuild_tree()
 
     def set_active_family(self, family_handle):
         if self.get_family_from_handle(family_handle) is not None:

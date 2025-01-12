@@ -82,6 +82,19 @@ class FamilyTreeViewConfigProvider:
             ("names.familytreeview-abbrev-name-all-caps-style", 0),
             ("names.familytreeview-name-abbrev-rules", deepcopy(DEFAULT_ABBREV_RULES)),
 
+            ("expanders.familytreeview-expander-types-shown", {
+                "parents": {"default_shown": True, "default_hidden": True},
+                "children": {"default_shown": True, "default_hidden": True},
+                "other_families": {"default_shown": True, "default_hidden": True},
+                "spouses_other_families": {"default_shown": True, "default_hidden": True},
+            }),
+            ("expanders.familytreeview-expander-types-expanded", {
+                "parents": None, # controlled by generation num-ancestor-generations-default
+                "children": None, # controlled by generation num-descendant-generations-default
+                "other_families": False,
+                "spouses_other_families": False,
+            }),
+
             ("experimental.familytreeview-adaptive-ancestor-generation-dist", False),
             ("experimental.familytreeview-connection-follow-on-click", False),
             ("experimental.familytreeview-canvas-font-size-ppi", 96),
@@ -97,6 +110,7 @@ class FamilyTreeViewConfigProvider:
             self.appearance_page,
             self.interaction_page,
             self.names_page,
+            self.expanders_page,
             self.badges_page,
             self.experimental_page,
         ]
@@ -114,7 +128,7 @@ class FamilyTreeViewConfigProvider:
             _("Default number of ancestor generations to show"),
             row,
             "appearance.familytreeview-num-ancestor-generations-default",
-            (0, 100) # more might be possible
+            (0, 20) # more might can performance issues, expanders can be used
         )
 
         row += 1
@@ -123,7 +137,7 @@ class FamilyTreeViewConfigProvider:
             _("Default number of descendant generations to show"),
             row,
             "appearance.familytreeview-num-descendant-generations-default",
-            (0, 100) # more might be possible
+            (0, 20) # more might can performance issues, expanders can be used
         )
 
         row += 1
@@ -412,6 +426,99 @@ class FamilyTreeViewConfigProvider:
 
     def names_page(self, configdialog):
         return names_page(self.ftv, configdialog)
+
+    def expanders_page(self, configdialog):
+        grid = Gtk.Grid()
+        grid.set_border_width(12)
+        grid.set_column_spacing(6)
+        grid.set_row_spacing(6)
+        row = -1
+
+        row += 1
+        expander_list_store = Gtk.ListStore(str, str, bool, bool, bool, bool, bool, bool, str)
+        expander_types_shown = self.ftv._config.get("expanders.familytreeview-expander-types-shown")
+        expander_types_expanded = self.ftv._config.get("expanders.familytreeview-expander-types-expanded")
+        expander_types = [
+            ("parents", _("Parents")),
+            ("children", _("Children")),
+            ("other_families", _("Other families")),
+            ("spouses_other_families", _("Other families of spouses")),
+        ]
+        for expander_type_name, expander_type_translated in expander_types:
+            expander_type_shown = expander_types_shown.get(expander_type_name, {
+                "default_shown": True,
+                "default_hidden": True
+            })
+            expander_type_expanded = expander_types_expanded.get(expander_type_name, False)
+            # These are the only subtree types where other criteria (such as the generation they are in)
+            # determine whether they are shown by default.
+            separate_default_handling = expander_type_name in ["parents", "children"]
+            expander_list_store.append([
+                expander_type_name,
+                expander_type_translated,
+                expander_type_shown["default_shown"] if separate_default_handling else False,
+                separate_default_handling, # activatable
+                expander_type_shown["default_hidden"],
+                True, # activatable
+                False if separate_default_handling else expander_type_expanded,
+                not separate_default_handling, # activatable
+                "" # empty column
+            ])
+
+        expander_tree_view = Gtk.TreeView(model=expander_list_store)
+        expander_tree_view.get_selection().set_mode(Gtk.SelectionMode.NONE)
+
+        # expander type column
+        renderer = Gtk.CellRendererText()
+        column = Gtk.TreeViewColumn(_("Expander type"), renderer, text=1)
+        expander_tree_view.append_column(column)
+
+        def _cb_expander_toggled(widget, path, i, config_key, sub_key=None):
+            expander_list_store[path][i] = not expander_list_store[path][i]
+            config = self.ftv._config.get(config_key)
+            expander_type = expander_list_store[path][0]
+            if sub_key is None:
+                config[expander_type] = expander_list_store[path][i]
+            else:
+                if expander_type not in config:
+                    assert config_key == "expanders.familytreeview-expander-types-shown"
+                    default_value = {"default_shown": True, "default_hidden": True}
+                    config[expander_type] = default_value
+                config[expander_type][sub_key] = expander_list_store[path][i]
+            self.ftv._config.set(config_key, config)
+
+            # cb_update_config connected doesn't work, even when using a shallow or deep copy.
+            # Update explicitly:
+            self.ftv.cb_update_config(None, None, None, None)
+
+        # checkbox column
+        renderer = Gtk.CellRendererToggle()
+        renderer.connect("toggled", _cb_expander_toggled, 2, "expanders.familytreeview-expander-types-shown", "default_shown")
+        column = Gtk.TreeViewColumn(_("Show expanders\nfor subtrees\nvisible by default"), renderer, active=2, activatable=3)
+        expander_tree_view.append_column(column)
+        renderer = Gtk.CellRendererToggle()
+
+        renderer.connect("toggled", _cb_expander_toggled, 4, "expanders.familytreeview-expander-types-shown", "default_hidden")
+        column = Gtk.TreeViewColumn(_("Show expanders\nfor subtrees\nhidden by default"), renderer, active=4, activatable=5)
+        expander_tree_view.append_column(column)
+        renderer = Gtk.CellRendererToggle()
+
+        renderer.connect("toggled", _cb_expander_toggled, 6, "expanders.familytreeview-expander-types-expanded")
+        column = Gtk.TreeViewColumn(_("Expand subtrees\nby default"), renderer, active=6, activatable=7)
+        expander_tree_view.append_column(column)
+
+        # empty column to fill the remaining space
+        renderer = Gtk.CellRendererText()
+        column = Gtk.TreeViewColumn("", renderer, text=8)
+        expander_tree_view.append_column(column)
+
+        scrolled_window = Gtk.ScrolledWindow()
+        scrolled_window.set_hexpand(True)
+        scrolled_window.set_vexpand(True)
+        scrolled_window.add(expander_tree_view)
+        grid.attach(scrolled_window, 1, row, 8, 1) # these are the default with of widgets created by configdialog's methods
+
+        return (_("Expanders"), grid)
 
     def badges_page(self, configdialog):
         grid = Gtk.Grid()
