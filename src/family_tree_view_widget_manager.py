@@ -244,7 +244,7 @@ class FamilyTreeViewWidgetManager:
         badges = self.ftv.badge_manager.get_person_badges(person_handle)
 
         person_bounds = self.canvas_manager.add_person(
-            x, person_generation, name_str, abbr_name_strs, birth_date, death_date, background_color, border_color, image_spec, alive, round_lower_corners,
+            x, person_generation, name, abbr_name_strs, birth_date, death_date, background_color, border_color, image_spec, alive, round_lower_corners,
             click_callback=lambda item, target, event: self._cb_person_clicked(person_handle, event, x, person_generation, alignment),
             badges=badges
         )
@@ -262,7 +262,7 @@ class FamilyTreeViewWidgetManager:
         round_lower_corners = alignment == "c"
 
         person_bounds = self.canvas_manager.add_person(
-            x, person_generation, "", [""], "", "", background_color, border_color,
+            x, person_generation, None, [""], "", "", background_color, border_color,
             ("text", "[missing person]"), # text instead of image
             True, # no ribbon
             round_lower_corners,

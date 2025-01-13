@@ -28,6 +28,7 @@ from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.errors import HandleError
 from gramps.gen.lib import EventType
+from gramps.gen.utils.callback import Callback
 from gramps.gen.utils.file import find_file, media_path_full
 from gramps.gen.utils.symbols import Symbols
 from gramps.gen.utils.thumbnails import get_thumbnail_path
@@ -45,7 +46,7 @@ from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
 _ = GRAMPS_LOCALE.translation.gettext
 
-class FamilyTreeView(NavigationView):
+class FamilyTreeView(NavigationView, Callback):
     ADDITIONAL_UI = [
         # "Edit" menu:
         """
@@ -138,11 +139,16 @@ class FamilyTreeView(NavigationView):
 
     CONFIGSETTINGS = FamilyTreeViewConfigProvider.get_config_settings()
 
+    __signals__ = {
+        "abbrev-rules-changed": None,
+    }
+
     def __init__(self, pdata, dbstate, uistate, nav_group=0):
         self.badge_manager = FamilyTreeViewBadgeManager(self)
         self.config_provider = FamilyTreeViewConfigProvider(self)
 
         NavigationView.__init__(self, _("FamilyTreeView"), pdata, dbstate, uistate, PersonBookmarks, nav_group)
+        Callback.__init__(self)
 
         self.dbstate = dbstate
         self.uistate = uistate

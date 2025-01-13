@@ -181,6 +181,7 @@ def names_page(ftv: "FamilyTreeView", configdialog):
     button = Gtk.Button(label=_("Reset abbreviation rules to default"))
     def _cb_reset_rules(button):
         ftv._config.set("names.familytreeview-name-abbrev-rules", deepcopy(DEFAULT_ABBREV_RULES))
+        ftv.emit("abbrev-rules-changed")
         # update rule model
         _fill_abbrev_rules_model_from_config(ftv, abbrev_rules_model)
         # deselect rule
@@ -245,6 +246,7 @@ def names_page(ftv: "FamilyTreeView", configdialog):
         rule[0] = abbrev_rules_model[path][1]
         rules_config[int(path)] = tuple(rule)
         ftv._config.set("names.familytreeview-name-abbrev-rules", rules_config)
+        ftv.emit("abbrev-rules-changed")
         _fill_abbrev_rules_model_from_config(ftv, abbrev_rules_model)
         abbrev_rules_tree_view.get_selection().unselect_all()
 
@@ -272,6 +274,7 @@ def names_page(ftv: "FamilyTreeView", configdialog):
         rule[2] = abbrev_rules_model[path][4]
         rules_config[int(path)] = tuple(rule)
         ftv._config.set("names.familytreeview-name-abbrev-rules", rules_config)
+        ftv.emit("abbrev-rules-changed")
         _fill_abbrev_rules_model_from_config(ftv, abbrev_rules_model)
         abbrev_rules_tree_view.get_selection().unselect_all()
 
@@ -304,6 +307,7 @@ def names_page(ftv: "FamilyTreeView", configdialog):
             rule_i = int(selection.get_selected_rows()[1][0].to_string())+1
         rules_config.insert(rule_i, new_rule)
         ftv._config.set("names.familytreeview-name-abbrev-rules", rules_config)
+        ftv.emit("abbrev-rules-changed")
         _fill_abbrev_rules_model_from_config(ftv, abbrev_rules_model)
         abbrev_rules_tree_view.get_selection().select_iter(abbrev_rules_model.get_iter((rule_i,)))
 
@@ -324,6 +328,7 @@ def names_page(ftv: "FamilyTreeView", configdialog):
             new_rule = deepcopy(rules_config[rule_i])
             rules_config.insert(rule_i, new_rule)
             ftv._config.set("names.familytreeview-name-abbrev-rules", rules_config)
+            ftv.emit("abbrev-rules-changed")
             _fill_abbrev_rules_model_from_config(ftv, abbrev_rules_model)
             abbrev_rules_tree_view.get_selection().select_iter(abbrev_rules_model.get_iter((rule_i+1,)))
 
@@ -343,6 +348,7 @@ def names_page(ftv: "FamilyTreeView", configdialog):
             rule_i = int(selection.get_selected_rows()[1][0].to_string())
             rules_config.insert(rule_i-1, rules_config.pop(rule_i))
             ftv._config.set("names.familytreeview-name-abbrev-rules", rules_config)
+            ftv.emit("abbrev-rules-changed")
             _fill_abbrev_rules_model_from_config(ftv, abbrev_rules_model)
             abbrev_rules_tree_view.get_selection().select_iter(abbrev_rules_model.get_iter((rule_i-1,)))
 
@@ -362,6 +368,7 @@ def names_page(ftv: "FamilyTreeView", configdialog):
             rule_i = int(selection.get_selected_rows()[1][0].to_string())
             rules_config.insert(rule_i+1, rules_config.pop(rule_i))
             ftv._config.set("names.familytreeview-name-abbrev-rules", rules_config)
+            ftv.emit("abbrev-rules-changed")
             _fill_abbrev_rules_model_from_config(ftv, abbrev_rules_model)
             abbrev_rules_tree_view.get_selection().select_iter(abbrev_rules_model.get_iter((rule_i+1,)))
 
@@ -381,6 +388,7 @@ def names_page(ftv: "FamilyTreeView", configdialog):
             rule_i = int(selection.get_selected_rows()[1][0].to_string())
             rules_config.pop(rule_i)
             ftv._config.set("names.familytreeview-name-abbrev-rules", rules_config)
+            ftv.emit("abbrev-rules-changed")
             _fill_abbrev_rules_model_from_config(ftv, abbrev_rules_model)
             abbrev_rules_tree_view.get_selection().unselect_all()
 
@@ -433,6 +441,7 @@ def names_page(ftv: "FamilyTreeView", configdialog):
         rule[1] = name_part_types
         rules_config[rule_i] = tuple(rule)
         ftv._config.set("names.familytreeview-name-abbrev-rules", rules_config)
+        ftv.emit("abbrev-rules-changed")
 
         # cb_update_config connected doesn't work, even when using a shallow or deep copy.
         # Update explicitly:

@@ -112,3 +112,9 @@ def calculate_min_max_age_at_event(birth_event, event, calendar):
     min_age = age_at_event(birth_stop_ymd, event_start_ymd)
     max_age = age_at_event(birth_start_ymd, event_stop_ymd)
     return (min_age, max_age)
+
+def make_hashable(x):
+    if isinstance(x, (tuple, list)):
+        return tuple(make_hashable(item) for item in x)
+    else:
+        return x

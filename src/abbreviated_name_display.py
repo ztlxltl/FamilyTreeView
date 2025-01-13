@@ -30,6 +30,7 @@ from gramps.gen.display.name import (
     displayer as name_displayer, _make_cmp_key, cleanup_name
 )
 
+from family_tree_view_utils import make_hashable
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
 
@@ -267,6 +268,14 @@ class AbbreviatedNameDisplay():
         self.ftv = ftv
         self.step_description = None
 
+        self.ftv.uistate.connect("nameformat-changed", self.reset_cache)
+        self.ftv.connect("abbrev-rules-changed", self.reset_cache)
+
+        self.reset_cache()
+
+    def reset_cache(self):
+        self.cache = {}
+
     def get_num_for_name_abbrev(self, name):
         format_num_config_always = self.ftv._config.get("names.familytreeview-abbrev-name-format-always")
         format_num_config = self.ftv._config.get("names.familytreeview-abbrev-name-format-id")
@@ -284,7 +293,7 @@ class AbbreviatedNameDisplay():
         num = name_displayer._is_format_valid(num)
         return num
 
-    def get_abbreviated_names(self, name, num=None, return_step_description=False):
+    def get_abbreviated_names(self, name, num=None, return_step_description=False, use_cached=True):
         """
         Returns a list of strings with abbreviations of the given name object.
         The returned list is ordered by decreasing name length.
@@ -295,6 +304,13 @@ class AbbreviatedNameDisplay():
         Given names, prefixes etc. are abbreviated step by step (examples with reverse=True: 
         Mary Ann -> Mary A. -> M. A., Mary-Ann -> Mary-A. -> M.-A., MaryAnn -> MaryA. -> M.A., van der -> van d. -> v. d.)
         """
+
+        if return_step_description:
+            use_cached = False
+
+        hashable_name = make_hashable(name.serialize())
+        if use_cached and hashable_name in self.cache:
+            return self.cache[hashable_name]
 
         self.step_description = []
 
@@ -317,6 +333,8 @@ class AbbreviatedNameDisplay():
                 if not self._apply_rule_once(name_parts, action, name_part_types, reverse, rule_i, rule_step_i):
                     break
                 abbrev_name_list.append(self._name_from_parts(name_parts))
+
+        self.cache[hashable_name] = abbrev_name_list
 
         step_description = self.step_description
         self.step_description = None

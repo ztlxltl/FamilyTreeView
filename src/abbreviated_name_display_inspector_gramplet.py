@@ -46,6 +46,7 @@ class AbbreviatedNameDisplayInspectorGramplet(FamilyTreeViewGramplet):
             self.abbrev_name_display = None
         else:
             self.abbrev_name_display = AbbreviatedNameDisplay(self.ftv)
+            self.ftv.connect("abbrev-rules-changed", self.update)
 
     def db_changed(self):
         self.connect(self.dbstate.db, "person-update", self.update)

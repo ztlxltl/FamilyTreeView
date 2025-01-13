@@ -26,7 +26,7 @@ from gi.repository import Gtk, GdkPixbuf, Pango
 
 from family_tree_view_canvas_manager_base import FamilyTreeViewCanvasManagerBase
 from family_tree_view_icons import get_svg_data
-from family_tree_view_utils import import_GooCanvas
+from family_tree_view_utils import import_GooCanvas, make_hashable
 if TYPE_CHECKING:
     from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
@@ -104,6 +104,10 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.reset_transform()
 
         self.reset_canvas()
+        self.reset_abbrev_names()
+
+        self.ftv.uistate.connect("nameformat-changed", self.reset_abbrev_names)
+        self.ftv.connect("abbrev-rules-changed", self.reset_abbrev_names)
 
     def reset_canvas(self):
         super().reset_canvas()
@@ -111,6 +115,9 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.connection_group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
         self.canvas_bounds = [0, 0, 0, 0] # left, top, right, bottom
         self.ppi = self.ftv._config.get("experimental.familytreeview-canvas-font-size-ppi")
+
+    def reset_abbrev_names(self):
+        self.fitting_abbrev_names = {}
 
     def add_person(self, x, generation, name, abbr_names, birth_date, death_date, primary_color, secondary_color, image_spec, alive, round_lower_corners, click_callback=None, badges=None):
 
@@ -232,18 +239,24 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             # TODO somehow make ellipsize work for multiline (most likely has to kick in after using abbreviated names)
         )
 
-        size_pt = font_desc.get_size() / Pango.SCALE
-        ppi = self.ppi # TODO assumption: 96
-        size_px = size_pt * ppi/72
-        line_height_px = size_px * 1.2 # TODO how to compute this ? (current value seems to work)
-        for abbr_name in abbr_names[1:]: # skip full name used above
-            ink_extend_rect, logical_extend_rect = name_label.get_natural_extents()
-            Pango.extents_to_pixels(logical_extend_rect)
-            # NOTE: logical_extend_rect is independent of the canvas scale
-            if logical_extend_rect.height > 2*line_height_px:
-                name_label.text_data.text = abbr_name
+        if name is not None:
+            hashable_name = make_hashable(name.serialize())
+            if hashable_name in self.fitting_abbrev_names:
+                name_label.text_data.text = self.fitting_abbrev_names[hashable_name]
             else:
-                break
+                size_pt = font_desc.get_size() / Pango.SCALE
+                ppi = self.ppi # TODO assumption: 96
+                size_px = size_pt * ppi/72
+                line_height_px = size_px * 1.2 # TODO how to compute this ? (current value seems to work)
+                for abbr_name in abbr_names[1:]: # skip full name used above
+                    ink_extend_rect, logical_extend_rect = name_label.get_natural_extents()
+                    Pango.extents_to_pixels(logical_extend_rect)
+                    # NOTE: logical_extend_rect is independent of the canvas scale
+                    if logical_extend_rect.height > 2*line_height_px:
+                        name_label.text_data.text = abbr_name
+                    else:
+                        break
+                self.fitting_abbrev_names[hashable_name] = name_label.text_data.text
 
         # dates
         if birth_date == "":
