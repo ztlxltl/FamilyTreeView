@@ -431,6 +431,9 @@ class FamilyTreeViewTreeBuilder():
             # missing inner parent
             if not dry_run:
                 inner_parent_bounds = self.add_missing_person(inner_parent_x, parent_generation, inner_parent_alignment)
+            else:
+                inner_parent_bounds = {"st_l": -person_width/2, "st_r": person_width/2}
+
         if outer_parent_handle is not None:
             outer_parent_bounds = self.process_person(outer_parent_handle, outer_parent_x, parent_generation, dry_run=dry_run, alignment=outer_parent_alignment, process_families=False, process_descendants=False, ahnentafel=outer_parent_ahnentafel)
 
@@ -449,6 +452,8 @@ class FamilyTreeViewTreeBuilder():
             # missing outer parent
             if not dry_run:
                 outer_parent_bounds = self.add_missing_person(outer_parent_x, parent_generation, outer_parent_alignment)
+            else:
+                outer_parent_bounds = {"st_l": -person_width/2, "st_r": person_width/2}
 
         if parent_generation > 1:
             if x_family < 0:
