@@ -56,7 +56,6 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         # horizontal seps
         self.spouse_sep = 10 # horizontal space between spouses
         self.grandparent_families_sep = 80 # horizontal space between the parental and maternal ancestors of active person
-        self.ancestor_sep = 50 # horizontal space between the ancestor families
 
         # vertical seps
         self.above_family_sep = 10 # vertical space between family box and spouses above it
@@ -96,6 +95,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.child_subtree_sep = sep_for_two_expanders
         self.sibling_sep = sep_for_two_expanders
         self.other_families_sep = sep_for_two_expanders # horizontal space between families with sharing a spouse
+        self.ancestor_sep = sep_for_two_expanders
         self.other_parent_families_sep = sep_for_two_expanders
 
         # defaults
