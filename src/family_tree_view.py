@@ -170,7 +170,7 @@ class FamilyTreeView(NavigationView, Callback):
         for config_name in config.get_section_settings("colors"):
             config.connect("colors." + config_name, self.close_info_and_rebuild)
 
-        self.processed_person_handles = []
+        self.generic_filter = None
 
         self.addons_registered_badges = False
 
@@ -231,11 +231,15 @@ class FamilyTreeView(NavigationView, Callback):
         return self.widget_manager.main_widget
 
     def build_tree(self):
-        # Cannot build tree without handle.
-        # See self.goto_handle
+        # Also see self.goto_handle
 
-        # The apparently only case which needs to be covered here is an empty db:
-        self.check_and_handle_empty_db()
+        # Apparently there are only two cases where the tree needs to update when this function is called:
+        # - empty db and other similar cases
+        # - sidebar filter is applied
+        if self.check_and_handle_empty_db():
+            return
+
+        self.rebuild_tree()
 
     def goto_handle(self, handle):
         # In other implementations, both build_tree and goto_handle call the main buildup of the view.

@@ -70,11 +70,14 @@ class FamilyTreeViewConfigProvider:
             ("interaction.familytreeview-double-click-timeout-milliseconds", 200),
             ("interaction.familytreeview-family-info-box-set-active-button", False),
 
-            ("badges.familytreeview-badges-active", { # examples are turned off by default
+            ("badges.familytreeview-badges-active", { # most examples are turned off by default
                 "num_citations": {"person": False, "family": False},
                 "num_events_without_citations": {"person": False, "family": False},
                 "num_children": {"person": False, "family": False},
                 "num_other_families": {"person": False, "family": False},
+                "filter_result": {"person": True, "family": False},
+                "gramps_id": {"person": False, "family": False},
+                "gramps_handle": {"person": False, "family": False},
             }),
 
             ("names.familytreeview-abbrev-name-format-id", 0),
@@ -647,11 +650,11 @@ class FamilyTreeViewConfigProvider:
         row += 1
         badge_list_store = Gtk.ListStore(str, bool, bool, bool, bool, str)
         config_badges_active = self.ftv._config.get("badges.familytreeview-badges-active")
-        for badge_id, badge_name, person_callback, family_callback in self.badge_manager.badges:
+        for badge_id, badge_name, person_callback, family_callback, default_active_person, default_active_family in self.badge_manager.badges:
             badge_active = config_badges_active.get(badge_id, {
                 # by default, turn all badges on, if they are provided
-                "person": person_callback is not None,
-                "family": family_callback is not None
+                "person": default_active_person and person_callback is not None,
+                "family": default_active_family and family_callback is not None
             })
             badge_list_store.append([
                 badge_name,

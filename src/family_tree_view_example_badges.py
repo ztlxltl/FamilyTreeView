@@ -237,6 +237,76 @@ class NumOtherFamiliesBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
             }
         ]
 
+class FilterResultBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
+    def register_badges(self):
+        self.badge_manager.register_person_badges_callback(
+            "filter_result", "Filter result",
+            self.cb_create_person_badge
+        )
+
+    def cb_create_person_badge(self, dbstate, uistate, handle):
+        if self.ftv.generic_filter is None:
+            return []
+
+        if not self.ftv.generic_filter.match(handle, dbstate.db):
+            return []
+
+        return [{
+            "background_color": "blue",
+            "tooltip": _("Matches filter"),
+            "content": [{
+                "content_type": "text",
+                "text": "◉",
+                "text_color": "white"
+            }],
+            "priority": 1
+        }]
+
+class GrampsIdBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
+    def register_badges(self):
+        self.badge_manager.register_badges_callbacks(
+            "gramps_id", "Gramps ID",
+            self.cb_create_person_badge,
+            self.cb_create_family_badge,
+            False, False
+        )
+
+    def cb_create_person_badge(self, dbstate, uistate, handle):
+        return self.cb_create_badge(dbstate.db.get_person_from_handle(handle).gramps_id)
+
+    def cb_create_family_badge(self, dbstate, uistate, handle):
+        return self.cb_create_badge(dbstate.db.get_family_from_handle(handle).gramps_id)
+
+    def cb_create_badge(self, gramps_id):
+        return [{
+            "background_color": "light gray",
+            "tooltip": _("Gramps ID: ") + gramps_id,
+            "content": [{
+                "content_type": "text",
+                "text": gramps_id,
+            }],
+            "priority": 1
+        }]
+
+class GrampsHandleBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
+    def register_badges(self):
+        self.badge_manager.register_badges_callbacks(
+            "gramps_handle", "Gramps handle (for debugging)",
+            self.cb_create_badge,
+            self.cb_create_badge,
+            False, False
+        )
+
+    def cb_create_badge(self, dbstate, uistate, handle):
+        return [{
+            "background_color": "light gray",
+            "tooltip": _("Gramps handle: ") + handle,
+            "content": [{
+                "content_type": "text",
+                "text": handle,
+            }],
+            "priority": 1
+        }]
 
 def load_on_reg(dbstate, uistate, addon):
     # load_on_reg can needs to return one or more functions.
@@ -248,3 +318,6 @@ def register_badges(dbstate, uistate, badge_manager):
     NumEventsWithoutCitationsBadgeRegisterer(dbstate, uistate, badge_manager).register_badges()
     NumChildrenBadgeRegisterer(dbstate, uistate, badge_manager).register_badges()
     NumOtherFamiliesBadgeRegisterer(dbstate, uistate, badge_manager).register_badges()
+    FilterResultBadgeRegisterer(dbstate, uistate, badge_manager).register_badges()
+    GrampsIdBadgeRegisterer(dbstate, uistate, badge_manager).register_badges()
+    GrampsHandleBadgeRegisterer(dbstate, uistate, badge_manager).register_badges()

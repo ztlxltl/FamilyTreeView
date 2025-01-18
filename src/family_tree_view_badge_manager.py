@@ -35,15 +35,21 @@ class FamilyTreeViewBadgeManager:
         self.badges = []
         self.badge_click_callbacks = {}
 
-    def register_badges_callbacks(self, badge_id, badge_name, person_badge_callback, family_badge_callback):
+    def register_badges_callbacks(self, badge_id, badge_name, 
+        person_badge_callback, family_badge_callback, 
+        default_active_person=True, default_active_family=True
+    ):
         assert badge_id not in [b[0] for b in self.badges]
-        self.badges.append((badge_id, badge_name, person_badge_callback, family_badge_callback))
+        self.badges.append((badge_id, badge_name, 
+            person_badge_callback, family_badge_callback,
+            default_active_person, default_active_family
+        ))
 
-    def register_person_badges_callback(self, badge_id, badge_name, person_badge_callback):
-        self.register_badges_callbacks(badge_id, badge_name, person_badge_callback, None)
+    def register_person_badges_callback(self, badge_id, badge_name, person_badge_callback, default_active_person=True):
+        self.register_badges_callbacks(badge_id, badge_name, person_badge_callback, None, default_active_person, False)
 
-    def register_family_badges_callback(self, badge_id, badge_name, family_badge_callback):
-        self.register_badges_callbacks(badge_id, badge_name, None, family_badge_callback)
+    def register_family_badges_callback(self, badge_id, badge_name, family_badge_callback, default_active_family=True):
+        self.register_badges_callbacks(badge_id, badge_name, None, family_badge_callback, False, default_active_family)
 
     def get_person_badges(self, person_handle):
         return self._get_badges("person", person_handle)
@@ -85,11 +91,14 @@ class FamilyTreeViewBadgeManager:
 
         badge_callbacks = []
         for badge in self.badges:
-            if badge[0] in config_badge_active: # default to active
+            if badge[0] in config_badge_active:
                 if not config_badge_active[badge[0]][key]:
-                    continue
+                    continue # not active
+            else:
+                if not badge[i+2]: # default
+                    continue # default: not active
             if badge[i] is None:
-                continue
+                continue # no callback
             badge_callbacks.append(badge[i])
 
         badges = []
