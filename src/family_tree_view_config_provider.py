@@ -576,9 +576,12 @@ class FamilyTreeViewConfigProvider:
                         expander_type_ = "other_families"
                     elif expander_type == "other_families":
                         expander_type_ = "other_parents"
-                    path_ = str([t[0] for t in expander_types].index(expander_type_))
-                    expander_list_store[path_][i] = False
-                    config[expander_type_] = expander_list_store[path_][i]
+                    else:
+                        expander_type_ = ""
+                    if expander_type_ != "":
+                        path_ = str([t[0] for t in expander_types].index(expander_type_))
+                        expander_list_store[path_][i] = False
+                        config[expander_type_] = expander_list_store[path_][i]
             self.ftv._config.set(config_key, config)
 
             # cb_update_config connected doesn't work, even when using a shallow or deep copy.
