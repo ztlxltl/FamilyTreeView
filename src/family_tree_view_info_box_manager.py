@@ -40,10 +40,13 @@ class FamilyTreeViewInfoBoxManager(FamilyTreeViewInfoWidgetManager):
         style_context.add_provider_for_screen(Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         provider.load_from_data(f"""
             #ftv-info-box {{
-                background-color: #ddd;
+                background-color: mix(@theme_fg_color, @theme_bg_color, 0.85);
                 border-radius: {r}px;
                 padding: {r}px;
                 border: 2px solid black;
+            }}
+            #ftv-info-box #ftv-tag-circle{{ /* hole needs same color as background */
+                background-color: mix(@theme_fg_color, @theme_bg_color, 0.85);
             }}
         """.encode())
 

@@ -32,6 +32,7 @@ from gramps.gen.lib.eventroletype import EventRoleType
 from gramps.gen.lib.eventtype import EventType
 from gramps.gen.lib.family import Family
 from gramps.gen.lib.person import Person
+from gramps.gui.utils import rgb_to_hex
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback, get_divorce_or_fallback
 
 from family_tree_view_utils import calculate_min_max_age_at_event, get_label_line_height, import_GooCanvas
@@ -77,18 +78,18 @@ class FamilyTreeViewTimeline:
 
         self.widget_manager.add_to_provider(f"""
             .ftv-timeline-event-own {{
-                background-color: #FFF;
+                background-color: mix(@theme_bg_color, mix(@theme_fg_color, @theme_bg_color, 0.5), -0.1); /* intensified background */
                 margin: {self.event_margin}px {self.event_margin_right}px {self.event_margin}px {self.event_margin}px;
                 border-radius: 5px;
                 padding: {self.event_padding}px;
-                box-shadow: 0 0 5px 0 rgba(0, 0, 0, 0.5);
+                box-shadow: 0 0 5px 0 alpha(mix(@theme_fg_color, mix(@theme_bg_color, @theme_fg_color, 0.5), -0.1), 0.5) /* intensified foreground */;
             }}
             .ftv-timeline-event-relatives {{
-                background-color: #EEE;
+                background-color: mix(@theme_bg_color, @theme_fg_color, 0.1);
                 margin: {self.event_margin}px {self.event_margin_right}px {self.event_margin}px {self.event_margin}px;
                 border-radius: 5px;
                 padding: {self.event_padding}px;
-                box-shadow: inset 0 0 5px 0 rgba(0, 0, 0, 0.5);
+                box-shadow: inset 0 0 5px 0 alpha(mix(@theme_fg_color, mix(@theme_bg_color, @theme_fg_color, 0.5), -0.1), 0.5) /* intensified foreground */;
             }}
         """)
 
@@ -157,7 +158,7 @@ class FamilyTreeViewTimeline:
         self.timeline_event_marker_x = self.timeline_canvas_width - 10
         self.timeline_top_margin = 30 # enough for time unit
         self.timeline_bottom_margin = self.event_margin + self.event_padding + 5 # ca. mid of last line of last event
-        self.timeline_marker_radius = 2
+        self.timeline_marker_radius = 3
 
         self.main_widget_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
@@ -425,6 +426,7 @@ class FamilyTreeViewTimeline:
 
         # TODO This is a fallback.
         # How can the root_item be None? It's never removed.
+        # Some users had an error caused by root_item being None.
         if root_item is None:
             root_item = GooCanvas.CanvasGroup()
             timeline_canvas.set_root_item(root_item)
@@ -492,6 +494,12 @@ class FamilyTreeViewTimeline:
                         break
                     min_tick_dist /= 2
 
+        fg_color_found, fg_color = self.main_widget_container.get_style_context().lookup_color('theme_fg_color')
+        if fg_color_found:
+            fg_color = rgb_to_hex(tuple(fg_color)[:3])
+        else:
+            fg_color = "black"
+
         tick_length = 8
         x_tick = self.timeline_time_marker_x - tick_length*3/2
         zero_event_offset = timeline_height - pos_timeline_height
@@ -512,7 +520,8 @@ class FamilyTreeViewTimeline:
                 alignment=Pango.Alignment.RIGHT,
                 anchor=GooCanvas.CanvasAnchorType.EAST,
                 width=self.timeline_time_marker_x,
-                font_desc=font_desc
+                font_desc=font_desc,
+                fill_color=fg_color,
             )
             if i_tick == 0:
                 ink_extend_rect, logical_extend_rect =  tick_label.get_natural_extents()
@@ -524,7 +533,8 @@ class FamilyTreeViewTimeline:
                     text=tick_unit_name,
                     alignment=Pango.Alignment.LEFT,
                     anchor=GooCanvas.CanvasAnchorType.SOUTH_WEST,
-                    font_desc=font_desc
+                    font_desc=font_desc,
+                    fill_color=fg_color,
                 )
 
         prev_y_time = None
@@ -545,7 +555,8 @@ class FamilyTreeViewTimeline:
                     center_y=y_time,
                     radius_x=self.timeline_marker_radius,
                     radius_y=self.timeline_marker_radius,
-                    fill_color="#000"
+                    line_width=0,
+                    fill_color=fg_color,
                 )
 
             label_allocation = event_label.get_allocation()
@@ -559,7 +570,8 @@ class FamilyTreeViewTimeline:
                 center_y=first_line_center,
                 radius_x=self.timeline_marker_radius,
                 radius_y=self.timeline_marker_radius,
-                fill_color="#000"
+                line_width=0,
+                fill_color=fg_color,
             )
 
             # connecting line
@@ -585,7 +597,15 @@ class FamilyTreeViewTimeline:
             M {x1} {y1}
             L {x2} {y2}
         """
+
+        fg_color_found, fg_color = self.main_widget_container.get_style_context().lookup_color('theme_fg_color')
+        if fg_color_found:
+            fg_color = rgb_to_hex(tuple(fg_color)[:3])
+        else:
+            fg_color = "black"
+
         GooCanvas.CanvasPath(
             parent=parent,
-            data=data
+            data=data,
+            stroke_color=fg_color,
         )

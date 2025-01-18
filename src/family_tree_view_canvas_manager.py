@@ -24,6 +24,8 @@ from typing import TYPE_CHECKING
 
 from gi.repository import Gtk, GdkPixbuf, Pango
 
+from gramps.gui.utils import get_contrast_color, rgb_to_hex
+
 from family_tree_view_canvas_manager_base import FamilyTreeViewCanvasManagerBase
 from family_tree_view_icons import get_svg_data
 from family_tree_view_utils import import_GooCanvas, make_hashable
@@ -153,12 +155,14 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                 z
             """
 
-        GooCanvas.CanvasPath(
+        box = GooCanvas.CanvasPath(
             parent=parent,
             data=data,
             fill_color=primary_color,
             stroke_color=secondary_color
         )
+
+        contrast_color = rgb_to_hex(get_contrast_color(tuple(box.props.fill_color_gdk_rgba)[:3]))
 
         font_desc = self.canvas_container.get_style_context().get_font(Gtk.StateFlags.NORMAL)
 
@@ -211,7 +215,8 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                 alignment=Pango.Alignment.CENTER,
                 anchor=GooCanvas.CanvasAnchorType.CENTER,
                 width=self.person_width-2*self.padding,
-                font_desc=font_desc
+                font_desc=font_desc,
+                fill_color=contrast_color,
                 # TODO somehow make ellipsize work for multiline (most likely has to kick in after using abbreviated names)
             )
             image_text_label
@@ -235,7 +240,8 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             anchor=GooCanvas.CanvasAnchorType.NORTH,
             width=self.person_width-2*self.padding,
             height=max_name_height,
-            font_desc=font_desc
+            font_desc=font_desc,
+            fill_color=contrast_color,
             # TODO somehow make ellipsize work for multiline (most likely has to kick in after using abbreviated names)
         )
 
@@ -273,6 +279,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             width=self.person_width-2*self.padding,
             height=max_name_height,
             font_desc=font_desc,
+            fill_color=contrast_color,
             # ellipsization required for long dates (e.g. non-regular, non-default calendar)
             ellipsize=Pango.EllipsizeMode.END
         )
@@ -320,12 +327,14 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             a {r} {r} 90 0 1 {-r} {-r}
             z
         """
-        GooCanvas.CanvasPath(
+        box = GooCanvas.CanvasPath(
             parent=parent,
             data=data,
             fill_color=primary_color,
             stroke_color=secondary_color
         )
+
+        contrast_color = rgb_to_hex(get_contrast_color(tuple(box.props.fill_color_gdk_rgba)[:3]))
 
         # date
         font_desc = self.canvas_container.get_style_context().get_font(Gtk.StateFlags.NORMAL)
@@ -339,6 +348,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             width=self.family_width-2*self.padding,
             height=self.family_height+2*self.padding,
             font_desc=font_desc,
+            fill_color=contrast_color,
             ellipsize=Pango.EllipsizeMode.END
         )
 
@@ -411,13 +421,22 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                     A {r} {r} 0 0 {sweepFlag2} {x2} {ym - yDirSign*r}
                     V {y2}
                 """
+
+        fg_color_found, fg_color = self.canvas.get_style_context().lookup_color('theme_fg_color')
+        if fg_color_found:
+            fg_color = rgb_to_hex(tuple(fg_color)[:3])
+        else:
+            fg_color = "black"
+
         if dashed:
             line_dash = GooCanvas.CanvasLineDash.newv([10, 5])
         else:
             line_dash = None
+
         GooCanvas.CanvasPath(
             parent=self.connection_group,
             data=data,
+            stroke_color=fg_color,
             line_width=2,
             line_dash=line_dash
         )
@@ -511,13 +530,27 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         group.connect("button-press-event", self.click_callback, click_callback)
         parent = group
 
+        fg_color_found, fg_color = self.canvas.get_style_context().lookup_color('theme_fg_color')
+        if fg_color_found:
+            fg_color = tuple(fg_color)[:3]
+        else:
+            fg_color = (0, 0, 0)
+
+        bg_color_found, bg_color = self.canvas.get_style_context().lookup_color('theme_bg_color')
+        if bg_color_found:
+            bg_color = tuple(bg_color)[:3]
+        else:
+            bg_color = (1, 1, 1)
+
+        background_color = rgb_to_hex(tuple(fgc*0.2+bgc*0.8 for fgc, bgc in zip(fg_color, bg_color)))
+
         GooCanvas.CanvasEllipse(
             parent=parent,
             center_x=x,
             center_y=y,
             radius_x=self.expander_size/2,
             radius_y=self.expander_size/2,
-            fill_color="#ccc",
+            fill_color=background_color,
             stroke_color=None,
         )
 
@@ -532,6 +565,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         GooCanvas.CanvasPath(
             parent=parent,
             data=data,
+            stroke_color=rgb_to_hex(fg_color),
         ).rotate(ang, x, y)
 
     def click_callback(self, root_item, target, event, other_callback=None, *other_args, **other_kwargs):

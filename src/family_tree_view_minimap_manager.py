@@ -23,6 +23,8 @@ from typing import TYPE_CHECKING
 
 from gi.repository import Gdk, Gtk
 
+from gramps.gui.utils import rgb_to_hex
+
 from family_tree_view_utils import import_GooCanvas
 if TYPE_CHECKING:
     from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
@@ -44,10 +46,10 @@ class FamilyTreeViewMinimapManager:
             #minimap-inner-container {
                 padding: 8px;
                 border-radius: 8px;
-                background-color: #aaa
+                background-color: mix(@theme_fg_color, @theme_bg_color, 0.8);
             }
             #minimap-canvas {
-                background-color: #fff
+                background-color: @theme_bg_color
             }
         """)
 
@@ -110,14 +112,20 @@ class FamilyTreeViewMinimapManager:
         if self.minimap_view_rect is not None:
             self.minimap_view_rect.remove()
 
+        fg_color_found, fg_color = self.minimap_outer_container.get_style_context().lookup_color('theme_fg_color')
+        if fg_color_found:
+            fg_color = tuple(fg_color)[:3]
+        else:
+            fg_color = (0, 0, 0)
+
         self.minimap_view_rect = GooCanvas.CanvasRect(
             parent=self.minimap_canvas.get_root_item(),
             x=hadj/scale + canvas_bounds[0],
             y=vadj/scale + canvas_bounds[1],
             height=canvas_allocation.height/scale,
             width=canvas_allocation.width/scale,
-            fill_color_gdk_rgba=Gdk.RGBA(0, 0, 0, 0.25),
-            stroke_color="#000",
+            fill_color_gdk_rgba=Gdk.RGBA(*fg_color, 0.15),
+            stroke_color=rgb_to_hex(fg_color),
             line_width=20
         )
 

@@ -31,7 +31,7 @@ from gramps.gen.datehandler import get_date
 from gramps.gen.display.name import displayer as name_displayer, _F_FN
 from gramps.gen.utils.alive import probably_alive
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback
-from gramps.gui.utils import color_graph_box, color_graph_family
+from gramps.gui.utils import color_graph_box, color_graph_family, rgb_to_hex
 
 from family_tree_view_canvas_manager import FamilyTreeViewCanvasManager
 from family_tree_view_info_box_manager import FamilyTreeViewInfoBoxManager
@@ -256,7 +256,19 @@ class FamilyTreeViewWidgetManager:
         return person_bounds
 
     def add_missing_person(self, x, person_generation, alignment):
-        background_color = "#ddd"
+        fg_color_found, fg_color = self.main_widget.get_style_context().lookup_color('theme_fg_color')
+        if fg_color_found:
+            fg_color = tuple(fg_color)[:3]
+        else:
+            fg_color = (0, 0, 0)
+
+        bg_color_found, bg_color = self.main_widget.get_style_context().lookup_color('theme_bg_color')
+        if bg_color_found:
+            bg_color = tuple(bg_color)[:3]
+        else:
+            bg_color = (1, 1, 1)
+
+        background_color = rgb_to_hex(tuple(fgc*0.1+bgc*0.9 for fgc, bgc in zip(fg_color, bg_color)))
         border_color = "#000"
 
         round_lower_corners = alignment == "c"

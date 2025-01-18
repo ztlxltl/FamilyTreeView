@@ -24,6 +24,7 @@ import traceback
 
 from gi.repository import Gtk
 
+from gramps.gen.config import config
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.errors import HandleError
@@ -161,6 +162,13 @@ class FamilyTreeView(NavigationView, Callback):
         self.symbols = Symbols()
         self.widget_manager = FamilyTreeViewWidgetManager(self)
         self.abbrev_name_display = AbbreviatedNameDisplay(self)
+
+        # The following is required to ensure line color, expander colors, etc. are updated.
+        self.widget_manager.main_widget.connect("style-updated", self.close_info_and_rebuild)
+        # There doesn't seem to be a signal for updating colors.
+        # TODO This is not an ideal solution.
+        for config_name in config.get_section_settings("colors"):
+            config.connect("colors." + config_name, self.close_info_and_rebuild)
 
         self.processed_person_handles = []
 

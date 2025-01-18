@@ -62,7 +62,7 @@ class FamilyTreeViewInfoWidgetManager:
             }
             #ftv-tag-circle {
                 padding: 5px;
-                background-color: #ddd;
+                background-color: @theme_bg_color;
                 border-radius: 5px;
                 margin-right: 5px;
             }
