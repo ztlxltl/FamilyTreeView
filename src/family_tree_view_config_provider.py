@@ -84,12 +84,14 @@ class FamilyTreeViewConfigProvider:
 
             ("expanders.familytreeview-expander-types-shown", {
                 "parents": {"default_shown": True, "default_hidden": True},
+                "other_parents": {"default_shown": True, "default_hidden": True},
                 "children": {"default_shown": True, "default_hidden": True},
                 "other_families": {"default_shown": True, "default_hidden": True},
                 "spouses_other_families": {"default_shown": True, "default_hidden": True},
             }),
             ("expanders.familytreeview-expander-types-expanded", {
                 "parents": None, # controlled by generation num-ancestor-generations-default
+                "other_parents": False,
                 "children": None, # controlled by generation num-descendant-generations-default
                 "other_families": False,
                 "spouses_other_families": False,
@@ -104,6 +106,87 @@ class FamilyTreeViewConfigProvider:
     def config_connect(_config, cb_update_config):
         for config_name, *_ in FamilyTreeViewConfigProvider.get_config_settings():
             _config.connect(config_name, cb_update_config)
+
+        FamilyTreeViewConfigProvider.ensure_valid_config(_config)
+
+    @staticmethod
+    def ensure_valid_config(_config):
+        for key in [
+            "appearance.familytreeview-timeline-event-types-visible",
+            "appearance.familytreeview-timeline-event-types-show-description",
+        ]:
+            event_types_config = _config.get(key)
+            default_value = FamilyTreeViewConfigProvider.get_default_value(key)
+            if not isinstance(event_types_config, dict):
+                _config.set(key, default_value)
+            else:
+                changed = False
+                for i, s, event_type_name in EventType._DATAMAP:
+                    if event_type_name not in event_types_config:
+                        event_types_config[event_type_name] = default_value[event_type_name]
+                        changed = True
+                if changed:
+                    _config.set(key, event_types_config)
+
+        key = "badges.familytreeview-badges-active"
+        badge_config = _config.get(key)
+        default_value = FamilyTreeViewConfigProvider.get_default_value(key)
+        if not isinstance(badge_config, dict):
+            _config.set(key, default_value)
+        else:
+            changed = False
+            for badge_id in badge_config:
+                if not isinstance(badge_config[badge_id], dict):
+                    if badge_id in default_value:
+                        badge_config[badge_id] = default_value[badge_id]
+                    else:
+                        badge_config[badge_id] = {"person": False, "family": False}
+                    changed = True
+                else:
+                    for badge_loc in ["person", "family"]:
+                        if badge_loc not in badge_config[badge_id]:
+                            badge_config[badge_id][badge_loc] = False # default
+                            changed = True
+            if changed:
+                _config.set(key, badge_config)
+
+        for key in [
+            "expanders.familytreeview-expander-types-shown",
+            "expanders.familytreeview-expander-types-expanded"
+        ]:
+            expander_config = _config.get(key)
+            default_value = FamilyTreeViewConfigProvider.get_default_value(key)
+            if not isinstance(expander_config, dict):
+                _config.set(key, default_value)
+            else:
+                changed = False
+                for expander_type in [
+                    "parents",
+                    "other_parents",
+                    "children",
+                    "other_families",
+                    "spouses_other_families",
+                ]:
+                    if (
+                        expander_type not in expander_config
+                        or (isinstance(default_value[expander_type], dict) and not isinstance(expander_config[expander_type], dict))
+                    ):
+                        expander_config[expander_type] = default_value[expander_type]
+                        changed = True
+                    elif isinstance(expander_config[expander_type], dict):
+                        # "expanders.familytreeview-expander-types-shown"
+                        for sub_key in ["default_shown", "default_hidden"]:
+                            if sub_key not in expander_config[expander_type]:
+                                expander_config[expander_type][sub_key] = default_value[expander_type][sub_key]
+                                changed = True
+                if changed:
+                    _config.set(key, expander_config)
+
+    @staticmethod
+    def get_default_value(key):
+        for key_, value in FamilyTreeViewConfigProvider.get_config_settings():
+            if key_ == key:
+                return value
 
     def get_configure_page_funcs(self):
         return [
@@ -440,6 +523,7 @@ class FamilyTreeViewConfigProvider:
         expander_types_expanded = self.ftv._config.get("expanders.familytreeview-expander-types-expanded")
         expander_types = [
             ("parents", _("Parents")),
+            ("other_parents", _("Other parents")),
             ("children", _("Children")),
             ("other_families", _("Other families")),
             ("spouses_other_families", _("Other families of spouses")),
@@ -485,6 +569,16 @@ class FamilyTreeViewConfigProvider:
                     default_value = {"default_shown": True, "default_hidden": True}
                     config[expander_type] = default_value
                 config[expander_type][sub_key] = expander_list_store[path][i]
+            if expander_list_store[path][i]:
+                # Some expanders cannot expand together, checkboxes are mutually exclusive alternatives.
+                if config_key == "expanders.familytreeview-expander-types-expanded":
+                    if expander_type == "other_parents":
+                        expander_type_ = "other_families"
+                    elif expander_type == "other_families":
+                        expander_type_ = "other_parents"
+                    path_ = str([t[0] for t in expander_types].index(expander_type_))
+                    expander_list_store[path_][i] = False
+                    config[expander_type_] = expander_list_store[path_][i]
             self.ftv._config.set(config_key, config)
 
             # cb_update_config connected doesn't work, even when using a shallow or deep copy.
@@ -517,6 +611,18 @@ class FamilyTreeViewConfigProvider:
         scrolled_window.set_vexpand(True)
         scrolled_window.add(expander_tree_view)
         grid.attach(scrolled_window, 1, row, 8, 1) # these are the default with of widgets created by configdialog's methods
+
+        row += 1
+        label = configdialog.add_text(
+            grid,
+            _(
+                "Expansion of 'Other parents' and 'Other families' are mutually exclusive alternatives. "
+                "You cannot expand both by default, since the connections of the active person's other parents "
+                "and the connections of the other families of the parents of the active person would overlap."
+            ),
+            row, stop=2
+        )
+        label.set_xalign(0)
 
         return (_("Expanders"), grid)
 

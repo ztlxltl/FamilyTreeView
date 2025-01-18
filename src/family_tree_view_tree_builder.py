@@ -129,10 +129,10 @@ class FamilyTreeViewTreeBuilder():
             # parents, siblings etc.
             if not dry_run and person_generation == 0 and self.ftv._config.get("experimental.familytreeview-adaptive-ancestor-generation-dist"):
                 # fill self.num_connections_per_generation
-                self.process_ancestors(person, person_bounds, x_person, person_generation, ahnentafel, dry_run=True)
+                self.process_ancestors(person, person_bounds, x_person, person_generation, ahnentafel, alignment, dry_run=True)
                 # reset generation spread after dry run to start over
                 self.generation_spread = {}
-            self.process_ancestors(person, person_bounds, x_person, person_generation, ahnentafel, dry_run=dry_run)
+            self.process_ancestors(person, person_bounds, x_person, person_generation, ahnentafel, alignment, dry_run=dry_run)
 
         return person_bounds
 
@@ -309,153 +309,214 @@ class FamilyTreeViewTreeBuilder():
         person_bounds["st_r"] = max(person_bounds["st_r"], x_family-x_person+children_subtree_width/2)
         return person_bounds
 
-    def process_ancestors(self, person, person_bounds, x_person, person_generation, ahnentafel, dry_run=False):
-        # family in which person is a child with parents and siblings
-        parent_family_handle = person.get_main_parents_family_handle()
-        if parent_family_handle is None:
-            return
+    def process_ancestors(self, person, person_bounds, x_person, person_generation, ahnentafel, alignment, dry_run=False):
 
         parent_generation = person_generation + 1
         max_generation = self.ftv._config.get("appearance.familytreeview-num-ancestor-generations-default")
 
-        # parents expander
         person_handle = person.get_handle()
-        expand_parents = self.get_expand(person_handle, "parents", default=parent_generation <= max_generation)
-        if not dry_run and self.expander_types_shown["parents"]["default_shown" if parent_generation <= max_generation else "default_hidden"]:
-            person_height = self.canvas_manager.person_height
-            badge_radius = self.canvas_manager.badge_radius # prevent overlap
-            expander_sep = self.canvas_manager.expander_sep
-            expander_size = self.canvas_manager.expander_size
-            y_expander = self.get_y_of_generation(person_generation) - person_height - badge_radius - expander_sep - expander_size/2
-            self.add_expander(x_person, y_expander, expand_parents, -90, person_handle, "parents")
-
-        if not expand_parents:
-            return
-
-        if person_generation >= 1:
-            if dry_run:
-                self.num_connections_per_generation.setdefault(person_generation, [0, 0])
-                self.num_connections_per_generation[person_generation][int(x_person > 0)] += 1
-            else:
-                self.i_connections_per_generation.setdefault(person_generation, [-1, -1]) # none, 1st will be 0
-                self.i_connections_per_generation[person_generation][int(x_person > 0)] += 1
 
         person_width = self.canvas_manager.person_width
         family_width = self.canvas_manager.family_width
         spouse_sep = self.canvas_manager.spouse_sep
         grandparent_families_sep = self.canvas_manager.grandparent_families_sep
         ancestor_sep = self.canvas_manager.ancestor_sep
-
-        family = self.dbstate.db.get_family_from_handle(parent_family_handle)
-
-        father_handle = family.get_father_handle()
-        mother_handle = family.get_mother_handle()
-
-        # Ancestors of each generation need to be added from the middle, so inner parent need to be first.
-        if x_person < 0:
-            inner_parent_handle = mother_handle
-            inner_parent_ahnentafel = None if ahnentafel is None else 2*ahnentafel + 1
-            inner_parent_alignment = "l"
-            outer_parent_handle = father_handle
-            outer_parent_ahnentafel = None if ahnentafel is None else 2*ahnentafel
-            outer_parent_alignment = "r"
-        else: # x_person >= 0
-            inner_parent_handle = father_handle
-            inner_parent_ahnentafel = None if ahnentafel is None else 2*ahnentafel
-            inner_parent_alignment = "r"
-            outer_parent_handle = mother_handle
-            outer_parent_ahnentafel = None if ahnentafel is None else 2*ahnentafel + 1
-            outer_parent_alignment = "l"
-
-        inner_parent_family_handles = None
-        if x_person == 0 and parent_generation == 1:
-            # parent family of active person is centered
-            x_family = 0
-        else:
-            # Since the inner parent has their other parents towards the middle, room needs to be reserved for them.
-            extra_left = 0
-            extra_right = 0
-            if inner_parent_handle is not None:
-                inner_parent_family_handles = self.ftv.get_person_from_handle(inner_parent_handle).get_family_handle_list()
-                if len(inner_parent_family_handles) > 1:
-                    inner_parent_bounds = {"st_l": -person_width/2, "st_r": person_width/2}
-                    inner_parent_bounds = self.process_families(inner_parent_handle, inner_parent_bounds, 0, parent_generation, True, parent_generation == 1, skip_family_handle=parent_family_handle)
-                    # Extra space that has to be added between previous (inner) family (or middle) and this parent family make room for other families.
-                    extra_left = inner_parent_bounds["st_l"] + person_width/2
-                    extra_right = inner_parent_bounds["st_r"] - person_width/2
-
-            if parent_generation not in self.generation_spread:
-                self.generation_spread[parent_generation] = [-grandparent_families_sep/2+ancestor_sep, grandparent_families_sep/2-ancestor_sep]
-            if x_person < 0:
-                x_family = min(x_person, self.generation_spread[parent_generation][0] - (ancestor_sep + family_width/2) - extra_right)
-                self.generation_spread[parent_generation][0] = x_family - family_width/2
-            else:
-                x_family = max(x_person, self.generation_spread[parent_generation][1] + (ancestor_sep + family_width/2) - extra_left)
-                self.generation_spread[parent_generation][1] = x_family + family_width/2
+        other_parent_families_sep = self.canvas_manager.other_parent_families_sep
 
         if not dry_run:
-            family_bounds = self.widget_manager.add_family(parent_family_handle, x_family, parent_generation)
+            person_height = self.canvas_manager.person_height
+            badge_radius = self.canvas_manager.badge_radius # prevent overlap
+            expander_sep = self.canvas_manager.expander_sep
+            expander_size = self.canvas_manager.expander_size
 
-        x_father = x_family - spouse_sep/2 - person_width/2
-        x_mother = x_family + spouse_sep/2 + person_width/2
+        parent_family_handle_list = person.get_parent_family_handle_list()
+        for i, parent_family_handle in enumerate(parent_family_handle_list):
+            if parent_family_handle is None:
+                return
 
-        if x_person < 0:
-            inner_parent_x = x_mother
-            outer_parent_x = x_father
-        else: # x_person >= 0
-            inner_parent_x = x_father
-            outer_parent_x = x_mother
+            is_main_parent_family = i == 0
 
-        if inner_parent_handle is not None:
-            inner_parent_bounds = self.process_person(inner_parent_handle, inner_parent_x, parent_generation, dry_run=dry_run, alignment=inner_parent_alignment, process_families=False, process_descendants=False, ahnentafel=inner_parent_ahnentafel)
-
-            if inner_parent_family_handles is None: # only if not before
-                inner_parent_family_handles = self.ftv.get_person_from_handle(inner_parent_handle).get_family_handle_list()
-            if len(inner_parent_family_handles) > 1:
-                # NOTE about process_descendants: In general, there is only room to show descendants for other families of outer ancestors.
-                # There is no room for descendants of other families of inner ancestors without creating crossing lines.
-                # To be fair (and to avoid questions and bug reports), we don't show descendants for other families of ancestors.
-                # For the first ancestor generation, there is no risk of crossing lines, so allow descendants for their other families.
-
-                if parent_generation == 1:
-                    # TODO Something can be simplified here, since in gen == 1, x_person == 0 and father is always "inner", etc.
-                    # To account for children of person (which is the active person if this is first ancestor generation), enlarge the st_l/r.
-                    # Note that the inner_parent_bounds st_l/r are wrong but they are not used for first ancestor generation below.
-                    inner_parent_bounds["st_l"] = min(inner_parent_bounds["st_l"], person_bounds["st_l"] - (inner_parent_x-x_person))
-                    inner_parent_bounds["st_r"] = max(inner_parent_bounds["st_r"], person_bounds["st_r"] + (inner_parent_x-x_person))
-                inner_parent_bounds = self.process_families(inner_parent_handle, inner_parent_bounds, inner_parent_x, parent_generation, dry_run, parent_generation == 1, skip_family_handle=parent_family_handle)
-                if not dry_run and self.expander_types_shown["other_families"]["default_hidden"]:
-                    expand_inner_parent_other_families = self.get_expand(inner_parent_handle, "other_families")
-                    self.add_other_families_expander(inner_parent_handle, inner_parent_x, parent_generation, inner_parent_alignment == "r", "other_families", expand_inner_parent_other_families)
-        else:
-            # missing inner parent
-            if not dry_run:
-                inner_parent_bounds = self.add_missing_person(inner_parent_x, parent_generation, inner_parent_alignment)
+            # parents expander
+            if is_main_parent_family:
+                key = "parents"
+                if parent_generation <= max_generation:
+                    sub_key = "default_shown"
+                else:
+                    sub_key = "default_hidden"
+                default = parent_generation <= max_generation
             else:
-                inner_parent_bounds = {"st_l": -person_width/2, "st_r": person_width/2}
+                key = "other_parents"
+                sub_key = "default_hidden"
+                default = None
+            expand_parents = self.get_expand(person_handle, key, default=default)
+            if not dry_run and self.expander_types_shown[key][sub_key]:
+                collapse_on_expand = None
+                if is_main_parent_family:
+                    x_expander = x_person
+                    ang = -90
+                else:
+                    main_family = self.dbstate.db.get_family_from_handle(parent_family_handle_list[0])
+                    if alignment == "l":
+                        x_expander = x_person + (expander_sep + expander_size)
+                        ang = -45
+                        parent_to_collapse_handle = main_family.get_mother_handle()
+                    else: # "c", "r"
+                        x_expander = x_person - (expander_sep + expander_size)
+                        ang = -135
+                        parent_to_collapse_handle = main_family.get_father_handle()
+                    if x_person == 0 and person_generation == 0:
+                        collapse_on_expand = [(parent_to_collapse_handle, "other_families")] # TODO other families (or better all children of other families)
+                y_expander = self.get_y_of_generation(person_generation) - person_height - badge_radius - expander_sep - expander_size/2
+                self.add_expander(x_expander, y_expander, expand_parents, ang, person_handle, key, collapse_on_expand=collapse_on_expand)
 
-        if outer_parent_handle is not None:
-            outer_parent_bounds = self.process_person(outer_parent_handle, outer_parent_x, parent_generation, dry_run=dry_run, alignment=outer_parent_alignment, process_families=False, process_descendants=False, ahnentafel=outer_parent_ahnentafel)
+            if not expand_parents:
+                return
 
-            outer_parent_family_handles = self.ftv.get_person_from_handle(outer_parent_handle).get_family_handle_list()
-            if len(outer_parent_family_handles) > 1:
-                # NOTE about process_descendants: see above
+            if person_generation >= 1:
+                if dry_run:
+                    self.num_connections_per_generation.setdefault(person_generation, [0, 0])
+                    self.num_connections_per_generation[person_generation][int(x_person > 0)] += 1
+                else:
+                    self.i_connections_per_generation.setdefault(person_generation, [-1, -1]) # none, 1st will be 0
+                    self.i_connections_per_generation[person_generation][int(x_person > 0)] += 1
 
-                if parent_generation == 1:
-                    outer_parent_bounds["st_l"] = min(outer_parent_bounds["st_l"], person_bounds["st_l"] + (outer_parent_x-x_person))
-                    outer_parent_bounds["st_r"] = max(outer_parent_bounds["st_r"], person_bounds["st_r"] - (outer_parent_x-x_person))
-                outer_parent_bounds = self.process_families(outer_parent_handle, outer_parent_bounds, outer_parent_x, parent_generation, dry_run, parent_generation == 1, skip_family_handle=parent_family_handle)
-                if not dry_run and self.expander_types_shown["other_families"]["default_hidden"]:
-                    expand_outer_parent_other_families = self.get_expand(outer_parent_handle, "other_families")
-                    self.add_other_families_expander(outer_parent_handle, outer_parent_x, parent_generation, outer_parent_alignment == "r", "other_families", expand_outer_parent_other_families)
-        else:
-            # missing outer parent
-            if not dry_run:
-                outer_parent_bounds = self.add_missing_person(outer_parent_x, parent_generation, outer_parent_alignment)
+            family = self.dbstate.db.get_family_from_handle(parent_family_handle)
+
+            father_handle = family.get_father_handle()
+            mother_handle = family.get_mother_handle()
+
+            # Ancestors of each generation need to be added from the middle, so inner parent need to be first.
+            if x_person < 0 or (parent_generation == 1 and not is_main_parent_family and alignment=="r"): # also other parents of active person as father in his main family
+                inner_parent_handle = mother_handle
+                inner_parent_ahnentafel = None if ahnentafel is None else 2*ahnentafel + 1
+                inner_parent_alignment = "l"
+                outer_parent_handle = father_handle
+                outer_parent_ahnentafel = None if ahnentafel is None else 2*ahnentafel
+                outer_parent_alignment = "r"
             else:
-                outer_parent_bounds = {"st_l": -person_width/2, "st_r": person_width/2}
+                inner_parent_handle = father_handle
+                inner_parent_ahnentafel = None if ahnentafel is None else 2*ahnentafel
+                inner_parent_alignment = "r"
+                outer_parent_handle = mother_handle
+                outer_parent_ahnentafel = None if ahnentafel is None else 2*ahnentafel + 1
+                outer_parent_alignment = "l"
 
-        if parent_generation > 1:
+            inner_parent_family_handles = None
+            if x_person == 0 and parent_generation == 1 and is_main_parent_family:
+                # parent family of active person is centered
+                x_family = 0
+                self.generation_spread[parent_generation] = [x_family - family_width/2, x_family + family_width/2]
+            else:
+                # Since the inner parent has their other parents towards the middle, room needs to be reserved for them.
+                extra_left = 0
+                extra_right = 0
+                if inner_parent_handle is not None:
+                    inner_parent_family_handles = self.ftv.get_person_from_handle(inner_parent_handle).get_family_handle_list()
+                    if len(inner_parent_family_handles) > 1:
+                        # See the note below where the inner parent is actually processed.
+                        inner_parent_bounds = {"st_l": -person_width/2, "st_r": person_width/2}
+                        inner_parent_bounds = self.process_families(inner_parent_handle, inner_parent_bounds, 0, parent_generation, True, parent_generation == 1 and is_main_parent_family, skip_family_handle=parent_family_handle)
+                        # Extra space that has to be added between previous (inner) family (or middle) and this parent family make room for other families.
+                        extra_left = inner_parent_bounds["st_l"] + person_width/2
+                        extra_right = inner_parent_bounds["st_r"] - person_width/2
+
+                if parent_generation not in self.generation_spread:
+                    self.generation_spread[parent_generation] = [-grandparent_families_sep/2+ancestor_sep, grandparent_families_sep/2-ancestor_sep]
+                if x_person == 0 and parent_generation == 1:
+                    # is_main_parent_family is false here.
+                    # other parents
+                    if alignment != "l": # "c", "r"
+                        x_family = self.generation_spread[parent_generation][0] - (other_parent_families_sep + family_width/2) - extra_right
+                        self.generation_spread[parent_generation][0] = x_family - family_width/2
+                    else: # "l"
+                        x_family = self.generation_spread[parent_generation][1] + (other_parent_families_sep + family_width/2) - extra_left
+                        self.generation_spread[parent_generation][1] = x_family + family_width/2
+                elif x_person < 0:
+                    x_family = min(x_person, self.generation_spread[parent_generation][0] - (ancestor_sep + family_width/2) - extra_right)
+                    self.generation_spread[parent_generation][0] = x_family - family_width/2
+                else:
+                    x_family = max(x_person, self.generation_spread[parent_generation][1] + (ancestor_sep + family_width/2) - extra_left)
+                    self.generation_spread[parent_generation][1] = x_family + family_width/2
+
+            if not dry_run:
+                family_bounds = self.widget_manager.add_family(parent_family_handle, x_family, parent_generation)
+
+            x_father = x_family - spouse_sep/2 - person_width/2
+            x_mother = x_family + spouse_sep/2 + person_width/2
+
+            if x_person < 0 or (parent_generation == 1 and not is_main_parent_family and alignment=="r"): # also other parents of active person as father in his main family
+                inner_parent_x = x_mother
+                outer_parent_x = x_father
+            else:
+                inner_parent_x = x_father
+                outer_parent_x = x_mother
+
+            if inner_parent_handle is not None:
+                inner_parent_bounds = self.process_person(inner_parent_handle, inner_parent_x, parent_generation, dry_run=dry_run, alignment=inner_parent_alignment, process_families=False, process_ancestors=is_main_parent_family, process_descendants=False, ahnentafel=inner_parent_ahnentafel)
+
+                if inner_parent_family_handles is None: # only if not before
+                    inner_parent_family_handles = self.ftv.get_person_from_handle(inner_parent_handle).get_family_handle_list()
+                if len(inner_parent_family_handles) > 1:
+                    if self.expander_types_shown["other_families"]["default_hidden"]:
+                        expand_inner_parent_other_families = self.get_expand(inner_parent_handle, "other_families")
+                        if parent_generation == 1 and expand_inner_parent_other_families and is_main_parent_family:
+                            # TODO Something can be simplified here, since in gen == 1, is_main_parent_family and "inner" parent is always father -> only left (?)
+                            # To account for children of person (which is the active person if this is the first ancestor generation), enlarge the st_l/r.
+                            # Note that the inner_parent_bounds st_l/r are wrong but they are not used for first ancestor generation below.
+                            # However, since they affect the generation spread that is used in other iterations of the parent family loop, 
+                            # skip if this is not done for other families, but for other parents (they are mutually exclusive alternatives).
+                            # Other parents won't have other visible children, so the bounds from processing the person above can simply be used.
+                            inner_parent_bounds["st_l"] = min(inner_parent_bounds["st_l"], person_bounds["st_l"] - (inner_parent_x-x_person))
+                            inner_parent_bounds["st_r"] = max(inner_parent_bounds["st_r"], person_bounds["st_r"] + (inner_parent_x-x_person))
+                    # Note about process_descendants argument of self.process_families():
+                    # For the parents of the root person, only the descendants of other spouses of main parents can be visualized.
+                    # For other families of other parents, the same logic applies as for ancestors of generation > 1:
+                    # Reasoning no generation > 1 can have ancestors:
+                    # In general, there is only room to show descendants for other families of outer ancestors.
+                    # There is no room for descendants of other families of inner ancestors without creating crossing lines.
+                    # To be fair (and to avoid questions and bug reports), we don't show descendants for other families of ancestors.
+                    # For the first ancestor generation, there is no risk of crossing lines, so allow descendants for their other families.
+                    inner_parent_bounds = self.process_families(inner_parent_handle, inner_parent_bounds, inner_parent_x, parent_generation, dry_run, parent_generation == 1 and is_main_parent_family, skip_family_handle=parent_family_handle)
+                    if not dry_run and self.expander_types_shown["other_families"]["default_hidden"]:
+                        collapse_on_expand = None
+                        if x_person == 0 and person_generation == 0 and alignment != "l" and is_main_parent_family:
+                            # Other parents of the active person expand to the same side as other families active person's father.
+                            # TODO maybe only when children of other families are expanded?
+                            collapse_on_expand = [(person_handle, "other_parents")]
+                        self.add_other_families_expander(inner_parent_handle, inner_parent_x, parent_generation, inner_parent_alignment == "r", "other_families", expand_inner_parent_other_families, collapse_on_expand=collapse_on_expand)
+            else:
+                # missing inner parent
+                if not dry_run:
+                    inner_parent_bounds = self.add_missing_person(inner_parent_x, parent_generation, inner_parent_alignment)
+                else:
+                    inner_parent_bounds = {"st_l": -person_width/2, "st_r": person_width/2}
+
+            if outer_parent_handle is not None:
+                outer_parent_bounds = self.process_person(outer_parent_handle, outer_parent_x, parent_generation, dry_run=dry_run, alignment=outer_parent_alignment, process_families=False, process_ancestors=is_main_parent_family, process_descendants=False, ahnentafel=outer_parent_ahnentafel)
+
+                outer_parent_family_handles = self.ftv.get_person_from_handle(outer_parent_handle).get_family_handle_list()
+                if len(outer_parent_family_handles) > 1:
+                    # See notes above for inner parent!
+                    if self.expander_types_shown["other_families"]["default_hidden"]:
+                        expand_outer_parent_other_families = self.get_expand(outer_parent_handle, "other_families")
+                        if parent_generation == 1 and expand_outer_parent_other_families and is_main_parent_family:
+                            outer_parent_bounds["st_l"] = min(outer_parent_bounds["st_l"], person_bounds["st_l"] + (outer_parent_x-x_person))
+                            outer_parent_bounds["st_r"] = max(outer_parent_bounds["st_r"], person_bounds["st_r"] - (outer_parent_x-x_person))
+                    outer_parent_bounds = self.process_families(outer_parent_handle, outer_parent_bounds, outer_parent_x, parent_generation, dry_run, parent_generation == 1 and is_main_parent_family, skip_family_handle=parent_family_handle)
+                    if not dry_run and self.expander_types_shown["other_families"]["default_hidden"]:
+                        collapse_on_expand = None
+                        if x_person == 0 and person_generation == 0 and alignment == "l" and is_main_parent_family:
+                            # Other parents of the active person expand to the same side as other families active person's father.
+                            # TODO maybe only when children of other families are expanded?
+                            collapse_on_expand = [(person_handle, "other_parents")]
+                        self.add_other_families_expander(outer_parent_handle, outer_parent_x, parent_generation, outer_parent_alignment == "r", "other_families", expand_outer_parent_other_families, collapse_on_expand=collapse_on_expand)
+            else:
+                # missing outer parent
+                if not dry_run:
+                    outer_parent_bounds = self.add_missing_person(outer_parent_x, parent_generation, outer_parent_alignment)
+                else:
+                    outer_parent_bounds = {"st_l": -person_width/2, "st_r": person_width/2}
+
             if x_family < 0:
                 new_left = outer_parent_x + outer_parent_bounds[f"st_l"]
                 new_right = inner_parent_x + inner_parent_bounds[f"st_r"]
@@ -465,43 +526,43 @@ class FamilyTreeViewTreeBuilder():
             self.generation_spread[parent_generation][0] = min(self.generation_spread[parent_generation][0], new_left)
             self.generation_spread[parent_generation][1] = max(self.generation_spread[parent_generation][1], new_right)
 
-        if not dry_run:
-            # connections between family and spouses
-            self.widget_manager.add_connection(inner_parent_x, inner_parent_bounds["bx_b"], inner_parent_x, family_bounds["bx_t"]) # very short, no handles
-            self.widget_manager.add_connection(outer_parent_x, outer_parent_bounds["bx_b"], outer_parent_x, family_bounds["bx_t"])
+            if not dry_run:
+                # connections between family and spouses
+                self.widget_manager.add_connection(inner_parent_x, inner_parent_bounds["bx_b"], inner_parent_x, family_bounds["bx_t"]) # very short, no handles
+                self.widget_manager.add_connection(outer_parent_x, outer_parent_bounds["bx_b"], outer_parent_x, family_bounds["bx_t"])
 
-            if ahnentafel is None:
-                m = None
-            else:
-                if self.ftv._config.get("experimental.familytreeview-adaptive-ancestor-generation-dist"):
-                    if person_generation > 1:
-                        m0 = self.i_connections_per_generation[person_generation][int(x_person>0)]
-                        m1 = self.num_connections_per_generation[person_generation][int(x_person>0)]
-                        m = (m0, m1)
-                    else:
-                        m = None
-                else: # use ahnentafel
-                    # NOTE: floor(log2(ahnentafel)) == person_generation
-                    first_maternal_ahnentafel_in_generation = 3*2**(person_generation-1)
-                    if ahnentafel >= first_maternal_ahnentafel_in_generation:
-                        # maternal side (right)
-                        m0 = ahnentafel-first_maternal_ahnentafel_in_generation
-                    else:
-                        # paternal side (left)
-                        m0 = (first_maternal_ahnentafel_in_generation-1)-ahnentafel
-                    m = (
-                        m0,
-                        2**(person_generation-1) # -1 since only the lines on one side are counted since only those can overlap
-                    )
+                if ahnentafel is None:
+                    m = None
+                else:
+                    if self.ftv._config.get("experimental.familytreeview-adaptive-ancestor-generation-dist"):
+                        if person_generation > 1:
+                            m0 = self.i_connections_per_generation[person_generation][int(x_person>0)]
+                            m1 = self.num_connections_per_generation[person_generation][int(x_person>0)]
+                            m = (m0, m1)
+                        else:
+                            m = None
+                    else: # use ahnentafel
+                        # NOTE: floor(log2(ahnentafel)) == person_generation
+                        first_maternal_ahnentafel_in_generation = 3*2**(person_generation-1)
+                        if ahnentafel >= first_maternal_ahnentafel_in_generation:
+                            # maternal side (right)
+                            m0 = ahnentafel-first_maternal_ahnentafel_in_generation
+                        else:
+                            # paternal side (left)
+                            m0 = (first_maternal_ahnentafel_in_generation-1)-ahnentafel
+                        m = (
+                            m0,
+                            2**(person_generation-1) # -1 since only the lines on one side are counted since only those can overlap
+                        )
 
-            parent_family = self.dbstate.db.get_family_from_handle(parent_family_handle)
-            dashed = self.get_dashed(parent_family, person.handle)
+                parent_family = self.dbstate.db.get_family_from_handle(parent_family_handle)
+                dashed = self.get_dashed(parent_family, person.handle)
 
-            self.widget_manager.add_connection(
-                family_bounds["x"], family_bounds["bx_b"], x_person, person_bounds["bx_t"],
-                ym=(family_bounds["bx_b"]+person_bounds["bx_t"]-self.canvas_manager.badge_radius)/2,
-                m=m, dashed=dashed, handle1=parent_family_handle, handle2=person.handle
-            )
+                self.widget_manager.add_connection(
+                    family_bounds["x"], family_bounds["bx_b"], x_person, person_bounds["bx_t"],
+                    ym=(family_bounds["bx_b"]+person_bounds["bx_t"]-self.canvas_manager.badge_radius)/2,
+                    m=m, dashed=dashed, handle1=parent_family_handle, handle2=person.handle
+                )
 
     def add_missing_person(self, x_person, person_generation, alignment, dry_run=False):
         person_width = self.canvas_manager.person_width
@@ -531,20 +592,27 @@ class FamilyTreeViewTreeBuilder():
             self.expanded.setdefault(handle, {})[key] = expand
         return expand
 
-    def add_expander(self, x_expander, y_expander, expanded, ang_collapsed, handle, key):
+    def add_expander(self, x_expander, y_expander, expanded, ang_collapsed, handle, key, collapse_on_expand=None):
         def expander_clicked(root_item, target, event):
             # The fallback False should not be used, because self.expanded.setdefault()[key] = val is used before each call of self.add_expander().
             expand = not self.expanded.get(handle, {}).get(key, False)
             self.expanded.setdefault(handle, {})[key] = expand
+
+            if expand and collapse_on_expand is not None:
+                # Collapse all expanders that would cause overlapping lines, etc.
+                for handle_, key_ in collapse_on_expand:
+                    self.expanded.setdefault(handle_, {})[key_] = False
+
             offset = self.canvas_manager.get_center_in_units()
             self.ftv.close_info_and_rebuild(self, offset=offset)
+
         if expanded:
             ang = ang_collapsed + 180
         else:
             ang = ang_collapsed
         self.widget_manager.add_expander(x_expander, y_expander, ang, expander_clicked)
 
-    def add_other_families_expander(self, person_handle, x_person, person_generation, person_is_s1, key, expanded):
+    def add_other_families_expander(self, person_handle, x_person, person_generation, person_is_s1, key, expanded, collapse_on_expand=None):
         person_width = self.canvas_manager.person_width
 
         # We can't use a button since canvas can be zoomed.
@@ -554,4 +622,4 @@ class FamilyTreeViewTreeBuilder():
         x_expander = x_person - (-1+2*person_is_s1)*(person_width/2 + expander_size/2 + expander_sep)
         y_expander = self.get_y_of_generation(person_generation) - expander_size/2
         ang = 0 + person_is_s1*180
-        self.add_expander(x_expander, y_expander, expanded, ang, person_handle, key)
+        self.add_expander(x_expander, y_expander, expanded, ang, person_handle, key, collapse_on_expand=collapse_on_expand)
