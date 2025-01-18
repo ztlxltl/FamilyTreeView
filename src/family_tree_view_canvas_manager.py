@@ -460,15 +460,18 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             x_ = x
             group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
             if "click_callback" in badge_info:
-                group.connect(
-                    "button-release-event",
-                    lambda *_: badge_info.get(
-                        "click_callback",
-                        # This is workaround since multiple users reported a KeyError.
-                        # TODO Find the actual root cause of the KeyError.
-                        lambda *_: None
-                    )()
-                )
+                # We can't tell if the pointer moves away from the badge while the mouse button is held down.
+                # item and target of button-release-event are the same whether the mouse stays on the badge or not.
+                # Calling the callback on releasing the button when the mouse moved away would be counterintuitive.
+                # Therefore, the callback is called on button-press-event.
+                def cb_badge(item, target, event):
+                    # This conditional is workaround since multiple users reported a KeyError.
+                    # TODO Find the actual root cause of the KeyError.
+                    if "click_callback" in badge_info:
+                        badge_info["click_callback"]()
+                        return True # Don't propagate further.
+                    return False # Propagate as if there was no callback.
+                group.connect("button-press-event", self.click_callback, cb_badge)
             badge_rect = GooCanvas.CanvasRect(
                 parent=group,
                 x=x-20, # initial x, will be set below
