@@ -35,6 +35,7 @@ from gramps.gui.utils import color_graph_box, color_graph_family, rgb_to_hex
 
 from family_tree_view_canvas_manager import FamilyTreeViewCanvasManager
 from family_tree_view_info_box_manager import FamilyTreeViewInfoBoxManager
+from family_tree_view_menu import FamilyTreeViewMenu
 from family_tree_view_minimap_manager import FamilyTreeViewMinimapManager
 from family_tree_view_panel_manager import FamilyTreeViewPanelManager
 from family_tree_view_tree_builder import FamilyTreeViewTreeBuilder
@@ -322,12 +323,22 @@ class FamilyTreeViewWidgetManager:
     def add_expander(self, x, y, ang, click_callback):
         self.canvas_manager.add_expander(x, y, ang, click_callback)
 
+    def open_family_context_menu(self, event, person_handle):
+        menu = FamilyTreeViewMenu(person_handle, self.ftv, 2)
+        menu.popup(event)
+
+    def open_person_context_menu(self, event, person_handle):
+        menu = FamilyTreeViewMenu(person_handle, self.ftv, 1)
+        menu.popup(event)
+
     # callbacks
 
     def _cb_person_clicked(self, person_handle, event, x, person_generation, alignment):
         is_single_click = True
         if event.type == Gdk.EventType.BUTTON_PRESS:
             action = self.ftv._config.get("interaction.familytreeview-person-single-click-action")
+            if event.button == 3: # right-click
+                action = 6 # popup menu
         elif event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS:
             action = self.ftv._config.get("interaction.familytreeview-person-double-click-action")
             is_single_click = False
@@ -349,6 +360,9 @@ class FamilyTreeViewWidgetManager:
         elif action == 5: # set as home
             function = self.ftv.set_home_person()
             data = [person_handle, True] # also_set_active
+        elif action == 6: # open context menu
+            function = self.open_person_context_menu
+            data = [event, person_handle]
         else:
             return False
 
@@ -360,6 +374,8 @@ class FamilyTreeViewWidgetManager:
         is_single_click = True
         if event.type == Gdk.EventType.BUTTON_PRESS:
             action = self.ftv._config.get("interaction.familytreeview-family-single-click-action")
+            if event.button == 3: # right-click
+                action = 4 # popup menu
         elif event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS:
             action = self.ftv._config.get("interaction.familytreeview-family-double-click-action")
             is_single_click = False
@@ -375,6 +391,9 @@ class FamilyTreeViewWidgetManager:
         elif action == 3: # edit
             function = self.ftv.edit_family
             data = [family_handle]
+        elif action == 4: # open context menu
+            function = self.open_family_context_menu
+            data = [event, family_handle]
         else:
             return False
 
