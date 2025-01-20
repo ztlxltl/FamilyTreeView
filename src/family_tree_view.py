@@ -28,10 +28,11 @@ import cairo
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from gramps.gen.config import config
-from gramps.gen.const import CUSTOM_FILTERS
+from gramps.gen.const import CUSTOM_FILTERS, GRAMPS_LOCALE
+from gramps.gen.db import DbTxn
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.errors import HandleError, WindowActiveError
-from gramps.gen.lib import EventType
+from gramps.gen.lib import EventType, Family, FamilyRelType, ChildRef
 from gramps.gen.utils.callback import Callback
 from gramps.gen.utils.file import find_file, media_path_full
 from gramps.gen.utils.symbols import Symbols
@@ -717,6 +718,47 @@ class FamilyTreeView(NavigationView, Callback):
             edit_family.add_father_clicked(None)
         else:
             edit_family.add_mother_clicked(None)
+
+    def add_parents(self, person_handle):
+        person = self.get_person_from_handle(person_handle)
+        if person is None:
+            return
+        with DbTxn("Add new family", self.dbstate.db) as trans:
+            family = Family()
+            family.set_relationship(FamilyRelType(FamilyRelType.UNKNOWN))
+            ref = ChildRef()
+            ref.set_reference_handle(person_handle)
+            family.add_child_ref(ref)
+            self.dbstate.db.add_family(family, trans)
+
+            person.add_parent_family_handle(family.handle)
+            self.dbstate.db.commit_person(person, trans)
+
+    def add_husband(self, person_handle):
+        person = self.get_person_from_handle(person_handle)
+        if person is None:
+            return
+        with DbTxn("Add new family", self.dbstate.db) as trans:
+            family = Family()
+            family.set_relationship(FamilyRelType(FamilyRelType.UNKNOWN))
+            family.set_mother_handle(person_handle)
+            self.dbstate.db.add_family(family, trans)
+
+            person.add_family_handle(family.handle)
+            self.dbstate.db.commit_person(person, trans)
+
+    def add_wife(self, person_handle):
+        person = self.get_person_from_handle(person_handle)
+        if person is None:
+            return
+        with DbTxn("Add new family", self.dbstate.db) as trans:
+            family = Family()
+            family.set_relationship(FamilyRelType(FamilyRelType.UNKNOWN))
+            family.set_father_handle(person_handle)
+            self.dbstate.db.add_family(family, trans)
+
+            person.add_family_handle(family.handle)
+            self.dbstate.db.commit_person(person, trans)
 
     # printing
 
