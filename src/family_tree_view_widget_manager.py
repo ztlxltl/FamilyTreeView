@@ -29,6 +29,7 @@ from gi.repository import Gdk, GLib, Gtk
 from gramps.gen.config import config
 from gramps.gen.const import USER_PLUGINS
 from gramps.gen.datehandler import get_date
+from gramps.gen.display.name import displayer as name_displayer
 from gramps.gen.lib import Person
 from gramps.gen.utils.alive import probably_alive
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback, get_divorce_or_fallback
@@ -925,6 +926,29 @@ class FamilyTreeViewWidgetManager:
         )
         self.menu.append(menu_item)
 
+        person = self.ftv.get_person_from_handle(person_handle)
+        others = []
+        for associated in person.get_person_ref_list():
+            others.append(associated.get_reference_handle())
+        if others != []:
+            submenu = Gtk.Menu()
+            menu_item = Gtk.MenuItem(label=_("Set associated person as active"))
+            menu_item.set_submenu(submenu)
+            menu_item.show()
+            self.menu.append(menu_item)
+
+            for associated in others:
+                person = self.ftv.get_person_from_handle(associated)
+                name = person.get_primary_name()
+                menu_item = Gtk.MenuItem(label=_(name_displayer.display_name(name)))
+                menu_item.connect("activate", lambda *_args:
+                    self.ftv.set_active_person(associated)
+                )
+                submenu.append(menu_item)
+
+            ## TODO: Add witnesses at this person's main event
+            ## TODO: Add main people at event this person witnessed
+
         menu_item = Gtk.MenuItem(label=_("Set as home person"))
         menu_item.connect("activate", lambda *_args:
             self.ftv.set_home_person(person_handle)
@@ -946,6 +970,24 @@ class FamilyTreeViewWidgetManager:
         menu_item = Gtk.MenuItem(label=_("Open panel"))
         menu_item.connect("activate", lambda *_args:
             self.panel_manager.open_person_panel(person_handle)
+        )
+        self.menu.append(menu_item)
+
+        menu_item = Gtk.MenuItem(label=_("Add new parents"))
+        menu_item.connect("activate", lambda *_args:
+            self.ftv.add_parents(person_handle)
+        )
+        self.menu.append(menu_item)
+
+        menu_item = Gtk.MenuItem(label=_("Add wife"))
+        menu_item.connect("activate", lambda *_args:
+            self.ftv.add_wife(person_handle)
+        )
+        self.menu.append(menu_item)
+
+        menu_item = Gtk.MenuItem(label=_("Add husband"))
+        menu_item.connect("activate", lambda *_args:
+            self.ftv.add_husband(person_handle)
         )
         self.menu.append(menu_item)
 
