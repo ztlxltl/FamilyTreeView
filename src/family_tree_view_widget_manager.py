@@ -31,7 +31,7 @@ from gramps.gen.datehandler import get_date
 from gramps.gen.display.name import displayer as name_displayer, _F_FN
 from gramps.gen.utils.alive import probably_alive
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback
-from gramps.gui.utils import color_graph_box, color_graph_family, rgb_to_hex
+from gramps.gui.utils import color_graph_box, color_graph_family, hex_to_rgb, rgb_to_hex
 
 from family_tree_view_canvas_manager import FamilyTreeViewCanvasManager
 from family_tree_view_info_box_manager import FamilyTreeViewInfoBoxManager
@@ -238,6 +238,16 @@ class FamilyTreeViewWidgetManager:
             is_home_person = home_person.handle == person_handle
             if is_home_person:
                 background_color = config.get("colors.home-person")[config.get("colors.scheme")]
+
+        if (
+            self.ftv._config.get("appearance.familytreeview-filter-person-gray-out")
+            and self.ftv.generic_filter is not None
+            and not self.ftv.generic_filter.match(person_handle, self.ftv.dbstate.db)
+        ):
+            background_color = rgb_to_hex(
+                # average of r, g, and b for all 3 values
+                (sum(hex_to_rgb(background_color))//3,) * 3
+            )
 
         round_lower_corners = alignment == "c"
 

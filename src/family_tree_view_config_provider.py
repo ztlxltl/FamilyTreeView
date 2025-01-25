@@ -50,6 +50,7 @@ class FamilyTreeViewConfigProvider:
             ("appearance.familytreeview-num-ancestor-generations-default", 2),
             ("appearance.familytreeview-num-descendant-generations-default", 2),
             ("appearance.familytreeview-show-deceased-ribbon", True),
+            ("appearance.familytreeview-filter-person-gray-out", True),
             ("appearance.familytreeview-person-image-filter", 0),
             ("appearance.familytreeview-timeline-mode-default-person", 3),
             ("appearance.familytreeview-timeline-mode-default-family", 3),
@@ -235,6 +236,15 @@ class FamilyTreeViewConfigProvider:
             _("Show black ribbon for deceased persons"),
             row,
             "appearance.familytreeview-show-deceased-ribbon",
+            stop=3 # same width as spinners and combos
+        )
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _("Gray out people who do not match the sidebar filter"),
+            row,
+            "appearance.familytreeview-filter-person-gray-out",
             stop=3 # same width as spinners and combos
         )
 
