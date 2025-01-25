@@ -22,7 +22,7 @@
 from sqlite3 import InterfaceError
 import traceback
 
-from gi.repository import Gtk
+from gi.repository import GLib, Gtk
 
 from gramps.gen.config import config
 from gramps.gen.const import GRAMPS_LOCALE
@@ -163,8 +163,18 @@ class FamilyTreeView(NavigationView, Callback):
         self.widget_manager = FamilyTreeViewWidgetManager(self)
         self.abbrev_name_display = AbbreviatedNameDisplay(self)
 
-        # The following is required to ensure line color, expander colors, etc. are updated.
-        self.widget_manager.main_widget.connect("style-updated", self.close_info_and_rebuild)
+        # FTV needs to update the tree on theme change to ensure line color, expander colors, etc. are updated.
+        # Note that the following will also update the tree each time when the window loses focus:
+        # self.widget_manager.main_widget.connect("style-updated", self.close_info_and_rebuild)
+        # TODO This doesn't seem to work, although the themes addon sets the "gtk-theme-name" property of Gtk.Settings.get_default():
+        # Gtk.Settings.get_default().connect("notify::gtk-theme-name", self.close_info_and_rebuild)
+        # TODO Workaround: Connect to configs set by themes addon.
+        # Wait for idle as the theme update takes a bit.
+        # The tree has to rebuild after the theme is applied.
+        config.connect("preferences.theme", lambda *args: GLib.idle_add(self.close_info_and_rebuild))
+        config.connect("preferences.theme-dark-variant", lambda *args: GLib.idle_add(self.close_info_and_rebuild))
+        config.connect("preferences.font",  lambda *args: GLib.idle_add(self.close_info_and_rebuild))
+
         # There doesn't seem to be a signal for updating colors.
         # TODO This is not an ideal solution.
         for config_name in config.get_section_settings("colors"):
