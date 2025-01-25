@@ -88,16 +88,18 @@ class FamilyTreeViewConfigProvider:
             ("expanders.familytreeview-expander-types-shown", {
                 "parents": {"default_shown": True, "default_hidden": True},
                 "other_parents": {"default_shown": True, "default_hidden": True},
-                "children": {"default_shown": True, "default_hidden": True},
+                "siblings": {"default_shown": True, "default_hidden": True},
                 "other_families": {"default_shown": True, "default_hidden": True},
                 "spouses_other_families": {"default_shown": True, "default_hidden": True},
+                "children": {"default_shown": True, "default_hidden": True},
             }),
             ("expanders.familytreeview-expander-types-expanded", {
                 "parents": None, # controlled by generation num-ancestor-generations-default
                 "other_parents": False,
-                "children": None, # controlled by generation num-descendant-generations-default
+                "siblings": False,
                 "other_families": False,
                 "spouses_other_families": False,
+                "children": None, # controlled by generation num-descendant-generations-default
             }),
 
             ("experimental.familytreeview-adaptive-ancestor-generation-dist", False),
@@ -166,9 +168,10 @@ class FamilyTreeViewConfigProvider:
                 for expander_type in [
                     "parents",
                     "other_parents",
-                    "children",
+                    "siblings",
                     "other_families",
                     "spouses_other_families",
+                    "children",
                 ]:
                     if (
                         expander_type not in expander_config
@@ -521,15 +524,30 @@ class FamilyTreeViewConfigProvider:
         row = -1
 
         row += 1
+        label = configdialog.add_text(
+            grid,
+            _(
+                "The expansion of 'Other parents' is a mutually exclusive "
+                "alternative to 'Siblings' and to 'Other families'. "
+                "You cannot set 'Other parents' to expand together with one "
+                "(or both) of the others by default, because there would be "
+                "overlapping connections."
+            ),
+            row, stop=2
+        )
+        label.set_xalign(0)
+
+        row += 1
         expander_list_store = Gtk.ListStore(str, str, bool, bool, bool, bool, bool, bool, str)
         expander_types_shown = self.ftv._config.get("expanders.familytreeview-expander-types-shown")
         expander_types_expanded = self.ftv._config.get("expanders.familytreeview-expander-types-expanded")
         expander_types = [
             ("parents", _("Parents")),
             ("other_parents", _("Other parents")),
-            ("children", _("Children")),
+            ("siblings", _("Siblings")),
             ("other_families", _("Other families")),
             ("spouses_other_families", _("Other families of spouses")),
+            ("children", _("Children")),
         ]
         for expander_type_name, expander_type_translated in expander_types:
             expander_type_shown = expander_types_shown.get(expander_type_name, {
@@ -576,12 +594,17 @@ class FamilyTreeViewConfigProvider:
                 # Some expanders cannot expand together, checkboxes are mutually exclusive alternatives.
                 if config_key == "expanders.familytreeview-expander-types-expanded":
                     if expander_type == "other_parents":
-                        expander_type_ = "other_families"
+                        expander_types_to_uncheck = [
+                            "siblings",
+                            "other_families"
+                        ]
                     elif expander_type == "other_families":
-                        expander_type_ = "other_parents"
+                        expander_types_to_uncheck = ["other_parents"]
+                    elif expander_type == "siblings":
+                        expander_types_to_uncheck = ["other_parents"]
                     else:
-                        expander_type_ = ""
-                    if expander_type_ != "":
+                        expander_types_to_uncheck = []
+                    for expander_type_ in expander_types_to_uncheck:
                         path_ = str([t[0] for t in expander_types].index(expander_type_))
                         expander_list_store[path_][i] = False
                         config[expander_type_] = expander_list_store[path_][i]
@@ -617,18 +640,6 @@ class FamilyTreeViewConfigProvider:
         scrolled_window.set_vexpand(True)
         scrolled_window.add(expander_tree_view)
         grid.attach(scrolled_window, 1, row, 8, 1) # these are the default with of widgets created by configdialog's methods
-
-        row += 1
-        label = configdialog.add_text(
-            grid,
-            _(
-                "Expansion of 'Other parents' and 'Other families' are mutually exclusive alternatives. "
-                "You cannot expand both by default, since the connections of the active person's other parents "
-                "and the connections of the other families of the parents of the active person would overlap."
-            ),
-            row, stop=2
-        )
-        label.set_xalign(0)
 
         return (_("Expanders"), grid)
 

@@ -64,9 +64,9 @@ If you have feedback or bug reports that are not listed below or tracked by a Gi
 - tree:
   - move siblings closer together if positioning of their descendants allow it
   - more expanders (expand more relatives of a specific person / family)
-    - expand siblings of the active person or an ancestor
     - expand parents and siblings of spouse of the active person
     - expand other parents of the active person or an ancestor while the main parent's other families are expanded (but not the children of the other families of the main parents)
+    - expand parents/ancestors of other parents
     - maybe more
 - context menus (edit, add new person as parent, spouse, child etc.)
 - implement "add relative" button functionality
