@@ -169,12 +169,15 @@ class FamilyTreeView(NavigationView, Callback):
         # TODO This doesn't seem to work, although the themes addon sets the "gtk-theme-name" property of Gtk.Settings.get_default():
         # Gtk.Settings.get_default().connect("notify::gtk-theme-name", self.close_info_and_rebuild)
         # TODO Workaround: Connect to configs set by themes addon.
-        # Wait for idle as the theme update takes a bit.
-        # The tree has to rebuild after the theme is applied.
-        # TODO Only connect to those configs, if they exist (e.g. if the themes addon is installed).
-        # config.connect("preferences.theme", lambda *args: GLib.idle_add(self.close_info_and_rebuild))
-        # config.connect("preferences.theme-dark-variant", lambda *args: GLib.idle_add(self.close_info_and_rebuild))
-        # config.connect("preferences.font",  lambda *args: GLib.idle_add(self.close_info_and_rebuild))
+        for key in [
+            "preferences.theme",
+            "preferences.theme-dark-variant",
+            "preferences.font"
+        ]:
+            if config.is_set(key):
+                # Wait for idle as the theme update takes a bit.
+                # The tree has to rebuild after the theme is applied.
+                config.connect(key, lambda *args: GLib.idle_add(self.close_info_and_rebuild))
 
         # There doesn't seem to be a signal for updating colors.
         # TODO This is not an ideal solution.
