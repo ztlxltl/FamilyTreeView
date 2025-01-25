@@ -155,11 +155,18 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                 z
             """
 
+        if x == 0 and generation == 0 and self.ftv._config.get("appearance.familytreeview-highlight-root-person"):
+            # This is the root person.
+            line_width = 4
+        else:
+            line_width = 2
+
         box = GooCanvas.CanvasPath(
             parent=parent,
             data=data,
             fill_color=primary_color,
-            stroke_color=secondary_color
+            stroke_color=secondary_color,
+            line_width=line_width,
         )
 
         contrast_color = rgb_to_hex(get_contrast_color(tuple(box.props.fill_color_gdk_rgba)[:3]))

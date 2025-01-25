@@ -49,6 +49,7 @@ class FamilyTreeViewConfigProvider:
         return (
             ("appearance.familytreeview-num-ancestor-generations-default", 2),
             ("appearance.familytreeview-num-descendant-generations-default", 2),
+            ("appearance.familytreeview-highlight-root-person", True),
             ("appearance.familytreeview-show-deceased-ribbon", True),
             ("appearance.familytreeview-filter-person-gray-out", True),
             ("appearance.familytreeview-person-image-filter", 0),
@@ -228,6 +229,15 @@ class FamilyTreeViewConfigProvider:
             row,
             "appearance.familytreeview-num-descendant-generations-default",
             (0, 20) # more might can performance issues, expanders can be used
+        )
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _("Highlight the root (active) person with a thick outline"),
+            row,
+            "appearance.familytreeview-highlight-root-person",
+            stop=3 # same width as spinners and combos
         )
 
         row += 1
