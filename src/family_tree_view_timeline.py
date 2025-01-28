@@ -338,7 +338,8 @@ class FamilyTreeViewTimeline:
             if event_place_str is None: # no place
                 event_place_str = ""
             else:
-                event_place_str = ",\n" + event_place_str
+                if event_place_str != "": # have a place string
+                    event_place_str = ",\n" + event_place_str
 
             if rel_type is None: # primary event
                 markup = f"{event_age_str}<b>{event_type}</b>{description}:\n{event_date_str}{event_place_str}"
