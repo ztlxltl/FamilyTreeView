@@ -19,6 +19,8 @@
 #
 
 
+import inspect
+import os
 from sqlite3 import InterfaceError
 import traceback
 
@@ -245,24 +247,51 @@ class FamilyTreeView(NavigationView, Callback):
         return self.widget_manager.main_widget
 
     def build_tree(self):
-        # Also see self.goto_handle
+        # In other NavigationViews, both build_tree and goto_handle call
+        # the main buildup of the view. But it looks like after
+        # build_tree() is called, goto_handle() is almost always called
+        # as well, so the tree is reloaded immediately, i.e. loaded
+        # twice. Since goto_handle() is more precise (i.e. which person
+        # should be the active person), only build the tree if
+        # goto_handle() will not be called.
 
-        # Apparently there are only two cases where the tree needs to update when this function is called:
+        # Apparently there are only two cases where the tree needs to
+        # update when this function is called (i.e. goto_handle() is not
+        # called and no connected signal is emitted):
         # - empty db and other similar cases
         # - sidebar filter is applied
+
         if self.check_and_handle_empty_db():
             return
 
-        self.rebuild_tree()
+        rebuild_now = True
+
+        # If self.build_tree() is called by PageView.set_active(),
+        # self.goto_handle() is always called by
+        # NavigationView.goto_active() afterwards, if the return value
+        # of self.uistate.get_active() is not considered false (e.g. not
+        # an empty string). Therefore, don't rebuild the tree in this
+        # situation as goto_handle() will be called.
+        caller_frame_info = inspect.stack()[1] # 0 is this call to build_tree
+        if (
+            caller_frame_info.function == "set_active"
+            and os.path.basename(caller_frame_info.filename) == "pageview.py"
+        ):
+            active = self.uistate.get_active(
+                self.navigation_type(),
+                self.navigation_group()
+            )
+            if active:
+                rebuild_now = False
+
+        # Maybe there are more cases which can be identified...
+
+        if rebuild_now:
+            self.rebuild_tree()
 
     def goto_handle(self, handle):
-        # In other implementations, both build_tree and goto_handle call the main buildup of the view.
-        # But it looks like after build_tree is called, goto_handle is always called as well,
-        # so the tree would be reloaded immediately, i.e. loaded twice.
-        # The apparently only case in which only build_tree is when FTV is opened the first time 
-        # after Gramps started and the db is empty (no people).
+        # See also self.build_tree().
 
-        person_handle = None
         if handle:
             try:
                 person = self.get_person_from_handle(handle)
@@ -272,8 +301,7 @@ class FamilyTreeView(NavigationView, Callback):
             else:
                 if person is not None:
                     # a person
-                    person_handle = handle
-        self.change_active(person_handle)
+                    self.change_active(handle)
         self.rebuild_tree()
         self.uistate.modify_statusbar(self.dbstate)
 
@@ -401,15 +429,16 @@ class FamilyTreeView(NavigationView, Callback):
 
     def set_active_person(self, person_handle):
         if self.get_person_from_handle(person_handle) is not None:
-            self.change_active(person_handle)
             self.widget_manager.info_box_manager.close_info_box()
-            self.rebuild_tree()
+            self.change_active(person_handle)
+            # self.change_active() emits the active-changed signal which
+            # is connected to self.goto_handle().
 
     def set_active_family(self, family_handle):
         if self.get_family_from_handle(family_handle) is not None:
-            self.change_active_family(family_handle)
             self.widget_manager.info_box_manager.close_info_box()
-            # no rebuild_tree
+            self.change_active_family(family_handle)
+            # Tree is not rebuilt since navigation type is not "Person".
 
     def get_person_from_handle(self, handle):
         try:
