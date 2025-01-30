@@ -514,30 +514,43 @@ class FamilyTreeView(NavigationView, Callback):
         # the entire tree is printed on a custom page that can be pre-processed.
         print_operation.set_n_pages(1)
         page_setup = Gtk.PageSetup()
-        margin = 10
+        margin = 20
         page_setup.set_left_margin(margin, Gtk.Unit.POINTS)
         page_setup.set_top_margin(margin, Gtk.Unit.POINTS)
         page_setup.set_right_margin(margin, Gtk.Unit.POINTS)
         page_setup.set_bottom_margin(margin, Gtk.Unit.POINTS)
         canvas_bounds = self.widget_manager.canvas_manager.canvas_bounds
         padding = self.widget_manager.canvas_manager.canvas_padding
-        paper_width = canvas_bounds[2] - canvas_bounds[0] - 2*padding + 2*margin
-        paper_height = canvas_bounds[3] - canvas_bounds[1] - 2*padding + 2*margin
+        tree_width = canvas_bounds[2] - canvas_bounds[0] - 2*padding
+        tree_height = canvas_bounds[3] - canvas_bounds[1] - 2*padding
+        if self._config.get("interaction.familytreeview-printing-scale-to-page"):
+            # TODO How to get the page size used by Windows' print to PDF?
+            # Use the smallest dimension of Letter and A4.
+            min_paper_height = 11 * 72 # in -> pt # height of letter (A4 has 11.7)
+            min_paper_width = 8.268 * 72 # in -> pt # width of A4 (Letter has 8.5)
+            scale = min(
+                (min_paper_height - 2*margin)/tree_height,
+                (min_paper_width - 2*margin)/tree_width
+            )
+        else:
+            scale = 1
+        paper_width = tree_width*scale + 2*margin
+        paper_height = tree_height*scale + 2*margin
         paper_size = Gtk.PaperSize.new_custom("custom-matching-tree", "Tree Size", paper_width, paper_height, Gtk.Unit.POINTS)
         page_setup.set_paper_size(paper_size)
         print_operation.set_default_page_setup(page_setup)
 
-        print_operation.connect("draw-page", self.draw_page)
-        # print_operation.connect("paginate", lambda print_operation, print_context: True) # True = done
+        print_operation.connect("draw-page", self.draw_page, scale)
         res = print_operation.run(Gtk.PrintOperationAction.PRINT_DIALOG, self.uistate.window)
         if res == Gtk.PrintOperationResult.APPLY:
             self.print_settings = print_operation.get_print_settings()
 
-    def draw_page(self, print_operation, print_context, page_nr):
-        # NOTE: Zoom of canvas doesn't need to be considered here
+    def draw_page(self, print_operation, print_context, page_nr, scale):
+        # NOTE: Zoom of canvas doesn't need to be considered here.
         cr = print_context.get_cairo_context()
         canvas_bounds = self.widget_manager.canvas_manager.canvas_bounds
         padding = self.widget_manager.canvas_manager.canvas_padding
+        cr.scale(scale, scale)
         cr.translate(-canvas_bounds[0]-padding, -canvas_bounds[1]-padding)
         bounds = None # entire canvas
         self.widget_manager.canvas_manager.canvas.render(cr, bounds, 0.0)

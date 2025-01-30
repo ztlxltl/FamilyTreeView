@@ -71,6 +71,7 @@ class FamilyTreeViewConfigProvider:
             ("interaction.familytreeview-family-double-click-action", 3),
             ("interaction.familytreeview-double-click-timeout-milliseconds", 200),
             ("interaction.familytreeview-family-info-box-set-active-button", False),
+            ("interaction.familytreeview-printing-scale-to-page", True),
 
             ("badges.familytreeview-badges-active", { # most examples are turned off by default
                 "num_citations": {"person": False, "family": False},
@@ -528,6 +529,17 @@ class FamilyTreeViewConfigProvider:
             _("Show \"Set active\" button in family info box (it has no effect on FamilyTreeView)"),
             row,
             "interaction.familytreeview-family-info-box-set-active-button",
+            stop=3 # same width as spinners and combos
+        )
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _(
+                "Printing: Scale down tree to fit on Letter and A4 paper. "
+                "Uncheck to print at 1:1 scale."),
+            row,
+            "interaction.familytreeview-printing-scale-to-page",
             stop=3 # same width as spinners and combos
         )
 
