@@ -191,6 +191,7 @@ class FamilyTreeView(NavigationView, Callback):
         self.addons_registered_badges = False
 
         self.print_settings = None
+        self.print_margin = 20
 
     def navigation_type(self):
         return "Person"
@@ -514,11 +515,10 @@ class FamilyTreeView(NavigationView, Callback):
         # the entire tree is printed on a custom page that can be pre-processed.
         print_operation.set_n_pages(1)
         page_setup = Gtk.PageSetup()
-        margin = 20
-        page_setup.set_left_margin(margin, Gtk.Unit.POINTS)
-        page_setup.set_top_margin(margin, Gtk.Unit.POINTS)
-        page_setup.set_right_margin(margin, Gtk.Unit.POINTS)
-        page_setup.set_bottom_margin(margin, Gtk.Unit.POINTS)
+        page_setup.set_left_margin(self.print_margin, Gtk.Unit.POINTS)
+        page_setup.set_top_margin(self.print_margin, Gtk.Unit.POINTS)
+        page_setup.set_right_margin(self.print_margin, Gtk.Unit.POINTS)
+        page_setup.set_bottom_margin(self.print_margin, Gtk.Unit.POINTS)
         canvas_bounds = self.widget_manager.canvas_manager.canvas_bounds
         padding = self.widget_manager.canvas_manager.canvas_padding
         tree_width = canvas_bounds[2] - canvas_bounds[0] - 2*padding
@@ -529,13 +529,13 @@ class FamilyTreeView(NavigationView, Callback):
             min_paper_height = 11 * 72 # in -> pt # height of letter (A4 has 11.7)
             min_paper_width = 8.268 * 72 # in -> pt # width of A4 (Letter has 8.5)
             scale = min(
-                (min_paper_height - 2*margin)/tree_height,
-                (min_paper_width - 2*margin)/tree_width
+                (min_paper_height - 2*self.print_margin)/tree_height,
+                (min_paper_width - 2*self.print_margin)/tree_width
             )
         else:
             scale = 1
-        paper_width = tree_width*scale + 2*margin
-        paper_height = tree_height*scale + 2*margin
+        paper_width = tree_width*scale + 2*self.print_margin
+        paper_height = tree_height*scale + 2*self.print_margin
         paper_size = Gtk.PaperSize.new_custom("custom-matching-tree", "Tree Size", paper_width, paper_height, Gtk.Unit.POINTS)
         page_setup.set_paper_size(paper_size)
         print_operation.set_default_page_setup(page_setup)
@@ -551,6 +551,14 @@ class FamilyTreeView(NavigationView, Callback):
         canvas_bounds = self.widget_manager.canvas_manager.canvas_bounds
         padding = self.widget_manager.canvas_manager.canvas_padding
         cr.scale(scale, scale)
+
+        # On Windows, there is an extra scale factor, see
+        # https://mail.gnome.org/archives/gtk-app-devel-list/2012-June/msg00092.html
+        # x0 (and y0) should be the margin, but on Windows they are
+        # different and can be used to calculate the extra scale factor:
+        extra_scale = cr.get_matrix().x0 / self.print_margin
+        cr.scale(extra_scale, extra_scale)
+
         cr.translate(-canvas_bounds[0]-padding, -canvas_bounds[1]-padding)
         bounds = None # entire canvas
         self.widget_manager.canvas_manager.canvas.render(cr, bounds, 0.0)
