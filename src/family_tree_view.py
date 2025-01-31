@@ -24,7 +24,7 @@ import os
 from sqlite3 import InterfaceError
 import traceback
 
-from gi.repository import GLib, Gtk
+from gi.repository import GdkPixbuf, GLib, Gtk
 
 from gramps.gen.config import config
 from gramps.gen.const import GRAMPS_LOCALE
@@ -400,9 +400,27 @@ class FamilyTreeView(NavigationView, Callback):
         if media_mime_type[0:5] == "image":
             rectangle = media_list[0].get_rectangle()
             path = media_path_full(self.dbstate.db, media.get_path())
-            image_path = get_thumbnail_path(path, rectangle=rectangle)
-            image_path = find_file(image_path)
-            return ("path", image_path)
+            image_resolution = self._config.get("appearance.familytreeview-person-image-resolution")
+            if image_resolution == -1:
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
+                if rectangle is not None:
+                    width = pixbuf.get_width()
+                    height = pixbuf.get_height()
+                    upper_x = min(rectangle[0], rectangle[2]) / 100.0
+                    lower_x = max(rectangle[0], rectangle[2]) / 100.0
+                    upper_y = min(rectangle[1], rectangle[3]) / 100.0
+                    lower_y = max(rectangle[1], rectangle[3]) / 100.0
+                    sub_x = round(upper_x * width)
+                    sub_y = round(upper_y * height)
+                    sub_width = round((lower_x - upper_x) * width)
+                    sub_height = round((lower_y - upper_y) * height)
+                    if sub_width > 0 and sub_height > 0:
+                        pixbuf = pixbuf.new_subpixbuf(sub_x, sub_y, sub_width, sub_height)
+                return ("pixbuf", pixbuf)
+            else:
+                image_path = get_thumbnail_path(path, rectangle=rectangle, size=image_resolution)
+                image_path = find_file(image_path)
+                return ("path", image_path)
 
         return ("svg_default", "avatar_simple")
 

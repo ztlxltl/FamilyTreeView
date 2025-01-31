@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 
 from gi import require_version
 require_version("Rsvg", "2.0")
-from gi.repository import Gdk, Gtk, Rsvg
+from gi.repository import Gdk, GdkPixbuf, Gtk, Rsvg
 
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.datehandler import get_date
@@ -93,8 +93,21 @@ class FamilyTreeViewInfoWidgetManager:
 
     def create_image_widget(self, person, img_width=100, img_height=100):
         image_spec = self.ftv.get_image_spec(person)
-        if image_spec[0] == "path":
-            image = Gtk.Image.new_from_file(image_spec[1])
+        if image_spec[0] in ["path", "pixbuf"]:
+            if image_spec[0] == "path":
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file(image_spec[1])
+            else:
+                pixbuf = image_spec[1]
+            scale = min(
+                img_width / pixbuf.get_width(),
+                img_height / pixbuf.get_height(),
+            )
+            pixbuf = pixbuf.scale_simple(
+                round(pixbuf.get_width() * scale),
+                round(pixbuf.get_height() * scale),
+                GdkPixbuf.InterpType.BILINEAR
+            )
+            image = Gtk.Image.new_from_pixbuf(pixbuf)
         else:
             alive = probably_alive(person, self.ftv.dbstate.db)
             gender = person.get_gender()

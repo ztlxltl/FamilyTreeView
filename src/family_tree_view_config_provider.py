@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 from gi.repository import Gtk
 
 from gramps.gen.config import config
-from gramps.gen.const import GRAMPS_LOCALE
+from gramps.gen.const import GRAMPS_LOCALE, SIZE_LARGE, SIZE_NORMAL
 from gramps.gen.lib.eventtype import EventType
 
 from family_tree_view_config_provider_names import names_page, DEFAULT_ABBREV_RULES
@@ -52,6 +52,7 @@ class FamilyTreeViewConfigProvider:
             ("appearance.familytreeview-highlight-root-person", True),
             ("appearance.familytreeview-show-deceased-ribbon", True),
             ("appearance.familytreeview-filter-person-gray-out", True),
+            ("appearance.familytreeview-person-image-resolution", 1),
             ("appearance.familytreeview-person-image-filter", 0),
             ("appearance.familytreeview-timeline-mode-default-person", 3),
             ("appearance.familytreeview-timeline-mode-default-family", 3),
@@ -257,6 +258,23 @@ class FamilyTreeViewConfigProvider:
             row,
             "appearance.familytreeview-filter-person-gray-out",
             stop=3 # same width as spinners and combos
+        )
+
+        row += 1
+        image_resolution_options = [
+            (SIZE_NORMAL, _("Normal")),
+            (SIZE_LARGE, _("High")),
+            (-1, _("Original")),
+        ]
+        def _cb_image_resolution_combo_changed(combo, constant):
+            self.ftv._config.set(constant, image_resolution_options[combo.get_active()][0])
+        configdialog.add_combo(
+            grid,
+            _("Resolution of the images"),
+            row,
+            "appearance.familytreeview-person-image-resolution",
+            image_resolution_options,
+            callback=_cb_image_resolution_combo_changed
         )
 
         row += 1
