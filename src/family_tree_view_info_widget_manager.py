@@ -21,9 +21,7 @@
 
 from typing import TYPE_CHECKING
 
-from gi import require_version
-require_version("Rsvg", "2.0")
-from gi.repository import Gdk, GdkPixbuf, Gtk, Rsvg
+from gi.repository import Gdk, GdkPixbuf, Gtk
 
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.datehandler import get_date
@@ -119,7 +117,10 @@ class FamilyTreeViewInfoWidgetManager:
                 svg_code += f"""<path fill="{border_color}" d="{d}" />"""
             svg_code += "</svg>"
 
-            pixbuf = Rsvg.Handle.new_from_data(svg_code.encode()).get_pixbuf()
+            pixbuf_loader = GdkPixbuf.PixbufLoader()
+            pixbuf_loader.write(svg_code.encode())
+            pixbuf_loader.close()
+            pixbuf = pixbuf_loader.get_pixbuf()
             image = Gtk.Image.new_from_pixbuf(pixbuf)
 
         return image
