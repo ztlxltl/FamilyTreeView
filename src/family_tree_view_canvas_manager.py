@@ -178,8 +178,11 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         img_max_height = 80
         if image_spec is None:
             pass # no image
-        elif image_spec[0] == "path":
-            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(image_spec[1], img_max_width, img_max_height)
+        elif image_spec[0] in ["path", "pixbuf"]:
+            if image_spec[0] == "path":
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(image_spec[1], img_max_width, img_max_height)
+            else:
+                pixbuf = image_spec[1]
             image_filter = self.ftv._config.get("appearance.familytreeview-person-image-filter")
             if (image_filter == 1 and not alive) or image_filter == 2:
                 # grayscale
@@ -188,11 +191,20 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                 parent=parent,
                 x=x-img_max_width/2,
                 y=y-self.person_height+self.padding,
-                width=img_max_width,
-                height=img_max_height,
                 pixbuf=pixbuf
             )
+            # Setting image size with arguments doesn't work.
+            scale = min(
+                img_max_height/pixbuf.get_height(),
+                img_max_width/pixbuf.get_width()
+            )
+            img.props.width=pixbuf.get_width()*scale
+            img.props.height=pixbuf.get_height()*scale
+            # Otherwise, the image is cropped instead of scaled:
+            img.props.scale_to_fit=True
+
             # center image
+            # needs to be done after setting size
             img.props.x += (img_max_width-img.props.width)/2
             img.props.y += (img_max_height-img.props.height)/2
         elif image_spec[0] == "svg_default":
