@@ -151,10 +151,15 @@ class NumChildrenBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
             # no badge(s)
             return []
 
+        # changed folder structure in package
+        base_dir = os.path.dirname(__file__)
+        if os.path.basename(base_dir) != "src":
+            base_dir = os.path.join(base_dir, "src")
+
         content = [
             {
                 "content_type": "icon_file_svg",
-                "file": os.path.join(os.path.dirname(__file__), "icons", "descendants.svg"),
+                "file": os.path.join(base_dir, "icons", "descendants.svg"),
                 "current_color": "black"
             },
             {
@@ -188,6 +193,11 @@ class NumChildrenBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
             # no badge
             return []
 
+        # changed folder structure in package
+        base_dir = os.path.dirname(__file__)
+        if os.path.basename(base_dir) != "src":
+            base_dir = os.path.join(base_dir, "src")
+
         return [
             {
                 "background_color": "BurlyWood",
@@ -195,7 +205,7 @@ class NumChildrenBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
                 "content": [
                     {
                         "content_type": "icon_file_svg",
-                        "file": os.path.join(os.path.dirname(__file__), "icons", "descendants.svg"),
+                        "file": os.path.join(base_dir, "icons", "descendants.svg"),
                         "current_color": "saddlebrown"
                     },
                     {
