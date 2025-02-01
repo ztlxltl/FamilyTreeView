@@ -19,6 +19,8 @@
 #
 
 
+import os
+
 from gramps.gen.config import config
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.lib.childreftype import ChildRefType
@@ -151,9 +153,9 @@ class NumChildrenBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
 
         content = [
             {
-                "content_type": "icon_svg_inline",
-                "svg_inline": "descendants_simple",
-                "icon_fill_color": "SaddleBrown"
+                "content_type": "icon_file_svg",
+                "file": os.path.join(os.path.dirname(__file__), "icons", "descendants.svg"),
+                "current_color": "black"
             },
             {
                 "content_type": "text",
@@ -166,7 +168,7 @@ class NumChildrenBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
                 "content_type": "text",
                 "tooltip": _("Number of all children: ") + str(num_children),
                 "text": "(" + str(num_children) + ")",
-                "text_color": "SaddleBrown"
+                "text_color": "saddlebrown"
             })
         return [
             {
@@ -192,9 +194,14 @@ class NumChildrenBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
                 "tooltip": _("Number of all children: ") + str(num_children),
                 "content": [
                     {
+                        "content_type": "icon_file_svg",
+                        "file": os.path.join(os.path.dirname(__file__), "icons", "descendants.svg"),
+                        "current_color": "saddlebrown"
+                    },
+                    {
                         "content_type": "text",
                         "text": str(num_children),
-                        "text_color": "SaddleBrown"
+                        "text_color": "saddlebrown"
                     }
                 ]
             }

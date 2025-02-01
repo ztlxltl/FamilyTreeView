@@ -228,7 +228,7 @@ class FamilyTreeViewWidgetManager:
             death_date = f"{self.ftv.get_symbol(death_or_fallback.type)} {get_date(death_or_fallback)}"
         else:
             death_date = ""
-        image_spec = self.ftv.get_image_spec(person)
+        image_spec = self.ftv.get_image_spec(person, "person")
 
         alive = probably_alive(person, self.ftv.dbstate.db)
         gender = person.get_gender()

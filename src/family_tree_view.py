@@ -44,6 +44,7 @@ from gramps.cli.clidbman import CLIDbManager
 from abbreviated_name_display import AbbreviatedNameDisplay
 from family_tree_view_badge_manager import FamilyTreeViewBadgeManager
 from family_tree_view_config_provider import FamilyTreeViewConfigProvider
+from family_tree_view_icons import get_family_avatar_svg_data, get_person_avatar_svg_data
 from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
 
@@ -386,13 +387,18 @@ class FamilyTreeView(NavigationView, Callback):
             return True
         return False
 
-    def get_image_spec(self, person):
-        if person is None:
-            return ("svg_default", "avatar_simple")
+    def get_image_spec(self, obj, obj_type):
+        if obj_type == "person":
+            data_callback = get_person_avatar_svg_data
+        else:
+            data_callback = get_family_avatar_svg_data
 
-        media_list = person.get_media_list()
+        if obj is None:
+            return ("svg_data_callback", data_callback)
+
+        media_list = obj.get_media_list()
         if not media_list:
-            return ("svg_default", "avatar_simple")
+            return ("svg_data_callback", data_callback)
 
         media_handle = media_list[0].get_reference_handle()
         media = self.dbstate.db.get_media_from_handle(media_handle)
@@ -422,7 +428,7 @@ class FamilyTreeView(NavigationView, Callback):
                 image_path = find_file(image_path)
                 return ("path", image_path)
 
-        return ("svg_default", "avatar_simple")
+        return ("svg_data_callback", data_callback)
 
     def get_full_place_name(self, place_handle):
         """gramps.gen.utils.libformatting.get_place_name without character limit"""
