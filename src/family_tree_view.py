@@ -24,6 +24,7 @@ import os
 from sqlite3 import InterfaceError
 import traceback
 
+import cairo
 from gi.repository import GdkPixbuf, GLib, Gtk
 
 from gramps.gen.config import config
@@ -58,6 +59,10 @@ class FamilyTreeView(NavigationView, Callback):
             <item>
                 <attribute name="action">win.PrintView</attribute>
                 <attribute name="label" translatable="yes">Print...</attribute>
+            </item>
+            <item>
+                <attribute name="action">win.ExportSvgView</attribute>
+                <attribute name="label" translatable="yes">Export as SVG...</attribute>
             </item>
         </section>
         """,
@@ -131,6 +136,18 @@ class FamilyTreeView(NavigationView, Callback):
                     <property name="action-name">win.PrintView</property>
                     <property name="tooltip_text" translatable="yes">Print or save the tree</property>
                     <property name="label" translatable="yes">Print...</property>
+                    <property name="use-underline">True</property>
+                </object>
+                <packing>
+                    <property name="homogeneous">False</property>
+                </packing>
+            </child>
+            <child groups="RO">
+                <object class="GtkToolButton">
+                    <property name="icon-name">document-export</property>
+                    <property name="action-name">win.ExportSvgView</property>
+                    <property name="tooltip_text" translatable="yes">Export the tree as SVG</property>
+                    <property name="label" translatable="yes">Export as SVG...</property>
                     <property name="use-underline">True</property>
                 </object>
                 <packing>
@@ -226,6 +243,7 @@ class FamilyTreeView(NavigationView, Callback):
     def define_actions(self):
         super().define_actions()
         self._add_action("PrintView", self.print_view, "<PRIMARY><SHIFT>P")
+        self._add_action("ExportSvgView", self.export_svg_view,)
 
     def config_connect(self):
         self.config_provider.config_connect(self._config, self.cb_update_config)
@@ -586,3 +604,71 @@ class FamilyTreeView(NavigationView, Callback):
         cr.translate(-canvas_bounds[0]-padding, -canvas_bounds[1]-padding)
         bounds = None # entire canvas
         self.widget_manager.canvas_manager.canvas.render(cr, bounds, 0.0)
+
+    def export_svg_view(self, *args):
+
+        # Ask where to save it.
+        dialog = Gtk.FileChooserDialog(
+            title=_("Export tree as SVG"),
+            transient_for=self.uistate.window,
+            action=Gtk.FileChooserAction.SAVE,
+        )
+        dialog.add_buttons(
+            Gtk.STOCK_CANCEL,
+            Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_OPEN,
+            Gtk.ResponseType.OK,
+        )
+
+        filter_svg = Gtk.FileFilter()
+        filter_svg.set_name(_("SVG files"))
+        filter_svg.add_mime_type("image/svg+xml")
+        dialog.add_filter(filter_svg)
+
+        filter_any = Gtk.FileFilter()
+        filter_any.set_name(_("Any files"))
+        filter_any.add_pattern("*")
+        dialog.add_filter(filter_any)
+
+        response = dialog.run()
+
+        if response != Gtk.ResponseType.OK:
+            dialog.destroy()
+            return
+
+        file_name = dialog.get_filename()
+        dialog.destroy()
+
+        if file_name[:-4].lower() != ".svg":
+            file_name += ".svg"
+
+        # TODO Catch errors of cairo write.
+        # Can't find a way to catch cairo.IOError. Also,
+        # os.access(os.path.dirname(file_name), os.W_OK) and
+        # os.access(file_name, os.W_OK) don't help.
+
+        # actual export
+        canvas_bounds = self.widget_manager.canvas_manager.canvas_bounds
+        padding = self.widget_manager.canvas_manager.canvas_padding
+        width = canvas_bounds[2]-canvas_bounds[0]-2*padding
+        height = canvas_bounds[3]-canvas_bounds[1]-2*padding
+        with cairo.SVGSurface(file_name, width, height) as surface:
+            context = cairo.Context(surface)
+            context.translate(-canvas_bounds[0]-padding, -canvas_bounds[1]-padding)
+            bounds = None
+            self.widget_manager.canvas_manager.canvas.render(context, bounds, 0.0)
+            surface.finish()
+
+        # message: completed
+        dialog = Gtk.MessageDialog(
+            transient_for=self.uistate.window,
+            flags=0,
+            message_type=Gtk.MessageType.INFO,
+            buttons=Gtk.ButtonsType.OK,
+            text="Export completed.",
+        )
+        dialog.format_secondary_text(
+            f"Tree was saved: {file_name}"
+        )
+        dialog.run()
+        dialog.destroy()
