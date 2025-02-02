@@ -326,9 +326,13 @@ class FamilyTreeView(NavigationView, Callback):
         self.uistate.modify_statusbar(self.dbstate)
 
     def _connect_db_signals(self):
-        self.callman.add_db_signal("person-update", self.close_info_and_rebuild)
-        self.callman.add_db_signal("family-update", self.close_info_and_rebuild)
-        self.callman.add_db_signal("event-update", self.close_info_and_rebuild)
+        self.callman.add_db_signal("person-update", self._object_updated)
+        self.callman.add_db_signal("family-update", self._object_updated)
+        self.callman.add_db_signal("event-update", self._object_updated)
+
+    def _object_updated(self, handle):
+        offset = self.widget_manager.canvas_manager.get_center_in_units()
+        self.close_info_and_rebuild(offset=offset)
 
     def close_info_and_rebuild(self, *_, offset=None): # *_ required when used as callback
         self.widget_manager.info_box_manager.close_info_box()
