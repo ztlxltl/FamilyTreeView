@@ -620,7 +620,7 @@ class FamilyTreeView(NavigationView, Callback):
         dialog.add_buttons(
             Gtk.STOCK_CANCEL,
             Gtk.ResponseType.CANCEL,
-            Gtk.STOCK_OPEN,
+            Gtk.STOCK_SAVE,
             Gtk.ResponseType.OK,
         )
 
@@ -634,6 +634,11 @@ class FamilyTreeView(NavigationView, Callback):
         filter_any.add_pattern("*")
         dialog.add_filter(filter_any)
 
+        recent_dir = self._config.get("paths.familytreeview-recent-export-dir")
+        dialog.set_current_folder(recent_dir)
+        dbname = self.dbstate.db.get_dbname()
+        dialog.set_current_name(f"untitled_FTV_export_of_{dbname}.svg")
+
         response = dialog.run()
 
         if response != Gtk.ResponseType.OK:
@@ -641,9 +646,11 @@ class FamilyTreeView(NavigationView, Callback):
             return
 
         file_name = dialog.get_filename()
+        dir_name = os.path.dirname(file_name)
+        self._config.set("paths.familytreeview-recent-export-dir", dir_name)
         dialog.destroy()
 
-        if file_name[:-4].lower() != ".svg":
+        if file_name[-4:].lower() != ".svg":
             file_name += ".svg"
 
         # TODO Catch errors of cairo write.

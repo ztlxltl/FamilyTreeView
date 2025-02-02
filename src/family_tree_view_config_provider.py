@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 from gi.repository import Gtk
 
 from gramps.gen.config import config
-from gramps.gen.const import GRAMPS_LOCALE, SIZE_LARGE, SIZE_NORMAL
+from gramps.gen.const import GRAMPS_LOCALE, SIZE_LARGE, SIZE_NORMAL, USER_HOME
 from gramps.gen.lib.eventtype import EventType
 
 from family_tree_view_config_provider_names import names_page, DEFAULT_ABBREV_RULES
@@ -109,6 +109,9 @@ class FamilyTreeViewConfigProvider:
             ("experimental.familytreeview-adaptive-ancestor-generation-dist", False),
             ("experimental.familytreeview-connection-follow-on-click", False),
             ("experimental.familytreeview-canvas-font-size-ppi", 96),
+
+            # without config ui
+            ("paths.familytreeview-recent-export-dir", USER_HOME),
         )
 
     @staticmethod
