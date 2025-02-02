@@ -98,10 +98,26 @@ class FamilyTreeViewWidgetManager:
             self.toolbar.add(search_box)
         else:
             self.search_widget = None
-            label = Gtk.Label(_("Search is not available. Install the Graph View addon to make SearchWidget available."))
+
+            info_bar = Gtk.InfoBar(
+                parent=self.main_widget,
+                message_type=Gtk.MessageType.INFO,
+                show_close_button=True,
+            )
+            def close_info_bar(*args):
+                info_bar.set_revealed(False)
+            info_bar.connect("close", close_info_bar) # escape key
+            info_bar.connect("response", close_info_bar) # close button
+
+            content_area = info_bar.get_content_area()
+            label = Gtk.Label(_(
+                "Search is not available. "
+                "Install the Graph View addon and restart Gramps to make the search available."
+            ))
             label.set_line_wrap(True)
             label.set_xalign(0)
-            self.toolbar.add(label)
+            content_area.add(label)
+
         self.main_widget.pack_start(self.toolbar, False, False, 0)
 
         self.main_container_paned = Gtk.Paned()
