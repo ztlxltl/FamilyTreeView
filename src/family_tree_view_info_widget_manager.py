@@ -102,7 +102,7 @@ class FamilyTreeViewInfoWidgetManager:
         if image_spec[0] in ["path", "svg_path", "pixbuf"]:
             if image_spec[0] == "path":
                 pixbuf = GdkPixbuf.Pixbuf.new_from_file(image_spec[1])
-            if image_spec[0] == "svg_path":
+            elif image_spec[0] == "svg_path":
                 svg_factor = 16 # if 1: too pixelated, if too large: slow
                 pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(image_spec[1], img_width*svg_factor, img_height*svg_factor)
             else:
