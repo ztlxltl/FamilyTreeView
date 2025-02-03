@@ -340,7 +340,6 @@ class FamilyTreeViewTimeline:
             else:
                 if event_place_str != "": # have a place string
                     event_place_str = ",\n" + event_place_str
-                    # test
 
             if rel_type is None: # primary event
                 markup = f"{event_age_str}<b>{event_type}</b>{description}:\n{event_date_str}{event_place_str}"
@@ -375,13 +374,13 @@ class FamilyTreeViewTimeline:
                     relative_name = name_displayer.display_name(rel[-1].get_primary_name())
                     markup = f"{event_age_str}{event_type} of {relationship_type} <b>{relative_name}</b>{description}:\n{event_date_str}{event_place_str}"
                 else: # Family
-                    relative_name = "Unknown"
+                    spouse_name = "Unknown"
                     for spouse_handle in [rel[-1].get_father_handle(), rel[-1].get_mother_handle()]:
                         if spouse_handle is not None and spouse_handle != self.obj.get_handle():
                             spouse = self.ftv.get_person_from_handle(spouse_handle)
-                            relative_name = name_displayer.display_name(spouse.get_primary_name())
+                            spouse_name = name_displayer.display_name(spouse.get_primary_name())
                             break
-                    markup = f"{event_age_str}{event_type} with <b>{relative_name}</b>{description}:\n{event_date_str}{event_place_str}"
+                    markup = f"{event_age_str}{event_type} with <b>{spouse_name}</b>{description}:\n{event_date_str}{event_place_str}"
                 class_name = "ftv-timeline-event-relatives"
             event_label = Gtk.Label()
             event_label.set_markup(markup)
