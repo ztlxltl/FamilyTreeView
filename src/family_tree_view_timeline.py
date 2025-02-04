@@ -420,7 +420,9 @@ class FamilyTreeViewTimeline:
         if self.obj is None or len(event_and_ref_list) == 0:
             return
 
-        if self.start_event is None:
+        if self.start_event is None \
+            or self.start_event.date.is_empty() \
+            or self.start_event.date.modifier == Date.MOD_TEXTONLY:
             return
 
         root_item = timeline_canvas.get_root_item()
@@ -431,8 +433,6 @@ class FamilyTreeViewTimeline:
         if root_item is None:
             root_item = GooCanvas.CanvasGroup()
             timeline_canvas.set_root_item(root_item)
-
-        # TODO only ticks if there is a birth or replacement
 
         # remove all canvas elements
         for i in range(root_item.get_n_children()-1, -1, -1):
