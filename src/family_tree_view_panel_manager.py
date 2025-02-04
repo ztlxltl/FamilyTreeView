@@ -58,7 +58,7 @@ class FamilyTreeViewPanelManager(FamilyTreeViewInfoWidgetManager):
         panel_header_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         panel_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, halign=Gtk.Align.END)
 
-        image = Gtk.Image.new_from_icon_name("cancel", Gtk.IconSize.LARGE_TOOLBAR)
+        image = Gtk.Image.new_from_icon_name("window-close", Gtk.IconSize.LARGE_TOOLBAR)
         close_button = Gtk.Button(image=image)
         close_button.connect("clicked", lambda button: self.widget_manager.close_panel())
         panel_header.add(close_button)
