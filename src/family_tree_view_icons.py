@@ -19,44 +19,22 @@
 #
 
 
-from math import sqrt
+def get_person_avatar_svg_data(max_width, max_height):
+    # This is designed as 10 x 10.
+    f = min(max_width/10, max_height/10)
+    svg_data = (
+        f"M {2.5*f} { 2.5*f} a {2.5*f} {2.5*f} 0 0 1 { 5*f} 0 a {2.5*f} {2.5*f} 0 0 1 {-5*f} 0"
+        f"M  0      {10  *f} a {5  *f} {5  *f} 0 0 1 {10*f} 0"
+    )
+    return (svg_data, 10*f, 10*f)
 
-
-def get_svg_data(inline_svg_name, x, y, max_width, max_height, centered=False):
-    # TODO All icons should be svg files, but for some reason they cannot be positioned in canvas in this case.
-
-    if inline_svg_name == "avatar_simple":
-        width = 10
-        height = 10
-        x, y, f = apply_scale(x, y, max_width, max_height, centered, width, height)
-        svg_path_data = [
-            f"M {2.5*f+x} { 2.5*f+y} a {2.5*f} {2.5*f} 0 0 1 {5*f} { 0*f} a {2.5*f} {2.5*f} 0 0 1 {-5*f} {0*f}"
-            f"M {0  *f+x} {10  *f+y} a {5  *f} {5  *f} 0 0 1 {10*f} {0*f}"
-        ]
-    elif inline_svg_name == "descendants_simple":
-        width = 10
-        height = 10
-        x, y, f = apply_scale(x, y, max_width, max_height, centered, width, height)
-        svg_path_data = [
-            f"M {3*f+x} {2*f+y} a {2*f} {2*f} 0 0 1 {4*f} {0*f} a {2*f} {2*f} 0 0 1 {-4*f} {0*f}"
-            f"M {6*f+x} {8*f+y} a {2*f} {2*f} 0 0 1 {4*f} {0*f} a {2*f} {2*f} 0 0 1 {-4*f} {0*f}"
-            f"M {0*f+x} {8*f+y} a {2*f} {2*f} 0 0 1 {4*f} {0*f} a {2*f} {2*f} 0 0 1 {-4*f} {0*f}"
-            f"M {4.5*f+x} {3.5*f+y} h {1*f} v {1*f} h {3*f} v {2*f} h {-1*f} v {-1*f} h {-5*f} v {1*f} h {-1*f} v {-2*f} h {3*f} z"
-        ]
-    elif inline_svg_name == "deceased_ribbon":
-        s = 25
-        r = 4
-        x, y, f = apply_scale(x, y, max_width, max_height, centered, s, s)
-        svg_path_data = [
-            f"M {(s-r*sqrt(2))*f+x} {0*f+y} h {r*sqrt(2)*f} l {-s*f} {s*f} v {-r*sqrt(2)*f} z"
-        ]
-    else:
-        raise ValueError(f"Unknown inline SVG name '{inline_svg_name}'.")
-    return svg_path_data
-
-def apply_scale(x, y, max_width, max_height, centered, width, height):
-    f = min(max_width/width, max_height/height)
-    if centered:
-        x += (max_width-width*f)/2
-        y += (max_height-height*f)/2
-    return (x, y, f)
+def get_family_avatar_svg_data(max_width, max_height):
+    # This is designed as 18 x 10.
+    f = min(max_width/18, max_height/10)
+    svg_data = (
+        f"M { 2.5*f} {2.5*f} a {2.5*f} {2.5*f} 0 0 1 {5*f} 0 a {2.5*f} {2.5*f} 0 0 1 {-5*f} 0"
+        f"M {10.5*f} {2.5*f} a {2.5*f} {2.5*f} 0 0 1 {5*f} 0 a {2.5*f} {2.5*f} 0 0 1 {-5*f} 0"
+        f"M  0    {10*f} a {5*f} {5*f} 0 0 1 {10*f} 0"
+        f"M {8*f} {10*f} a {5*f} {5*f} 0 0 1 {10*f} 0"
+    )
+    return (svg_data, 18*f, 10*f)
