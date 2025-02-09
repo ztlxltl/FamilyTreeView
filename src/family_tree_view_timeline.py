@@ -375,7 +375,6 @@ class FamilyTreeViewTimeline:
                 else:
                     markup = f"{event_age_str}{event_type} of <b>{relationship_type}</b>{description}:\n{event_date_str}{event_place_str}"
                 class_name = "ftv-timeline-event-relatives"
-            markup = markup.replace("&", "&amp;") # can't use html.escape because of <b>, </b>
             event_label = Gtk.Label()
             event_label.set_markup(markup)
             event_label.set_line_wrap(True)
@@ -546,6 +545,16 @@ class FamilyTreeViewTimeline:
             except ZeroDivisionError:
                 y_time_rel = 0
             y_time = y_time_rel * timeline_height + self.timeline_top_margin
+            if self.obj_type == "F":
+                # y_time above goes progressively skewed for a family
+                # because the timeline attach points were calculated on the
+                # entire vertical span. For a family, they should be
+                # calculated on the span only from time 0 to the bottom.
+                y_time_bottom = canvas_height - self.timeline_bottom_margin
+                y_time_family_factor = (y_time_bottom - (zero_event_offset + self.timeline_top_margin)) / y_time_bottom # % of the timeline
+                y_time_temp = y_time - (zero_event_offset + self.timeline_top_margin)
+                y_time_temp = y_time_temp * y_time_family_factor # apply the factor with respect to the applicable span
+                y_time = y_time_temp + (zero_event_offset + self.timeline_top_margin)
 
             connect_to_previous = prev_y_time is not None and y_time - prev_y_time < 2*self.timeline_marker_radius
 
