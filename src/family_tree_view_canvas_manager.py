@@ -19,7 +19,7 @@
 #
 
 
-from math import atan, cos, pi, sin
+from math import atan, cos, pi, sin, sqrt
 from typing import TYPE_CHECKING
 
 from gi.repository import Gtk, GdkPixbuf, Pango
@@ -27,7 +27,6 @@ from gi.repository import Gtk, GdkPixbuf, Pango
 from gramps.gui.utils import get_contrast_color, rgb_to_hex
 
 from family_tree_view_canvas_manager_base import FamilyTreeViewCanvasManagerBase
-from family_tree_view_icons import get_svg_data
 from family_tree_view_utils import import_GooCanvas, make_hashable
 if TYPE_CHECKING:
     from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
@@ -107,6 +106,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
 
         self.reset_canvas()
         self.reset_abbrev_names()
+        self.svg_pixbuf_cache = {}
 
         self.ftv.uistate.connect("nameformat-changed", self.reset_abbrev_names)
         self.ftv.connect("abbrev-rules-changed", self.reset_abbrev_names)
@@ -178,43 +178,8 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         img_max_height = 80
         if image_spec is None:
             pass # no image
-        elif image_spec[0] == "path":
-            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(image_spec[1], img_max_width, img_max_height)
-            image_filter = self.ftv._config.get("appearance.familytreeview-person-image-filter")
-            if (image_filter == 1 and not alive) or image_filter == 2:
-                # grayscale
-                pixbuf.saturate_and_pixelate(pixbuf, 0, False)
-            img = GooCanvas.CanvasImage(
-                parent=parent,
-                x=x-img_max_width/2,
-                y=y-self.person_height+self.padding,
-                width=img_max_width,
-                height=img_max_height,
-                pixbuf=pixbuf
-            )
-            # center image
-            img.props.x += (img_max_width-img.props.width)/2
-            img.props.y += (img_max_height-img.props.height)/2
-        elif image_spec[0] == "svg_default":
-            img_max_width_red = img_max_width - self.padding*2
-            img_max_height_red = img_max_height - self.padding
-            svg_ds = get_svg_data(
-                image_spec[1],
-                x-img_max_width_red/2,
-                y-self.person_height+self.padding+self.padding, # extra padding
-                img_max_width_red,
-                img_max_height_red,
-                centered=True
-            )
-            for svg_d in svg_ds:
-                GooCanvas.CanvasPath(
-                    parent=parent,
-                    data=svg_d,
-                    fill_color=secondary_color,
-                    line_width=0
-                )
         elif image_spec[0] == "text":
-            image_text_label = GooCanvas.CanvasText(
+            GooCanvas.CanvasText(
                 parent=parent,
                 x=x,
                 y=y-self.person_height+self.padding+img_max_height/2,
@@ -226,7 +191,25 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                 fill_color=contrast_color,
                 # TODO somehow make ellipsize work for multiline (most likely has to kick in after using abbreviated names)
             )
-            image_text_label
+        else:
+            image_filter = self.ftv._config.get("appearance.familytreeview-person-image-filter")
+            if image_spec[0] == "svg_data_callback":
+                img_max_width_ = img_max_width - self.padding*2
+                img_max_height_ = img_max_height - self.padding
+                extra_padding = self.padding
+            else:
+                img_max_width_ = img_max_width
+                img_max_height_ = img_max_height
+                extra_padding = 0
+            self.add_from_image_spec(
+                parent,
+                image_spec,
+                x-img_max_width_/2,
+                y-self.person_height+self.padding+extra_padding,
+                img_max_width_, img_max_height_,
+                grayscale=(image_filter == 1 and not alive) or image_filter == 2,
+                color=secondary_color,
+            )
 
         sep_below_image = 5 # between image and name
         sep_below_name = 5 # between name and dates
@@ -292,14 +275,17 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         )
 
         if not alive and self.ftv._config.get("appearance.familytreeview-show-deceased-ribbon"):
-            svg_ds = get_svg_data("deceased_ribbon", x-self.person_width/2, y-self.person_height, 25, 25)
-            for svg_d in svg_ds:
-                GooCanvas.CanvasPath(
-                    parent=parent,
-                    data=svg_d,
-                    fill_color=secondary_color,
-                    line_width=0
-                )
+            s = 25
+            r = 4
+            svg_data = f"M {s-r*sqrt(2)} 0 h {r*sqrt(2)} l {-s} {s} v {-r*sqrt(2)} z"
+            GooCanvas.CanvasPath(
+                parent=parent,
+                data=svg_data,
+                fill_color=secondary_color,
+                line_width=0,
+                x=x-self.person_width/2,
+                y=y-self.person_height,
+            )
 
         if badges is not None:
             self.add_badges(badges, x+self.person_width/2-self.padding, y-self.person_height)
@@ -496,19 +482,8 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             x += self.badge_content_sep # padding will be subtracted in loop
             for badge_content_info in reversed(badge_info["content"]): # start with last as badges are right aligned
                 x -= self.badge_content_sep
-                if badge_content_info["content_type"] == "icon_svg_inline":
-                    icon_size = 10
-                    svg_data = get_svg_data(badge_content_info["svg_inline"], x-icon_size, y-icon_size/2, icon_size, icon_size)
-                    for svg_d in svg_data:
-                        badge_content_text = GooCanvas.CanvasPath(
-                            parent=group,
-                            data=svg_d,
-                            fill_color="#000",
-                            line_width=0,
-                            tooltip=badge_content_info.get("tooltip", badge_info.get("tooltip")),
-                        )
-                    x = x - icon_size
-                elif badge_content_info["content_type"] == "text":
+                tooltip = badge_content_info.get("tooltip", badge_info.get("tooltip"))
+                if badge_content_info["content_type"] == "text":
                     badge_content_text = GooCanvas.CanvasText(
                         parent=group,
                         x=x,
@@ -518,11 +493,39 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                         alignment=Pango.Alignment.RIGHT,
                         anchor=GooCanvas.CanvasAnchorType.EAST,
                         font_desc=font_desc,
-                        tooltip=badge_content_info.get("tooltip", badge_info.get("tooltip")),
+                        tooltip=tooltip,
                     )
                     ink_extend_rect, logical_extend_rect = badge_content_text.get_natural_extents()
                     Pango.extents_to_pixels(logical_extend_rect)
                     x = x - logical_extend_rect.width
+                elif badge_content_info["content_type"][:5] == "icon_":
+                    icon_size = 10
+                    if badge_content_info["content_type"] == "icon_file_svg":
+                        self.add_from_image_spec(
+                            group, ("svg_path", badge_content_info["file"]),
+                            x-icon_size,
+                            y-icon_size/2,
+                            icon_size,
+                            icon_size,
+                            color=badge_content_info.get("current_color", "black"),
+                            tooltip=tooltip,
+                        )
+                    elif badge_content_info["content_type"] == "icon_svg_data_callback":
+                        svg_data = badge_content_info["callback"](icon_size, icon_size)
+                        fill_color = badge_content_info.get("fill_color", "#000")
+                        stroke_color = badge_content_info.get("line_width", None)
+                        line_width = badge_content_info.get("line_width", 0)
+                        GooCanvas.CanvasPath(
+                            parent=group,
+                            data=svg_data,
+                            fill_color=fill_color,
+                            stroke_color=stroke_color,
+                            line_width=line_width,
+                            tooltip=tooltip,
+                            x=x-icon_size,
+                            y=y-icon_size/2,
+                        )
+                    x = x - icon_size
 
             # TODO remove badge and break if too little space.
 
@@ -577,6 +580,88 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             data=data,
             stroke_color=rgb_to_hex(fg_color),
         ).rotate(ang, x, y)
+
+    def add_from_image_spec(self, parent, image_spec, x, y, max_width, max_height, color=None, grayscale=False, tooltip=None):
+        if image_spec[0] in ["path", "svg_path", "pixbuf"]:
+            if image_spec[0] == "path":
+                path = image_spec[1]
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
+            elif image_spec[0] == "svg_path":
+                svg_factor = 16 # if 1: too pixelated, if too large: slow
+                path = image_spec[1]
+                if color is None:
+                    # When viewBox is specified, the scaling will
+                    # increase resolution. If its not specified, the svg
+                    # is scaled down.
+                    pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(path, max_width*svg_factor, max_height*svg_factor)
+                else:
+                    with open(path, 'r') as file:
+                        svg_code = file.read()
+
+                    # Insert the color to use for currentcolor.
+                    # TODO Is this robust enough?
+                    index = svg_code.lower().find("svg")
+                    # 3 to insert after "svg"
+                    svg_code = svg_code[:index+3] + f""" style="color: {color}" """ + svg_code[index+3:]
+
+                    # Rendering SVGs at high resolution takes time.
+                    # Caching the result speeds up building large trees.
+                    if svg_code in self.svg_pixbuf_cache:
+                        pixbuf = self.svg_pixbuf_cache[svg_code]
+                    else:
+                        pixbuf_loader = GdkPixbuf.PixbufLoader()
+                        pixbuf_loader.set_size(
+                            max_width*svg_factor,
+                            max_height*svg_factor
+                        )
+                        pixbuf_loader.write(svg_code.encode())
+                        pixbuf_loader.close()
+                        pixbuf = pixbuf_loader.get_pixbuf()
+                        self.svg_pixbuf_cache[svg_code] = pixbuf
+            else:
+                pixbuf = image_spec[1]
+            if grayscale:
+                pixbuf.saturate_and_pixelate(pixbuf, 0, False)
+            img = GooCanvas.CanvasImage(
+                parent=parent,
+                x=x,
+                y=y,
+                pixbuf=pixbuf,
+                tooltip=tooltip,
+            )
+            # Setting image size with arguments doesn't work.
+            scale = min(
+                max_height/pixbuf.get_height(),
+                max_width/pixbuf.get_width()
+            )
+            img.props.width=pixbuf.get_width()*scale
+            img.props.height=pixbuf.get_height()*scale
+            # Otherwise, the image is cropped instead of scaled:
+            img.props.scale_to_fit=True
+
+            # center image
+            # needs to be done after setting size
+            img.props.x += (max_width-img.props.width)/2
+            img.props.y += (max_height-img.props.height)/2
+        elif image_spec[0] == "svg_data_callback":
+            svg_data, width, height = image_spec[1](
+                max_width,
+                max_height,
+            )
+            # Setting width and height (as a kwarg or the property),
+            # causes distortion (the order of defining/setting those
+            # matters). This happens when using absolute coordinates
+            # (lowercase letters) as well as when using relative
+            # coordinates (uppercase letters) in the path data.
+            GooCanvas.CanvasPath(
+                parent=parent,
+                data=svg_data,
+                fill_color=color,
+                line_width=0,
+                x=x+(max_width-width)/2,
+                y=y+(max_height-height)/2,
+                tooltip=tooltip,
+            )
 
     def click_callback(self, root_item, target, event, other_callback=None, *other_args, **other_kwargs):
         if self.widget_manager.search_widget is not None:

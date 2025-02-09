@@ -26,7 +26,8 @@ This repository includes the following addons, which are registered individually
 - AbbreviatedNameDisplay Inspector Gramplet, lists the abbreviations of the names of the active person (audience=DEVELOPER)
 
 ## Installation
-FamilyTreeView uses `GooCanvas` to draw the tree. If you are using Gramps' Graph View, this requirement is already satisfied. (In contrast to Graph View, FamilyTreeView doesn't require Graphviz.) In addition, FamilyTreeView needs `Rsvg` which needs to be installed on some Linux systems.
+FamilyTreeView uses `GooCanvas` to draw the tree. If you are using Gramps' Graph View, this requirement is already satisfied. (In contrast to Graph View, FamilyTreeView doesn't require Graphviz.)
+Note that if you have Graph View installed along with FamilyTreeView, the Graph View search bar can be reused and will appear above the FamilyTreeView visualization.
 
 There are two options for adding FamilyTreeView to Gramps. The first lets Gramps know about the provided prebuilds. The second downloads the source code to the right location for Gramps to find. If you have problems with the first option, you can always use the robust alternative of downloading the source code. 
 
