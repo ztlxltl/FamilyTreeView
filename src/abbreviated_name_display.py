@@ -342,6 +342,99 @@ class AbbreviatedNameDisplay():
             return abbrev_name_list, step_description
         return abbrev_name_list
 
+    def combine_abbreviated_names(self, fmt_str, names, nums=None, return_step_description=False, use_cached=True):
+        """
+        Returns a list of strings, each created by applying the
+        abbreviated formatted names to the fmt_str (printf-style string
+        formatting), while synchronizing the abbreviation steps. This is
+        useful if the names are of different complexity (e.g. given
+        names would be removed in the third abbreviation for one name
+        and in the tenth abbreviation for the other).
+        """
+
+        try:
+            fmt_str % tuple([""]*len(names))
+        except TypeError:
+            raise TypeError("Number of specifiers (printf-style string formatting) in fmt_str doesn't match the number of names")
+        if nums is None:
+            nums = [None]*len(names)
+        else:
+            try:
+                assert len(names) == len(nums), "Number of nums doesn't match number of names"
+            except TypeError:
+                # one for all
+                nums = [nums]*len(names)
+
+        abbrev_names_lists = []
+        step_descriptions_lists = []
+        for i in range(len(names)):
+            abbreviated_names, step_descriptions = self.get_abbreviated_names(names[i], num=nums[i], return_step_description=True, use_cached=use_cached)
+            abbrev_names_lists.append(abbreviated_names)
+            step_descriptions_lists.append(step_descriptions)
+
+        # first is always full name
+        abbrev_names_tuples = [tuple(l[0] for l in abbrev_names_lists)]
+        combined_step_descriptions = [[l[0] for l in step_descriptions_lists]]
+
+        abbrev_rules_applied = [[step[0] for step in l] for l in step_descriptions_lists]
+        prev_abbrev_indices = [0]*len(names) # used full name (0)
+        last_abbrev_indices = [len(abbrev_names)-1 for abbrev_names in abbrev_names_lists]
+        abbrev_rules = self.ftv._config.get("names.familytreeview-name-abbrev-rules")
+        for rule_i in range(len(abbrev_rules)):
+            if not any(rule_i in rules for rules in abbrev_rules_applied):
+                # This rule was not applied to any of the names.
+                continue
+
+            while True:
+                # This rule can be applied if any of prev_abbrev_indices
+                # can be increased while (still) pointing to this rule.
+                rules_of_next_abbreviations = [
+                    abbrev_rules_applied[name_i][
+                        prev_abbrev_indices[name_i]+1
+                    ]
+                    for name_i in range(len(names))
+                    if prev_abbrev_indices[name_i] != last_abbrev_indices[name_i]
+                ]
+                if (
+                    rule_i not in rules_of_next_abbreviations
+                    or all(
+                        prev_abbrev_indices[name_i] == last_abbrev_indices[name_i]
+                        for name_i in range(len(names))
+                    ) # also break if we cannot increase any abbrev index
+                ):
+                    break
+
+                cur_abbrev_names = []
+                combined_step_description = []
+                for name_i in range(len(names)):
+                    if (
+                        prev_abbrev_indices[name_i] != last_abbrev_indices[name_i]
+                        and rule_i == abbrev_rules_applied[name_i][prev_abbrev_indices[name_i]+1]
+                    ):
+                        # The next abbreviated name uses this rule. Use
+                        # it.
+                        cur_abbrev_names.append(abbrev_names_lists[name_i][prev_abbrev_indices[name_i]+1])
+                        combined_step_description.append(step_descriptions_lists[name_i][prev_abbrev_indices[name_i]+1])
+                        prev_abbrev_indices[name_i] += 1
+                        continue
+
+                    # Reuse the last abbreviated name, other names have
+                    # abbreviations to use (this was checked above).
+                    cur_abbrev_names.append(abbrev_names_lists[name_i][prev_abbrev_indices[name_i]])
+                    combined_step_description.append(step_descriptions_lists[name_i][prev_abbrev_indices[name_i]])
+                abbrev_names_tuples.append(tuple(cur_abbrev_names))
+                combined_step_descriptions.append(combined_step_description)
+
+        # Actually applying the names to the format string.
+        formatted_strings = [
+            fmt_str % abbrev_names
+            for abbrev_names in abbrev_names_tuples
+        ]
+
+        if return_step_description:
+            return formatted_strings, combined_step_descriptions
+        return formatted_strings
+
     def _get_name_parts(self, name, num=None):
         format_str = self._get_format_str(name, num=num)
         d = {

@@ -104,7 +104,17 @@ You can have multiple content elements in the `content` list. Each element is a 
   - `text` (`str`, required): The text to show.
   - `text_color` (`str`, optional): The color of the text, as a color name or a hexadecimal RBG triplet. Defaults to black.
   - `tooltip` (`str`, optional): The tooltip for the badge.
-- There are also other content types implemented to add icons, but they are not yet fully developed. They will be listed here, when they are ready to be used.
+- `icon_file_svg`: An svg file.
+  Content specific keys:
+  - `file` (`str`): The path pointing to the svg file. The svg tag should have a valid viewBox property.
+  - `current_color` (`str`, optional): The color to set the `<svg>`'s `color` CSS property to. It will be used by the svg file for all elements whose color is set to `currentcolor`. For more context, see [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value#currentcolor_keyword). Defaults to black.
+  Note that not all CSS features appear to be supported by pixbuf.
+- `icon_svg_data_callback`: A callback to return svg path data string for the given icon size.
+  - `callback` (`callable`): The callback taking the maximum width and maximum height of the icon as two arguments and returning the string, the width and the height of the icon. Note that this is still experimental and the callback's signature can change in the future.
+  - `fill_color` (`str`, optional): The fill color. Defaults to black.
+  - `stroke_color` (`str`, optional): The fill color. Defaults to no color.
+  - `line_width` (`int`, optional): The fill color. Defaults to 0.
+
 
 ## 4. Test the badge
 
