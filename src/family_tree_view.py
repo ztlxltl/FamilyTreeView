@@ -19,10 +19,13 @@
 #
 
 
+import inspect
+import os
 from sqlite3 import InterfaceError
 import traceback
 
-from gi.repository import GLib, Gtk
+import cairo
+from gi.repository import GdkPixbuf, GLib, Gtk
 
 from gramps.gen.config import config
 from gramps.gen.const import GRAMPS_LOCALE
@@ -42,6 +45,7 @@ from gramps.cli.clidbman import CLIDbManager
 from abbreviated_name_display import AbbreviatedNameDisplay
 from family_tree_view_badge_manager import FamilyTreeViewBadgeManager
 from family_tree_view_config_provider import FamilyTreeViewConfigProvider
+from family_tree_view_icons import get_family_avatar_svg_data, get_person_avatar_svg_data
 from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
 
@@ -55,6 +59,10 @@ class FamilyTreeView(NavigationView, Callback):
             <item>
                 <attribute name="action">win.PrintView</attribute>
                 <attribute name="label" translatable="yes">Print...</attribute>
+            </item>
+            <item>
+                <attribute name="action">win.ExportSvgView</attribute>
+                <attribute name="label" translatable="yes">Export as SVG...</attribute>
             </item>
         </section>
         """,
@@ -134,6 +142,18 @@ class FamilyTreeView(NavigationView, Callback):
                     <property name="homogeneous">False</property>
                 </packing>
             </child>
+            <child groups="RO">
+                <object class="GtkToolButton">
+                    <property name="icon-name">document-export</property>
+                    <property name="action-name">win.ExportSvgView</property>
+                    <property name="tooltip_text" translatable="yes">Export the tree as SVG</property>
+                    <property name="label" translatable="yes">Export as SVG...</property>
+                    <property name="use-underline">True</property>
+                </object>
+                <packing>
+                    <property name="homogeneous">False</property>
+                </packing>
+            </child>
         </placeholder>
         """,
     ]
@@ -189,6 +209,7 @@ class FamilyTreeView(NavigationView, Callback):
         self.addons_registered_badges = False
 
         self.print_settings = None
+        self.print_margin = 20
 
     def navigation_type(self):
         return "Person"
@@ -222,6 +243,7 @@ class FamilyTreeView(NavigationView, Callback):
     def define_actions(self):
         super().define_actions()
         self._add_action("PrintView", self.print_view, "<PRIMARY><SHIFT>P")
+        self._add_action("ExportSvgView", self.export_svg_view,)
 
     def config_connect(self):
         self.config_provider.config_connect(self._config, self.cb_update_config)
@@ -245,24 +267,51 @@ class FamilyTreeView(NavigationView, Callback):
         return self.widget_manager.main_widget
 
     def build_tree(self):
-        # Also see self.goto_handle
+        # In other NavigationViews, both build_tree and goto_handle call
+        # the main buildup of the view. But it looks like after
+        # build_tree() is called, goto_handle() is almost always called
+        # as well, so the tree is reloaded immediately, i.e. loaded
+        # twice. Since goto_handle() is more precise (i.e. which person
+        # should be the active person), only build the tree if
+        # goto_handle() will not be called.
 
-        # Apparently there are only two cases where the tree needs to update when this function is called:
+        # Apparently there are only two cases where the tree needs to
+        # update when this function is called (i.e. goto_handle() is not
+        # called and no connected signal is emitted):
         # - empty db and other similar cases
         # - sidebar filter is applied
+
         if self.check_and_handle_empty_db():
             return
 
-        self.rebuild_tree()
+        rebuild_now = True
+
+        # If self.build_tree() is called by PageView.set_active(),
+        # self.goto_handle() is always called by
+        # NavigationView.goto_active() afterwards, if the return value
+        # of self.uistate.get_active() is not considered false (e.g. not
+        # an empty string). Therefore, don't rebuild the tree in this
+        # situation as goto_handle() will be called.
+        caller_frame_info = inspect.stack()[1] # 0 is this call to build_tree
+        if (
+            caller_frame_info.function == "set_active"
+            and os.path.basename(caller_frame_info.filename) == "pageview.py"
+        ):
+            active = self.uistate.get_active(
+                self.navigation_type(),
+                self.navigation_group()
+            )
+            if active:
+                rebuild_now = False
+
+        # Maybe there are more cases which can be identified...
+
+        if rebuild_now:
+            self.rebuild_tree()
 
     def goto_handle(self, handle):
-        # In other implementations, both build_tree and goto_handle call the main buildup of the view.
-        # But it looks like after build_tree is called, goto_handle is always called as well,
-        # so the tree would be reloaded immediately, i.e. loaded twice.
-        # The apparently only case in which only build_tree is when FTV is opened the first time 
-        # after Gramps started and the db is empty (no people).
+        # See also self.build_tree().
 
-        person_handle = None
         if handle:
             try:
                 person = self.get_person_from_handle(handle)
@@ -272,15 +321,18 @@ class FamilyTreeView(NavigationView, Callback):
             else:
                 if person is not None:
                     # a person
-                    person_handle = handle
-        self.change_active(person_handle)
+                    self.change_active(handle)
         self.rebuild_tree()
         self.uistate.modify_statusbar(self.dbstate)
 
     def _connect_db_signals(self):
-        self.callman.add_db_signal("person-update", self.close_info_and_rebuild)
-        self.callman.add_db_signal("family-update", self.close_info_and_rebuild)
-        self.callman.add_db_signal("event-update", self.close_info_and_rebuild)
+        self.callman.add_db_signal("person-update", self._object_updated)
+        self.callman.add_db_signal("family-update", self._object_updated)
+        self.callman.add_db_signal("event-update", self._object_updated)
+
+    def _object_updated(self, handle):
+        offset = self.widget_manager.canvas_manager.get_center_in_units()
+        self.close_info_and_rebuild(offset=offset)
 
     def close_info_and_rebuild(self, *_, offset=None): # *_ required when used as callback
         self.widget_manager.info_box_manager.close_info_box()
@@ -357,13 +409,18 @@ class FamilyTreeView(NavigationView, Callback):
             return True
         return False
 
-    def get_image_spec(self, person):
-        if person is None:
-            return ("svg_default", "avatar_simple")
+    def get_image_spec(self, obj, obj_type):
+        if obj_type == "person":
+            data_callback = get_person_avatar_svg_data
+        else:
+            data_callback = get_family_avatar_svg_data
 
-        media_list = person.get_media_list()
+        if obj is None:
+            return ("svg_data_callback", data_callback)
+
+        media_list = obj.get_media_list()
         if not media_list:
-            return ("svg_default", "avatar_simple")
+            return ("svg_data_callback", data_callback)
 
         media_handle = media_list[0].get_reference_handle()
         media = self.dbstate.db.get_media_from_handle(media_handle)
@@ -371,11 +428,29 @@ class FamilyTreeView(NavigationView, Callback):
         if media_mime_type[0:5] == "image":
             rectangle = media_list[0].get_rectangle()
             path = media_path_full(self.dbstate.db, media.get_path())
-            image_path = get_thumbnail_path(path, rectangle=rectangle)
-            image_path = find_file(image_path)
-            return ("path", image_path)
+            image_resolution = self._config.get("appearance.familytreeview-person-image-resolution")
+            if image_resolution == -1:
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
+                if rectangle is not None:
+                    width = pixbuf.get_width()
+                    height = pixbuf.get_height()
+                    upper_x = min(rectangle[0], rectangle[2]) / 100.0
+                    lower_x = max(rectangle[0], rectangle[2]) / 100.0
+                    upper_y = min(rectangle[1], rectangle[3]) / 100.0
+                    lower_y = max(rectangle[1], rectangle[3]) / 100.0
+                    sub_x = round(upper_x * width)
+                    sub_y = round(upper_y * height)
+                    sub_width = round((lower_x - upper_x) * width)
+                    sub_height = round((lower_y - upper_y) * height)
+                    if sub_width > 0 and sub_height > 0:
+                        pixbuf = pixbuf.new_subpixbuf(sub_x, sub_y, sub_width, sub_height)
+                return ("pixbuf", pixbuf)
+            else:
+                image_path = get_thumbnail_path(path, rectangle=rectangle, size=image_resolution)
+                image_path = find_file(image_path)
+                return ("path", image_path)
 
-        return ("svg_default", "avatar_simple")
+        return ("svg_data_callback", data_callback)
 
     def get_full_place_name(self, place_handle):
         """gramps.gen.utils.libformatting.get_place_name without character limit"""
@@ -401,15 +476,16 @@ class FamilyTreeView(NavigationView, Callback):
 
     def set_active_person(self, person_handle):
         if self.get_person_from_handle(person_handle) is not None:
-            self.change_active(person_handle)
             self.widget_manager.info_box_manager.close_info_box()
-            self.rebuild_tree()
+            self.change_active(person_handle)
+            # self.change_active() emits the active-changed signal which
+            # is connected to self.goto_handle().
 
     def set_active_family(self, family_handle):
         if self.get_family_from_handle(family_handle) is not None:
-            self.change_active_family(family_handle)
             self.widget_manager.info_box_manager.close_info_box()
-            # no rebuild_tree
+            self.change_active_family(family_handle)
+            # Tree is not rebuilt since navigation type is not "Person".
 
     def get_person_from_handle(self, handle):
         try:
@@ -485,30 +561,125 @@ class FamilyTreeView(NavigationView, Callback):
         # the entire tree is printed on a custom page that can be pre-processed.
         print_operation.set_n_pages(1)
         page_setup = Gtk.PageSetup()
-        margin = 10
-        page_setup.set_left_margin(margin, Gtk.Unit.POINTS)
-        page_setup.set_top_margin(margin, Gtk.Unit.POINTS)
-        page_setup.set_right_margin(margin, Gtk.Unit.POINTS)
-        page_setup.set_bottom_margin(margin, Gtk.Unit.POINTS)
+        page_setup.set_left_margin(self.print_margin, Gtk.Unit.POINTS)
+        page_setup.set_top_margin(self.print_margin, Gtk.Unit.POINTS)
+        page_setup.set_right_margin(self.print_margin, Gtk.Unit.POINTS)
+        page_setup.set_bottom_margin(self.print_margin, Gtk.Unit.POINTS)
         canvas_bounds = self.widget_manager.canvas_manager.canvas_bounds
         padding = self.widget_manager.canvas_manager.canvas_padding
-        paper_width = canvas_bounds[2] - canvas_bounds[0] - 2*padding + 2*margin
-        paper_height = canvas_bounds[3] - canvas_bounds[1] - 2*padding + 2*margin
+        tree_width = canvas_bounds[2] - canvas_bounds[0] - 2*padding
+        tree_height = canvas_bounds[3] - canvas_bounds[1] - 2*padding
+        if self._config.get("interaction.familytreeview-printing-scale-to-page"):
+            # TODO How to get the page size used by Windows' print to PDF?
+            # Use the smallest dimension of Letter and A4.
+            min_paper_height = 11 * 72 # in -> pt # height of letter (A4 has 11.7)
+            min_paper_width = 8.268 * 72 # in -> pt # width of A4 (Letter has 8.5)
+            scale = min(
+                (min_paper_height - 2*self.print_margin)/tree_height,
+                (min_paper_width - 2*self.print_margin)/tree_width
+            )
+        else:
+            scale = 1
+        paper_width = tree_width*scale + 2*self.print_margin
+        paper_height = tree_height*scale + 2*self.print_margin
         paper_size = Gtk.PaperSize.new_custom("custom-matching-tree", "Tree Size", paper_width, paper_height, Gtk.Unit.POINTS)
         page_setup.set_paper_size(paper_size)
         print_operation.set_default_page_setup(page_setup)
 
-        print_operation.connect("draw-page", self.draw_page)
-        # print_operation.connect("paginate", lambda print_operation, print_context: True) # True = done
+        print_operation.connect("draw-page", self.draw_page, scale)
         res = print_operation.run(Gtk.PrintOperationAction.PRINT_DIALOG, self.uistate.window)
         if res == Gtk.PrintOperationResult.APPLY:
             self.print_settings = print_operation.get_print_settings()
 
-    def draw_page(self, print_operation, print_context, page_nr):
-        # NOTE: Zoom of canvas doesn't need to be considered here
+    def draw_page(self, print_operation, print_context, page_nr, scale):
+        # NOTE: Zoom of canvas doesn't need to be considered here.
         cr = print_context.get_cairo_context()
         canvas_bounds = self.widget_manager.canvas_manager.canvas_bounds
         padding = self.widget_manager.canvas_manager.canvas_padding
+        cr.scale(scale, scale)
+
+        # On Windows, there is an extra scale factor, see
+        # https://mail.gnome.org/archives/gtk-app-devel-list/2012-June/msg00092.html
+        # x0 (and y0) should be the margin, but on Windows they are
+        # different and can be used to calculate the extra scale factor:
+        extra_scale = cr.get_matrix().x0 / self.print_margin
+        cr.scale(extra_scale, extra_scale)
+
         cr.translate(-canvas_bounds[0]-padding, -canvas_bounds[1]-padding)
         bounds = None # entire canvas
         self.widget_manager.canvas_manager.canvas.render(cr, bounds, 0.0)
+
+    def export_svg_view(self, *args):
+
+        # Ask where to save it.
+        dialog = Gtk.FileChooserDialog(
+            title=_("Export tree as SVG"),
+            transient_for=self.uistate.window,
+            action=Gtk.FileChooserAction.SAVE,
+        )
+        dialog.add_buttons(
+            Gtk.STOCK_CANCEL,
+            Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_SAVE,
+            Gtk.ResponseType.OK,
+        )
+
+        filter_svg = Gtk.FileFilter()
+        filter_svg.set_name(_("SVG files"))
+        filter_svg.add_mime_type("image/svg+xml")
+        dialog.add_filter(filter_svg)
+
+        filter_any = Gtk.FileFilter()
+        filter_any.set_name(_("Any files"))
+        filter_any.add_pattern("*")
+        dialog.add_filter(filter_any)
+
+        recent_dir = self._config.get("paths.familytreeview-recent-export-dir")
+        dialog.set_current_folder(recent_dir)
+        dbname = self.dbstate.db.get_dbname()
+        dialog.set_current_name(f"untitled_FTV_export_of_{dbname}.svg")
+
+        response = dialog.run()
+
+        if response != Gtk.ResponseType.OK:
+            dialog.destroy()
+            return
+
+        file_name = dialog.get_filename()
+        dir_name = os.path.dirname(file_name)
+        self._config.set("paths.familytreeview-recent-export-dir", dir_name)
+        dialog.destroy()
+
+        if file_name[-4:].lower() != ".svg":
+            file_name += ".svg"
+
+        # TODO Catch errors of cairo write.
+        # Can't find a way to catch cairo.IOError. Also,
+        # os.access(os.path.dirname(file_name), os.W_OK) and
+        # os.access(file_name, os.W_OK) don't help.
+
+        # actual export
+        canvas_bounds = self.widget_manager.canvas_manager.canvas_bounds
+        padding = self.widget_manager.canvas_manager.canvas_padding
+        width = canvas_bounds[2]-canvas_bounds[0]-2*padding
+        height = canvas_bounds[3]-canvas_bounds[1]-2*padding
+        with cairo.SVGSurface(file_name, width, height) as surface:
+            context = cairo.Context(surface)
+            context.translate(-canvas_bounds[0]-padding, -canvas_bounds[1]-padding)
+            bounds = None
+            self.widget_manager.canvas_manager.canvas.render(context, bounds, 0.0)
+            surface.finish()
+
+        # message: completed
+        dialog = Gtk.MessageDialog(
+            transient_for=self.uistate.window,
+            flags=0,
+            message_type=Gtk.MessageType.INFO,
+            buttons=Gtk.ButtonsType.OK,
+            text="Export completed.",
+        )
+        dialog.format_secondary_text(
+            f"Tree was saved: {file_name}"
+        )
+        dialog.run()
+        dialog.destroy()

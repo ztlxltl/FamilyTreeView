@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 from gi.repository import Gtk
 
 from gramps.gen.config import config
-from gramps.gen.const import GRAMPS_LOCALE
+from gramps.gen.const import GRAMPS_LOCALE, SIZE_LARGE, SIZE_NORMAL, USER_HOME
 from gramps.gen.lib.eventtype import EventType
 
 from family_tree_view_config_provider_names import names_page, DEFAULT_ABBREV_RULES
@@ -52,6 +52,7 @@ class FamilyTreeViewConfigProvider:
             ("appearance.familytreeview-highlight-root-person", True),
             ("appearance.familytreeview-show-deceased-ribbon", True),
             ("appearance.familytreeview-filter-person-gray-out", True),
+            ("appearance.familytreeview-person-image-resolution", 1),
             ("appearance.familytreeview-person-image-filter", 0),
             ("appearance.familytreeview-timeline-mode-default-person", 3),
             ("appearance.familytreeview-timeline-mode-default-family", 3),
@@ -71,6 +72,7 @@ class FamilyTreeViewConfigProvider:
             ("interaction.familytreeview-family-double-click-action", 3),
             ("interaction.familytreeview-double-click-timeout-milliseconds", 200),
             ("interaction.familytreeview-family-info-box-set-active-button", False),
+            ("interaction.familytreeview-printing-scale-to-page", False),
 
             ("badges.familytreeview-badges-active", { # most examples are turned off by default
                 "num_citations": {"person": False, "family": False},
@@ -107,6 +109,9 @@ class FamilyTreeViewConfigProvider:
             ("experimental.familytreeview-adaptive-ancestor-generation-dist", False),
             ("experimental.familytreeview-connection-follow-on-click", False),
             ("experimental.familytreeview-canvas-font-size-ppi", 96),
+
+            # without config ui
+            ("paths.familytreeview-recent-export-dir", USER_HOME),
         )
 
     @staticmethod
@@ -256,6 +261,23 @@ class FamilyTreeViewConfigProvider:
             row,
             "appearance.familytreeview-filter-person-gray-out",
             stop=3 # same width as spinners and combos
+        )
+
+        row += 1
+        image_resolution_options = [
+            (SIZE_NORMAL, _("Normal")),
+            (SIZE_LARGE, _("High")),
+            (-1, _("Original")),
+        ]
+        def _cb_image_resolution_combo_changed(combo, constant):
+            self.ftv._config.set(constant, image_resolution_options[combo.get_active()][0])
+        configdialog.add_combo(
+            grid,
+            _("Resolution of the images"),
+            row,
+            "appearance.familytreeview-person-image-resolution",
+            image_resolution_options,
+            callback=_cb_image_resolution_combo_changed
         )
 
         row += 1
@@ -528,6 +550,19 @@ class FamilyTreeViewConfigProvider:
             _("Show \"Set active\" button in family info box (it has no effect on FamilyTreeView)"),
             row,
             "interaction.familytreeview-family-info-box-set-active-button",
+            stop=3 # same width as spinners and combos
+        )
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _(
+                "Printing: Scale down tree to fit on Letter and A4 paper. "
+                "Uncheck to print at 1:1 scale.\n"
+                "Note that scaling down can cause distorted text on some systems."
+            ),
+            row,
+            "interaction.familytreeview-printing-scale-to-page",
             stop=3 # same width as spinners and combos
         )
 
