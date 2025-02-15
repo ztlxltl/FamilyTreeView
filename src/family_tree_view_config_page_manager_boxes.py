@@ -39,7 +39,7 @@ BOX_ITEMS = {
         ("birth_or_fallback", _("Birth or fallback"), _("Different information of birth or fallback"), {"lines": 1, **EVENT_PARAMS}),
         ("death_or_fallback", _("Death or fallback"), _("Different information of death or fallback"), {"lines": 1, **EVENT_PARAMS}),
         ("birth_death_or_fallbacks", _("Birth and death or fallbacks"), _("Different information of birth and death or fallbacks"), dict({"lines": 1, **EVENT_PARAMS}, **{"date_only_year": True, "event_type_visualization": "symbol_only_if_empty"})), # No full dates for birth and death as they wouldn't fit.
-        ("event", _("Event"), _("Different information of the first event of the specified type"), {"event_type": "Birth", "index": 0, "lines": 1, **EVENT_PARAMS}),
+        ("event", _("Event"), _("Different information of the first event of the specified type"), {"event_type": "Birth", "lines": 1, "index": 0, **EVENT_PARAMS}),
         ("attribute", _("Attribute"), _("The value of the attribute of the specified type"), {"attribute_type": "Nickname", "lines": 1}),
         ("gender", _("Gender"), _("The gender of the person"), {"word_or_symbol": "Word"}), # TODO are the symbols always available?
         ("gramps_id", _("Gramps ID"), _("The Gramps ID of the person"), {"lines": 1}),
@@ -54,7 +54,7 @@ BOX_ITEMS = {
         ("marriage_or_fallback", _("Marriage or fallback"), _("Different information of marriage or fallback"), {"lines": 1, **EVENT_PARAMS}),
         ("divorce_or_fallback", _("Divorce or fallback"), _("Different information of divorce or fallback"), {"lines": 1, **EVENT_PARAMS}),
         ("marriage_divorce_or_fallbacks", _("Marriage and divorce or fallbacks"), _("Different information of marriage and divorce or fallbacks"), {"lines": 1, **EVENT_PARAMS}), # Full dates and places for both events since families are wider.
-        ("event", _("Event"), _("Different information of the first event of the specified type"), {"event_type": "Marriage", "index": 0, "lines": 1, **EVENT_PARAMS}),
+        ("event", _("Event"), _("Different information of the first event of the specified type"), {"event_type": "Marriage", "lines": 1, "index": 0, **EVENT_PARAMS}),
         ("attribute", _("Attribute"), _("The value of the attribute of the specified type"), {"attribute_type": "Number of Children", "lines": 1}),
         ("gramps_id", _("Gramps ID"), _("The Gramps ID of the family"), {"lines": 1}),
         ("tags", _("Tags"), _("The tags of the family"), {"lines": 1, "tag_visualization": "text_colors_counted"}),
@@ -111,8 +111,8 @@ PREDEF_BOXES_DEFS = {
             ("attribute", {"attribute_type": "Nickname", "lines": 1}),
             ("gutter", {"size": 5}),
             ("birth_or_fallback", dict({"lines": 2, **EVENT_PARAMS}, **{"place": True})),
-            ("event", dict({"event_type": "Death", "index": 0, "lines": 2, **EVENT_PARAMS}, **{"place": True})),
-            ("event", dict({"event_type": "Burial", "index": 0, "lines": 2, **EVENT_PARAMS}, **{"place": True})),
+            ("event", dict({"event_type": "Death", "lines": 2, "index": 0, **EVENT_PARAMS}, **{"place": True})),
+            ("event", dict({"event_type": "Burial", "lines": 2, "index": 0, **EVENT_PARAMS}, **{"place": True})),
             ("gutter", {"size": 5}),
             ("gramps_id", {"lines": 1}),
             ("tags", {"lines": 1, "tag_visualization": "text_colors_counted"}),
