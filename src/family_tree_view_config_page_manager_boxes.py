@@ -791,10 +791,12 @@ class FamilyTreeViewConfigPageManagerBoxes:
         self.item_defs_tree_views[box_type].get_selection().select_path(str(item_i))
 
     def _cb_param_combo_box_changed(self, combo_box, box_type, item_i, item_param):
+        # Extract info from combo before rebuilding due to duplication.
+        param_model = combo_box.get_model()
+        active_iter = combo_box.get_active_iter()
         self._duplicate_def_if_predef()
         box_content_item_types = self._get_box_content_item_defs(box_type)
-        active_iter = combo_box.get_active_iter()
-        new_value = combo_box.get_model()[active_iter][0] # 0: non-translated
+        new_value = param_model[active_iter][0] # 0: non-translated
         box_content_item_types[item_i][1][item_param] = new_value
         self._set_box_content_item_defs(box_type, box_content_item_types)
         self._item_list_changed(box_type)
