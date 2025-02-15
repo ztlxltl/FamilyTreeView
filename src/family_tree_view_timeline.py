@@ -264,6 +264,14 @@ class FamilyTreeViewTimeline:
             if not event.date.is_empty() and event.date.modifier != Date.MOD_TEXTONLY
         ]
 
+        # Remove events for event types that should not be visible in the timeline (specified in the configuration 'Appearance' tab)
+        event_types_visible = self.ftv._config.get("appearance.familytreeview-timeline-event-types-visible")
+        event_and_ref_list = [
+            (rel_type, rel, event, ref)
+            for rel_type, rel, event, ref in event_and_ref_list
+            if not (EventType._I2EMAP[int(event.type)] in event_types_visible and not event_types_visible[EventType._I2EMAP[int(event.type)]])
+        ]
+
         # Remove non-primary events before birth and after death.
         if self.obj_type == "P":
             if self.start_event is not None:
