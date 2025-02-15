@@ -28,17 +28,18 @@ from gi.repository import Gdk, GLib, Gtk
 from gramps.gen.config import config
 from gramps.gen.const import GRAMPS_LOCALE, USER_PLUGINS
 from gramps.gen.datehandler import get_date
-from gramps.gen.display.name import displayer as name_displayer, _F_FN
+from gramps.gen.lib import Person
 from gramps.gen.utils.alive import probably_alive
-from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback
-from gramps.gui.utils import color_graph_box, color_graph_family, hex_to_rgb, rgb_to_hex
+from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback, get_divorce_or_fallback
+from gramps.gen.utils.string import format_gender
+from gramps.gui.utils import color_graph_box, color_graph_family, get_contrast_color, hex_to_rgb, hex_to_rgb_float, rgb_to_hex
 
 from family_tree_view_canvas_manager import FamilyTreeViewCanvasManager
 from family_tree_view_info_box_manager import FamilyTreeViewInfoBoxManager
 from family_tree_view_minimap_manager import FamilyTreeViewMinimapManager
 from family_tree_view_panel_manager import FamilyTreeViewPanelManager
 from family_tree_view_tree_builder import FamilyTreeViewTreeBuilder
-from family_tree_view_utils import import_GooCanvas
+from family_tree_view_utils import get_event_from_family, get_event_from_person, import_GooCanvas
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
 
@@ -230,22 +231,6 @@ class FamilyTreeViewWidgetManager:
     def add_person(self, person_handle, x, person_generation, alignment):
         person = self.ftv.get_person_from_handle(person_handle)
 
-        name = person.get_primary_name()
-        num = self.ftv.abbrev_name_display.get_num_for_name_abbrev(name)
-        name_str = name_displayer.name_formats[num][_F_FN](name) # name_displayer has no function taking name and num (only person and num).
-        abbr_name_strs = self.ftv.abbrev_name_display.get_abbreviated_names(name, num=num)
-        birth_or_fallback = get_birth_or_fallback(self.ftv.dbstate.db, person)
-        death_or_fallback = get_death_or_fallback(self.ftv.dbstate.db, person)
-        if birth_or_fallback is not None:
-            birth_date = f"{self.ftv.get_symbol(birth_or_fallback.type)} {get_date(birth_or_fallback)}"
-        else:
-            birth_date = ""
-        if death_or_fallback is not None:
-            death_date = f"{self.ftv.get_symbol(death_or_fallback.type)} {get_date(death_or_fallback)}"
-        else:
-            death_date = ""
-        image_spec = self.ftv.get_image_spec(person, "person")
-
         alive = probably_alive(person, self.ftv.dbstate.db)
         gender = person.get_gender()
         background_color, border_color = color_graph_box(alive, gender)
@@ -269,8 +254,105 @@ class FamilyTreeViewWidgetManager:
 
         badges = self.ftv.badge_manager.get_person_badges(person_handle)
 
+        content_items = self.ftv.config_provider.get_person_content_item_defs()
+
+        # TODO Add an option to hide an item in an item is empty  for a
+        # whole generation (especially images).
+
+        for i_item, item in enumerate(content_items):
+            item_type = item[0]
+            item_data = {}
+            if item[0] == "gutter":
+                pass
+            elif item[0] == "image":
+                image_spec = self.ftv.get_image_spec(person, "person")
+                item_data["image_spec"] = image_spec
+            elif item[0] in ["name", "alt_name"]:
+                if item[0] == "name":
+                    name = person.get_primary_name()
+                else:
+                    alt_names = person.get_alternate_names()
+                    if len(alt_names) > 0:
+                        name = alt_names[0]
+                    else:
+                        name = None
+                if name is not None:
+                    num = self.ftv.abbrev_name_display.get_num_for_name_abbrev(name)
+                    abbr_name_strs = self.ftv.abbrev_name_display.get_abbreviated_names(name, num=num)
+                else:
+                    abbr_name_strs = []
+                item_type = "name" # for alt_name
+                item_data["name"] = name
+                item_data["abbr_name_strs"] = abbr_name_strs
+            else:
+                place_format = self.ftv._config.get("appearance.familytreeview-place-format")
+                text = ""
+                if item[0] in [
+                    "birth_or_fallback",
+                    "death_or_fallback",
+                    "event",
+                ]:
+                    if item[0] == "birth_or_fallback":
+                        event = get_birth_or_fallback(self.ftv.dbstate.db, person)
+                    elif item[0] == "death_or_fallback":
+                        event = get_death_or_fallback(self.ftv.dbstate.db, person)
+                    elif item[0] == "event":
+                        event = get_event_from_person(self.ftv.dbstate.db, person, item[1]["event_type"], item[1]["index"])
+                    text = self.get_event_for_box(
+                        event,
+                        *self.get_args_for_event_for_box(item[1]),
+                        place_format,
+                    )
+                elif item[0] == "birth_death_or_fallbacks":
+                    birth_or_fallback = get_birth_or_fallback(self.ftv.dbstate.db, person)
+                    text1 = self.get_event_for_box(
+                        birth_or_fallback,
+                        *self.get_args_for_event_for_box(item[1]),
+                        place_format,
+                    )
+                    death_or_fallback = get_death_or_fallback(self.ftv.dbstate.db, person)
+                    text2 = self.get_event_for_box(
+                        death_or_fallback,
+                        *self.get_args_for_event_for_box(item[1]),
+                        place_format,
+                    )
+                    text = f"{text1} \u2013 {text2}" # en dash
+                elif item[0] == "attribute":
+                    attribute_list = person.get_attribute_list()
+                    for attr in attribute_list:
+                        if attr.get_type() == item[1]["attribute_type"]:
+                            text = attr.get_value()
+                            break
+                elif item[0] == "gender":
+                    if item[1]["word_or_symbol"] == "Word":
+                        text = format_gender([person.get_gender()]) # argument has to be an iterable
+                    else:
+                        if person.get_gender() == Person.FEMALE:
+                            symbol = self.ftv.symbols.SYMBOL_FEMALE
+                        elif person.get_gender() == Person.FEMALE:
+                            symbol = self.ftv.symbols.SYMBOL_MALE
+                        elif person.get_gender() == Person.UNKNOWN:
+                            symbol = self.ftv.symbols.SYMBOL_ASEXUAL_SEXLESS
+                        elif person.get_gender() == Person.OTHER:
+                            symbol = self.ftv.symbols.SYMBOL_HERMAPHRODITE
+                        else:
+                            symbol = self.ftv.symbols.SYMBOL_ASEXUAL_SEXLESS # Unknown
+                        if self.ftv.uistate and self.ftv.uistate.symbols:
+                            text = self.ftv.symbols.get_symbol_for_string(symbol)
+                        else:
+                            text = self.ftv.symbols.get_symbol_fallback(symbol)
+                elif item[0] == "gramps_id":
+                    text = person.get_gramps_id()
+                elif item[0] == "tags":
+                    tag_handle_list = person.get_tag_list()
+                    text = self.get_tag_markup(tag_handle_list, item[1]["tag_visualization"])
+                item_type = "text"
+                item_data["text"] = text
+            item = (item_type, item[1], item_data)
+            content_items[i_item] = item
+
         person_bounds = self.canvas_manager.add_person(
-            x, person_generation, name, abbr_name_strs, birth_date, death_date, background_color, border_color, image_spec, alive, round_lower_corners,
+            x, person_generation, content_items, background_color, border_color, alive, round_lower_corners,
             click_callback=lambda item, target, event: self._cb_person_clicked(person_handle, event, x, person_generation, alignment),
             badges=badges
         )
@@ -299,9 +381,18 @@ class FamilyTreeViewWidgetManager:
 
         round_lower_corners = alignment == "c"
 
+        gutter_size = (
+            self.canvas_manager.person_height
+            - 2*self.canvas_manager.padding
+            - 2*self.canvas_manager.line_height_px
+        ) / 2
+        content_items = [
+            ("gutter", {"size": gutter_size}, {}),
+            ("text", {"lines": 2}, {"text": "[missing]"})
+        ]
+
         person_bounds = self.canvas_manager.add_person(
-            x, person_generation, None, [""], "", "", background_color, border_color,
-            ("text", "[missing person]"), # text instead of image
+            x, person_generation, content_items, background_color, border_color,
             True, # no ribbon
             round_lower_corners,
             click_callback=None # TODO create new person
@@ -314,16 +405,91 @@ class FamilyTreeViewWidgetManager:
         family = self.ftv.dbstate.db.get_family_from_handle(family_handle)
         background_color, border_color = color_graph_family(family, self.ftv.dbstate)
 
-        marriage_or_fallback = get_marriage_or_fallback(self.ftv.dbstate.db, family)
-        if marriage_or_fallback is not None:
-            marriage_date = f"{self.ftv.get_symbol(marriage_or_fallback.type)} {get_date(marriage_or_fallback)}"
-        else:
-            marriage_date = ""
-
         badges = self.ftv.badge_manager.get_family_badges(family_handle)
 
+        content_items = self.ftv.config_provider.get_family_content_item_defs()
+
+        for i_item, item in enumerate(content_items):
+            item_type = item[0]
+            item_data = {}
+            if item[0] == "gutter":
+                item_type = item[0]
+            elif item[0] == "image":
+                image_spec = self.ftv.get_image_spec(family, "family")
+                item_data["image_spec"] = image_spec
+            elif item[0] == "names":
+                name1 = self.ftv.get_person_from_handle(family.get_father_handle()).get_primary_name()
+                name2 = self.ftv.get_person_from_handle(family.get_mother_handle()).get_primary_name()
+
+                if name1 is not None and name2 is not None:
+                    if item[1]["name_format"] == 0:
+                        num1 = self.ftv.abbrev_name_display.get_num_for_name_abbrev(name1)
+                        num2 = self.ftv.abbrev_name_display.get_num_for_name_abbrev(name2)
+                    else:
+                        num1 = item[1]["name_format"]
+                        num2 = item[1]["name_format"]
+                    fmt_str = "%s \u2013 %s" # en dash
+                    abbr_name_strs = self.ftv.abbrev_name_display.combine_abbreviated_names(
+                        fmt_str, [name1, name2], [num1, num2]
+                    )
+                else:
+                    abbr_name_strs = []
+                item_data["names"] = [name1, name2]
+                item_data["fmt_str"] = fmt_str
+                item_data["abbr_name_strs"] = abbr_name_strs
+            else:
+                place_format = self.ftv._config.get("appearance.familytreeview-place-format")
+                text = ""
+                if item[0] == "rel_type":
+                    text = str(family.get_relationship())
+                elif item[0] in [
+                    "marriage_or_fallback",
+                    "divorce_or_fallback",
+                    "event",
+                ]:
+                    if item[0] == "marriage_or_fallback":
+                        event = get_marriage_or_fallback(self.ftv.dbstate.db, family)
+                    elif item[0] == "divorce_or_fallback":
+                        event = get_divorce_or_fallback(self.ftv.dbstate.db, family)
+                    elif item[0] == "event":
+                        event = get_event_from_family(self.ftv.dbstate.db, family, item[1]["event_type"], item[1]["index"])
+                    text = self.get_event_for_box(
+                        event,
+                        *self.get_args_for_event_for_box(item[1]),
+                        place_format,
+                    )
+                elif item[0] == "birth_death_or_fallbacks":
+                    marriage_or_fallback = get_marriage_or_fallback(self.ftv.dbstate.db, family)
+                    text1 = self.get_event_for_box(
+                        marriage_or_fallback,
+                        *self.get_args_for_event_for_box(item[1]),
+                        place_format,
+                    )
+                    divorce_or_fallback = get_divorce_or_fallback(self.ftv.dbstate.db, family)
+                    text2 = self.get_event_for_box(
+                        divorce_or_fallback,
+                        *self.get_args_for_event_for_box(item[1]),
+                        place_format,
+                    )
+                    text = f"{text1} \u2013 {text2}" # en dash
+                elif item[0] == "attribute":
+                    attribute_list = family.get_attribute_list()
+                    for attr in attribute_list:
+                        if attr.get_type() == item[1]["attribute_type"]:
+                            text = attr.get_value()
+                            break
+                elif item[0] == "gramps_id":
+                    text = family.get_gramps_id()
+                elif item[0] == "tags":
+                    tag_handle_list = family.get_tag_list()
+                    text = self.get_tag_markup(tag_handle_list, item[1]["tag_visualization"])
+                item_type = "text"
+                item_data["text"] = text 
+            item = (item_type, item[1], item_data)
+            content_items[i_item] = item
+
         family_bounds = self.canvas_manager.add_family(
-            x, family_generation, marriage_date, background_color, border_color,
+            x, family_generation, content_items, background_color, border_color,
             click_callback=lambda item, target, event: self._cb_family_clicked(family_handle, event, x, family_generation),
             badges=badges
         )
@@ -347,6 +513,118 @@ class FamilyTreeViewWidgetManager:
 
     def add_expander(self, x, y, ang, click_callback):
         self.canvas_manager.add_expander(x, y, ang, click_callback)
+
+    # box helpers
+
+    def get_event_for_box(self, event, event_type_visualization_type, display_date, display_only_year, display_place, display_description, display_tags, tag_visualization, place_format):
+        if event is None:
+            return ""
+        text = "" # required if no info is displayed
+        if display_date:
+            text = self.get_event_date_for_box(event, display_only_year).strip()
+        if display_place:
+            text = (text + " " + self.get_event_place_for_box(event, place_format)).strip()
+        if display_description:
+            text = (text + " " + self.get_event_description_for_box(event)).strip()
+        if display_tags:
+            text = (text + " " + self.get_event_tags_for_box(event, tag_visualization)).strip()
+        if "_only_if_empty" != event_type_visualization_type[-14:] or len(text) == 0:
+            text = (self.get_event_type_visualization(event, event_type_visualization_type) + text).strip()
+        return text
+
+    def get_args_for_event_for_box(self, params):
+        return [
+            params["event_type_visualization"],
+            params["date"],
+            params["date_only_year"],
+            params["place"],
+            params["description"],
+            params["tags"],
+            params["tag_visualization"],
+        ]
+
+    def get_event_date_for_box(self, event, display_only_year):
+        if event is None:
+            return ""
+        if display_only_year:
+            date = event.get_date_object()
+            if date.get_year_valid():
+                return str(date.get_year())
+            return ""
+        return get_date(event)
+
+    def get_event_place_for_box(self, event, place_format):
+        if event is None:
+            return ""
+        place_str = self.ftv.get_place_name_from_event(event, fmt=place_format)
+        if place_str is not None and place_str != "":
+            text = place_str
+            return text.strip() # remove space after word/symbol as there is no place str
+        return "text"
+
+    def get_event_description_for_box(self, event):
+        if event is None:
+            return ""
+        return event.get_description()
+
+    def get_event_tags_for_box(self, event, tag_visualization):
+        if event is None:
+            return ""
+        return self.get_tag_markup(event.get_tag_list(), tag_visualization)
+
+    def get_tag_markup(self, tag_handle_list, tag_visualization):
+        tag_dicts = []
+        for tag_handle in tag_handle_list:
+            tag = self.ftv.dbstate.db.get_tag_from_handle(tag_handle)
+            d = {}
+            if tag_visualization != "text_names":
+                d["color"] = tag.get_color()
+            if tag_visualization[:11] != "tag_colors":
+                d["name"] = tag.get_name()
+            tag_dicts.append(d)
+        if tag_visualization in ["text_colors_unique", "text_colors_counted"]:
+            tag_colors = [
+                d["color"]
+                for d in tag_dicts
+            ]
+            tag_color_freq = {}
+            for color in tag_colors:
+                tag_color_freq.setdefault(color, 0)
+                tag_color_freq[color] += 1
+            tag_dicts = [
+                {"color": k, "freq": v} # text_colors_unique: freq not used
+                for k, v in tag_color_freq.items()
+            ]
+
+        text = ""
+        for tag_dict in tag_dicts:
+            if tag_visualization == "text_names":
+                text += tag_dict["name"]
+            else:
+                if tag_visualization[:11] == "text_colors":
+                    if tag_visualization == "text_colors_counted" and tag_dict["freq"] > 1:
+                        text += str(tag_dict["freq"]) + "x" # e.g. "2x"
+                    text += f"""<span fgcolor="{tag_dict["color"]}">⬤</span>"""
+                elif tag_visualization == "text_names_colors":
+                    bgcolor_hex = tag_dict["color"] # hex string
+                    bgcolor_float_tuple = hex_to_rgb_float(bgcolor_hex)
+                    fgcolor_float_tuple = get_contrast_color(bgcolor_float_tuple)
+                    fgcolor_hex = rgb_to_hex(fgcolor_float_tuple)
+                    tag_str = "\u00A0" + tag_dict["name"] + "\u00A0" # nb spaces for color padding
+                    text += f"""<span fgcolor="{fgcolor_hex}" bgcolor="{bgcolor_hex}">{tag_str}</span>"""
+            # Space at the end to separate tags.
+            text += " "
+
+        return text.strip() # remove last space
+
+    def get_event_type_visualization(self, event, event_type_visualization_type):
+        """Doesn't handle only_if_empty visualization types"""
+        if event_type_visualization_type[:4] == "word":
+            return str(event.type) + ": " # translated
+        elif event_type_visualization_type[:6] == "symbol":
+            return self.ftv.get_symbol(event.type) + " "
+        # else event_type_visualization_type == "none"
+        return ""
 
     # callbacks
 

@@ -197,6 +197,11 @@ class FamilyTreeView(NavigationView, Callback):
             if config.is_set(key):
                 # Wait for idle as the theme update takes a bit.
                 # The tree has to rebuild after the theme is applied.
+                if key == "preferences.font":
+                    # If the font changes (font includes the font size),
+                    # also reset the boxes (line height, best name
+                    # abbreviations).
+                    config.connect(key, lambda *args: GLib.idle_add(self.widget_manager.canvas_manager.reset_boxes))
                 config.connect(key, lambda *args: GLib.idle_add(self.close_info_and_rebuild))
 
         # There doesn't seem to be a signal for updating colors.
@@ -252,6 +257,9 @@ class FamilyTreeView(NavigationView, Callback):
 
         # Required to apply changed number of generations to show.
         self.widget_manager.tree_builder.reset()
+
+        # Required to apply changed box size or number of lines for abbreviated names.
+        self.widget_manager.canvas_manager.reset_boxes()
 
         self.close_info_and_rebuild()
 
@@ -452,7 +460,7 @@ class FamilyTreeView(NavigationView, Callback):
 
         return ("svg_data_callback", data_callback)
 
-    def get_full_place_name(self, place_handle):
+    def get_place_name_without_limit(self, place_handle):
         """gramps.gen.utils.libformatting.get_place_name without character limit"""
         if place_handle:
             place = self.dbstate.db.get_place_from_handle(place_handle)
@@ -460,9 +468,9 @@ class FamilyTreeView(NavigationView, Callback):
                 place_name = place_displayer.display(self.dbstate.db, place)
                 return place_name
 
-    def get_full_place_name_from_event(self, event):
+    def get_place_name_from_event(self, event, fmt=-1): # -1 is default
         if event:
-            place_name = place_displayer.display_event(self.dbstate.db, event)
+            place_name = place_displayer.display_event(self.dbstate.db, event, fmt=fmt)
             return place_name
 
     def set_home_person(self, person_handle, also_set_active=False):
