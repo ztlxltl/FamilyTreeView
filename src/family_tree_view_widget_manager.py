@@ -560,7 +560,7 @@ class FamilyTreeViewWidgetManager:
         if place_str is not None and place_str != "":
             text = place_str
             return text.strip() # remove space after word/symbol as there is no place str
-        return "text"
+        return ""
 
     def get_event_description_for_box(self, event):
         if event is None:
