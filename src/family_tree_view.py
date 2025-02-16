@@ -144,7 +144,7 @@ class FamilyTreeView(NavigationView, Callback):
             </child>
             <child groups="RO">
                 <object class="GtkToolButton">
-                    <property name="icon-name">document-export</property>
+                    <property name="icon-name">document-save</property>
                     <property name="action-name">win.ExportSvgView</property>
                     <property name="tooltip_text" translatable="yes">Export the tree as SVG</property>
                     <property name="label" translatable="yes">Export as SVG...</property>
