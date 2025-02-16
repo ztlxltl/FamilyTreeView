@@ -379,6 +379,7 @@ class FamilyTreeViewTimeline:
                             spouse = self.ftv.get_person_from_handle(spouse_handle)
                             spouse_name = name_displayer.display_name(spouse.get_primary_name())
                             break
+                    spouse_name = GLib.markup_escape_text(spouse_name, len(spouse_name))
                     markup = f"{event_age_str}{event_type} with <b>{spouse_name}</b>{description}:\n{event_date_str}{event_place_str}"
                 class_name = "ftv-timeline-event-relatives"
             event_label = Gtk.Label()
