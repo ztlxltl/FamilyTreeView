@@ -114,7 +114,7 @@ class FamilyTreeViewConfigProvider:
                 "gramps_handle": {"person": False, "family": False},
             }),
 
-            ("experimental.familytreeview-adaptive-ancestor-generation-dist", False),
+            ("experimental.familytreeview-adaptive-ancestor-generation-dist", True),
             ("experimental.familytreeview-connection-follow-on-click", False),
 
             # without config ui
