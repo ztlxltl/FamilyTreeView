@@ -40,6 +40,7 @@ BOX_ITEMS = {
         ("death_or_fallback", _("Death or fallback"), _("Different information of death or fallback"), {"lines": 1, **EVENT_PARAMS}),
         ("birth_death_or_fallbacks", _("Birth and death or fallbacks"), _("Different information of birth and death or fallbacks"), dict({"lines": 1, **EVENT_PARAMS}, **{"date_only_year": True, "event_type_visualization": "symbol_only_if_empty"})), # No full dates for birth and death as they wouldn't fit.
         ("event", _("Event"), _("Different information of the first event of the specified type"), {"event_type": "Birth", "lines": 1, "index": 0, **EVENT_PARAMS}),
+        ("relationship", _("Relationship"), _("Relationship to the specified person"), {"rel_base": "active", "lines": 1}),
         ("attribute", _("Attribute"), _("The value of the attribute of the specified type"), {"attribute_type": "Nickname", "lines": 1}),
         ("gender", _("Gender"), _("The gender of the person"), {"word_or_symbol": "Word"}), # TODO are the symbols always available?
         ("gramps_id", _("Gramps ID"), _("The Gramps ID of the person"), {"lines": 1}),
@@ -148,6 +149,7 @@ BOX_ITEM_PARAMS = {
     "description": _("Display description"),
     "tags": _("Display tags"),
     "index": _("Index"),
+    "rel_base": _("Base person")
 }
 
 BOX_ITEM_PARAM_VALS = {
@@ -161,6 +163,8 @@ BOX_ITEM_PARAM_VALS = {
     "symbol": _("Symbol"),
     "word_only_if_empty": _("Word (only if no information to display)"),
     "word": _("Word"),
+    "active": _("Active person"),
+    "home": _("Home person"),
 }
 
 class FamilyTreeViewConfigPageManagerBoxes:
@@ -650,7 +654,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
                     custom_values=custom_values
                 )
                 self.item_def_type_params_grids[box_type].attach(combo_box, 2, row, 1, 1)
-            elif item_param in ["name_format", "tag_visualization", "word_or_symbol", "event_type_visualization"]:
+            elif item_param in ["name_format", "tag_visualization", "word_or_symbol", "event_type_visualization", "rel_base"]:
                 combo_box = Gtk.ComboBox()
                 if item_param == "name_format":
                     first_col_type = int
@@ -703,6 +707,12 @@ class FamilyTreeViewConfigPageManagerBoxes:
                         "symbol",
                         "word_only_if_empty",
                         "word",
+                    ]
+                elif item_param == "rel_base":
+                    first_col_type = str
+                    options = [
+                        "active",
+                        "home",
                     ]
                 list_store = Gtk.ListStore(first_col_type, str)
                 for opt in options:

@@ -317,6 +317,18 @@ class FamilyTreeViewWidgetManager:
                         place_format,
                     )
                     text = f"{text1} \u2013 {text2}" # en dash
+                elif item[0] == "relationship":
+                    if item[1]["rel_base"] == "active":
+                        base_person_handle = self.ftv.get_active()
+                        base_person = self.ftv.get_person_from_handle(base_person_handle)
+                    elif item[1]["rel_base"] == "home":
+                        base_person = self.ftv.dbstate.db.get_default_person()
+                    if person is not None and base_person is not None:
+                        text = self.ftv.uistate.relationship.get_one_relationship(
+                            self.ftv.dbstate.db,
+                            base_person,
+                            person,
+                        )
                 elif item[0] == "attribute":
                     attribute_list = person.get_attribute_list()
                     for attr in attribute_list:
