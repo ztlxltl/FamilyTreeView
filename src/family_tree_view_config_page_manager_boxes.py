@@ -528,6 +528,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
             self.up_item_def_buttons[box_type].set_sensitive(False)
             self.down_item_def_buttons[box_type].set_sensitive(False)
             self.remove_item_def_buttons[box_type].set_sensitive(False)
+        # For some reason children are hidden:
         self.item_def_type_params_boxes[box_type].show_all()
 
     def _create_item_def_params(self, box_type, item_i):

@@ -184,14 +184,13 @@ class FamilyTreeViewWidgetManager:
             if self.panel_hidden:
                 self.main_container_paned.set_position(round(paned_width*0.8)) # default value
                 # if not hidden, keep position
-            self.main_container_paned.show_all()
+            self.panel_manager.panel_widget.show_all()
             self.panel_hidden = False
 
     def close_panel(self):
         self.panel_manager.reset_panel()
         paned_width = self.main_container_paned.get_allocation().width
         self.main_container_paned.set_position(round(paned_width+0.5)) # ceil
-        self.main_container_paned.show_all()
         self.panel_hidden = True
 
     def main_container_paned_size_allocate(self, main_container, allocation):

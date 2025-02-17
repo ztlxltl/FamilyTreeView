@@ -162,7 +162,7 @@ class FamilyTreeViewMinimapManager:
             line_width=0
         )
         self.adjust_bounds(x-self.canvas_manager.person_width/2, y, x+self.canvas_manager.person_width/2, y+self.canvas_manager.person_height)
-        self.minimap_outer_container.show_all()
+        self.minimap_canvas.show_all()
 
     def add_family(self, x, family_generation, background_color):
         y = self.widget_manager.tree_builder.get_y_of_generation(family_generation)+self.canvas_manager.above_family_sep
@@ -176,7 +176,7 @@ class FamilyTreeViewMinimapManager:
             line_width=0
         )
         self.adjust_bounds(x-self.canvas_manager.family_width/2, y, x+self.canvas_manager.family_width/2, y+self.canvas_manager.family_height)
-        self.minimap_outer_container.show_all()
+        self.minimap_canvas.show_all()
 
     def minimap_button_clicked(self, *_):
         if self.minimap_inner_container.get_visible():
