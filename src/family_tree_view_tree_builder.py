@@ -336,6 +336,7 @@ class FamilyTreeViewTreeBuilder():
             return person_bounds
 
         child_handles = [ref.ref for ref in child_refs]
+        child_handles = self.filter_person_handles(child_handles)
         children_subtree_width = 0
         children_bounds = []
         for child_handle in child_handles:
@@ -410,6 +411,7 @@ class FamilyTreeViewTreeBuilder():
             return person_bounds
 
         child_handles = [ref.ref for ref in child_refs]
+        child_handles = self.filter_person_handles(child_handles)
         person_index = child_handles.index(person_handle)
         if which == "y":
             # younger (after person in the list)
@@ -577,8 +579,20 @@ class FamilyTreeViewTreeBuilder():
                     return person_bounds
             else:
                 if not expand_other_parents:
-                    # Don't return/break. If family list is revered above, the main parent family can be last iteration.
+                    # Don't return/break. If family list is reversed
+                    # above, the main parent family can be last
+                    # iteration.
                     continue
+
+            family = self.dbstate.db.get_family_from_handle(parent_family_handle)
+
+            father_handle = family.get_father_handle()
+            mother_handle = family.get_mother_handle()
+
+            if len(
+                self.filter_person_handles([father_handle, mother_handle])
+            ) == 0:
+                continue
 
             i_parent_family_processed += 1
             first_family_processed = i_parent_family_processed == 0
@@ -593,11 +607,6 @@ class FamilyTreeViewTreeBuilder():
                 else:
                     self.i_connections_per_generation.setdefault(person_generation, [-1, -1]) # none, 1st will be 0
                     self.i_connections_per_generation[person_generation][int(x_person > 0)] += 1
-
-            family = self.dbstate.db.get_family_from_handle(parent_family_handle)
-
-            father_handle = family.get_father_handle()
-            mother_handle = family.get_mother_handle()
 
             if is_parent_family_of_root:
                 # In most cases this needs to be False
@@ -884,6 +893,17 @@ class FamilyTreeViewTreeBuilder():
         person_bounds["gs_r"] = person_width/2
 
         return person_bounds
+
+    def filter_person_handles(self, handles):
+        if (
+            self.ftv.generic_filter is None
+            or not self.ftv._config.get("experimental.familytreeview-filter-person-prune")
+        ):
+            return handles
+        handles = [h for h in handles if h is not None and len(h) > 0]
+        if len(handles) == 0:
+            return []
+        return self.ftv.generic_filter.apply(self.dbstate.db, handles)
 
     def get_dashed(self, family, child_handle):
         child_ref = [ref for ref in family.get_child_ref_list() if ref.ref == child_handle][0]

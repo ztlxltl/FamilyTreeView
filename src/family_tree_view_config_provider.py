@@ -116,6 +116,7 @@ class FamilyTreeViewConfigProvider:
 
             ("experimental.familytreeview-adaptive-ancestor-generation-dist", True),
             ("experimental.familytreeview-connection-follow-on-click", False),
+            ("experimental.familytreeview-filter-person-prune", False),
 
             # without config ui
             ("paths.familytreeview-recent-export-dir", USER_HOME),
@@ -896,6 +897,15 @@ class FamilyTreeViewConfigProvider:
             _("Double click one end of a connection to move to the person or family at the other end"),
             row,
             "experimental.familytreeview-connection-follow-on-click",
+            stop=3 # same width as spinners and combos
+        )
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _("Prune people who do not match the sidebar filter"),
+            row,
+            "experimental.familytreeview-filter-person-prune",
             stop=3 # same width as spinners and combos
         )
 
