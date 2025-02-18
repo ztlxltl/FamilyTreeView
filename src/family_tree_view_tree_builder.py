@@ -22,11 +22,15 @@
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
+from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.lib.childreftype import ChildRefType
+from gramps.gui.utils import ProgressMeter
 
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeViewWidgetManager
 
+
+_ = GRAMPS_LOCALE.translation.gettext
 
 class FamilyTreeViewTreeBuilder():
     """Collects all the information to build the tree and sends it to the canvas."""
@@ -36,6 +40,9 @@ class FamilyTreeViewTreeBuilder():
         self.dbstate = self.ftv.dbstate
         self.uistate = self.ftv.uistate
         self.canvas_manager = self.widget_manager.canvas_manager
+
+        self.use_progress = False
+        self.progress_meter = None
 
         self.reset_filtered()
         self.reset()
@@ -55,10 +62,7 @@ class FamilyTreeViewTreeBuilder():
         # Reset what was expanded and what not.
         self.expanded = {}
 
-        # In some cases this will be called again.
-        self.prepare_redraw()
-
-    def prepare_redraw(self):
+    def build_tree(self, root_person_handle):
         # NOTE: ancestors have positive generation number (descendants negative)
         self.generation_spread = {}
 
@@ -70,6 +74,41 @@ class FamilyTreeViewTreeBuilder():
 
         self.expander_types_shown = self.ftv._config.get("expanders.familytreeview-expander-types-shown")
         self.expander_types_expanded = self.ftv._config.get("expanders.familytreeview-expander-types-expanded")
+
+        self.use_progress = self.ftv._config.get("experimental.familytreeview-tree-builder-use-progress")
+        if self.use_progress:
+            # Because of the progress meter, the tree is redrawn often
+            # (probably the whole window is redrawn on every time .step() is
+            # called). Hide the tree while building it to avoid flickering.
+            self.widget_manager.info_box_overlay_container.set_opacity(0)
+
+            self.progress_meter = ProgressMeter(
+                "FamilyTreeView",
+                can_cancel=True,
+                parent=self.uistate.window,
+            )
+            self.progress_meter.set_pass(
+                header=_("Building the tree..."),
+                mode=ProgressMeter.MODE_ACTIVITY,
+            )
+
+        self.process_person(
+            root_person_handle, 0, 0,
+            ahnentafel=1
+        )
+
+        if self.use_progress:
+            self.progress_meter.close()
+            self.progress_meter = None
+
+            self.widget_manager.info_box_overlay_container.set_opacity(1)
+
+    def get_cancelled(self):
+        if not self.use_progress:
+            return False
+        if self.progress_meter is None:
+            return True
+        return self.progress_meter.get_cancelled()
 
     def get_y_of_generation(self, generation):
         # negative y is up
@@ -102,6 +141,9 @@ class FamilyTreeViewTreeBuilder():
         skip_family_handle=None, # needed when processing a parent to skip main family
         child_handle_with_other_parents_to_collapse=None, # needed when expanding other families of this person
     ):
+        if self.use_progress:
+            self.progress_meter.step()
+
         person_width = self.canvas_manager.person_width
 
         # Initialize subtree left and right bounds of the subtree and the generation.
@@ -144,13 +186,18 @@ class FamilyTreeViewTreeBuilder():
             # Trying to process relatives doesn't make sense.
             return person_bounds
 
-        if process_families:
+        if process_families and not self.get_cancelled():
+            if self.use_progress and not dry_run and person_generation == 0 and x_person == 0:
+                self.progress_meter.set_pass(
+                    header=_("Building the families and descendants..."),
+                    mode=ProgressMeter.MODE_ACTIVITY,
+                )
             person_bounds = self.process_families(person_handle, person_bounds, x_person, person_generation, dry_run, process_descendants, skip_family_handle=skip_family_handle, child_handle_with_other_parents_to_collapse=child_handle_with_other_parents_to_collapse)
 
         # person_bounds subtree includes all families of the person and it's spouse including all their children.
         # The ancestors have to be processed after the families (and their children) so that siblings of this person and the parents' other spouses' descendants can move to the outwards.
 
-        if process_ancestors:
+        if process_ancestors and not self.get_cancelled():
             # parents, siblings etc.
             if not dry_run and person_generation == 0 and self.ftv._config.get("experimental.familytreeview-adaptive-ancestor-generation-dist"):
                 # This dry_run is required for the generation distance. By filling self.num_connections_per_generation, the generation distance can be chosen to be no larger than necessary.
@@ -158,6 +205,12 @@ class FamilyTreeViewTreeBuilder():
                 self.process_ancestors(person, deepcopy(person_bounds), x_person, person_generation, ahnentafel, alignment, dry_run=True)
                 # Reset generation spread after dry run to start over.
                 self.generation_spread = {}
+
+                if self.use_progress and x_person == 0:
+                    self.progress_meter.set_pass(
+                        header=_("Building the ancestors..."),
+                        mode=ProgressMeter.MODE_ACTIVITY,
+                    )
             person_bounds = self.process_ancestors(person, person_bounds, x_person, person_generation, ahnentafel, alignment, dry_run=dry_run)
 
         return person_bounds
@@ -182,6 +235,8 @@ class FamilyTreeViewTreeBuilder():
         children_possible = person_generation <= 1
 
         for i_family, family_handle in enumerate(family_handles):
+            if self.get_cancelled():
+                break
             if skip_family_handle is None:
                 is_primary_family = i_family == 0
             elif skip_family_handle == family_handle:
@@ -352,6 +407,8 @@ class FamilyTreeViewTreeBuilder():
         children_subtree_width = 0
         children_bounds = []
         for child_handle in child_handles:
+            if self.get_cancelled():
+                break
             # Process child at x=0 to get relative subtree bounds.
             child_bounds = self.process_person(child_handle, 0, child_generation, dry_run=True, process_ancestors=False)
             children_bounds.append(child_bounds)
@@ -363,6 +420,8 @@ class FamilyTreeViewTreeBuilder():
 
         if not dry_run:
             for i_child, child_handle in enumerate(child_handles):
+                if self.get_cancelled():
+                    break
                 x_child -= children_bounds[i_child]["st_l"] # subtree left is negative
                 child_bounds = self.process_person(child_handle, x_child, child_generation, dry_run=False, process_ancestors=False)
                 dashed = self.get_dashed(family, child_handle)
@@ -581,9 +640,11 @@ class FamilyTreeViewTreeBuilder():
 
         i_parent_family_processed = -1 # will be increased to 0
         for i, parent_family_handle in enumerated_parent_family_handle_list:
+            if self.get_cancelled():
+                break
 
             if parent_family_handle is None:
-                return person_bounds
+                continue
 
             is_main_parent_family = i == 0
 

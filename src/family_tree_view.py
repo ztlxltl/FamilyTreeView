@@ -370,8 +370,7 @@ class FamilyTreeView(NavigationView, Callback):
                 if offset is None:
                     # If there is no offset, the new tree is not closely related to the previous one.
                     self.widget_manager.tree_builder.reset()
-                self.widget_manager.tree_builder.prepare_redraw()
-                self.widget_manager.tree_builder.process_person(root_person_handle, 0, 0, ahnentafel=1)
+                self.widget_manager.tree_builder.build_tree(root_person_handle)
                 if offset is None:
                     self.widget_manager.canvas_manager.move_to_center()
                 else:

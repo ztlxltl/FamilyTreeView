@@ -117,6 +117,7 @@ class FamilyTreeViewConfigProvider:
             ("experimental.familytreeview-adaptive-ancestor-generation-dist", True),
             ("experimental.familytreeview-connection-follow-on-click", False),
             ("experimental.familytreeview-filter-person-prune", False),
+            ("experimental.familytreeview-tree-builder-use-progress", False),
 
             # without config ui
             ("paths.familytreeview-recent-export-dir", USER_HOME),
@@ -906,6 +907,15 @@ class FamilyTreeViewConfigProvider:
             _("Prune people who do not match the sidebar filter"),
             row,
             "experimental.familytreeview-filter-person-prune",
+            stop=3 # same width as spinners and combos
+        )
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _("Display progress dialog while building the tree"),
+            row,
+            "experimental.familytreeview-tree-builder-use-progress",
             stop=3 # same width as spinners and combos
         )
 
