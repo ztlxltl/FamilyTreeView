@@ -179,6 +179,8 @@ class FamilyTreeView(NavigationView, Callback):
 
         self.additional_uis.append(self.ADDITIONAL_UI)
 
+        self.generic_filter = None
+
         self.symbols = Symbols()
         self.widget_manager = FamilyTreeViewWidgetManager(self)
         self.abbrev_name_display = AbbreviatedNameDisplay(self)
@@ -208,8 +210,6 @@ class FamilyTreeView(NavigationView, Callback):
         # TODO This is not an ideal solution.
         for config_name in config.get_section_settings("colors"):
             config.connect("colors." + config_name, self.close_info_and_rebuild)
-
-        self.generic_filter = None
 
         self.addons_registered_badges = False
 
@@ -313,6 +313,11 @@ class FamilyTreeView(NavigationView, Callback):
                 rebuild_now = False
 
         # Maybe there are more cases which can be identified...
+
+        # TODO Maybe detect if build_tree() was called to apply filter
+        # and only reset in this case, since updating when not needed is
+        # expensive.
+        self.widget_manager.tree_builder.reset_filtered()
 
         if rebuild_now:
             self.rebuild_tree()

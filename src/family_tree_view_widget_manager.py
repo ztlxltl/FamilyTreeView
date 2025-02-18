@@ -242,7 +242,7 @@ class FamilyTreeViewWidgetManager:
         if (
             self.ftv._config.get("appearance.familytreeview-filter-person-gray-out")
             and self.ftv.generic_filter is not None
-            and not self.ftv.generic_filter.match(person_handle, self.ftv.dbstate.db)
+            and not self.tree_builder.filter_matches_person_handle(person_handle)
         ):
             background_color = rgb_to_hex(
                 # average of r, g, and b for all 3 values

@@ -37,7 +37,18 @@ class FamilyTreeViewTreeBuilder():
         self.uistate = self.ftv.uistate
         self.canvas_manager = self.widget_manager.canvas_manager
 
+        self.reset_filtered()
         self.reset()
+
+    def reset_filtered(self):
+        if self.ftv.generic_filter is None:
+            self.filtered_person_handles = None
+            return
+
+        self.filtered_person_handles = self.ftv.generic_filter.apply(
+            self.dbstate.db,
+            user=self.uistate.viewmanager.user
+        )
 
     def reset(self):
         """Should be called if the new tree is not closely related to the previous one, e.g. based on a different person."""
@@ -336,7 +347,8 @@ class FamilyTreeViewTreeBuilder():
             return person_bounds
 
         child_handles = [ref.ref for ref in child_refs]
-        child_handles = self.filter_person_handles(child_handles)
+        if self.ftv._config.get("experimental.familytreeview-filter-person-prune"):
+            child_handles = self.filter_person_handles(child_handles)
         children_subtree_width = 0
         children_bounds = []
         for child_handle in child_handles:
@@ -411,7 +423,8 @@ class FamilyTreeViewTreeBuilder():
             return person_bounds
 
         child_handles = [ref.ref for ref in child_refs]
-        child_handles = self.filter_person_handles(child_handles)
+        if self.ftv._config.get("experimental.familytreeview-filter-person-prune"):
+            child_handles = self.filter_person_handles(child_handles)
         person_index = child_handles.index(person_handle)
         if which == "y":
             # younger (after person in the list)
@@ -589,9 +602,12 @@ class FamilyTreeViewTreeBuilder():
             father_handle = family.get_father_handle()
             mother_handle = family.get_mother_handle()
 
-            if len(
-                self.filter_person_handles([father_handle, mother_handle])
-            ) == 0:
+            if (
+                self.ftv._config.get("experimental.familytreeview-filter-person-prune")
+                and len(
+                    self.filter_person_handles([father_handle, mother_handle])
+                ) == 0
+            ):
                 continue
 
             i_parent_family_processed += 1
@@ -894,16 +910,23 @@ class FamilyTreeViewTreeBuilder():
 
         return person_bounds
 
+    def filter_matches_person_handle(self, handle):
+        if self.filtered_person_handles is None:
+            # no filtering
+            return True
+        return handle in self.filtered_person_handles
+
     def filter_person_handles(self, handles):
-        if (
-            self.ftv.generic_filter is None
-            or not self.ftv._config.get("experimental.familytreeview-filter-person-prune")
-        ):
+        if self.filtered_person_handles is None:
+            # no filtering
             return handles
-        handles = [h for h in handles if h is not None and len(h) > 0]
-        if len(handles) == 0:
-            return []
-        return self.ftv.generic_filter.apply(self.dbstate.db, handles)
+        handles = [
+            h for h in handles if (
+                h is not None and len(h) > 0
+                and h in self.filtered_person_handles
+            )
+        ]
+        return handles
 
     def get_dashed(self, family, child_handle):
         child_ref = [ref for ref in family.get_child_ref_list() if ref.ref == child_handle][0]
