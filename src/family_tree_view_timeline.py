@@ -375,6 +375,7 @@ class FamilyTreeViewTimeline:
                 else:
                     markup = f"{event_age_str}{event_type} of <b>{relationship_type}</b>{description}:\n{event_date_str}{event_place_str}"
                 class_name = "ftv-timeline-event-relatives"
+            markup = markup.replace("&", "&amp;") # can't use html.escape because of <b>, </b>
             event_label = Gtk.Label()
             event_label.set_markup(markup)
             event_label.set_line_wrap(True)
