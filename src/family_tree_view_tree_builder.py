@@ -22,6 +22,8 @@
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
+from gi.repository import Gtk
+
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.lib.childreftype import ChildRefType
 from gramps.gui.utils import ProgressMeter
@@ -52,10 +54,29 @@ class FamilyTreeViewTreeBuilder():
             self.filtered_person_handles = None
             return
 
-        self.filtered_person_handles = self.ftv.generic_filter.apply(
-            self.dbstate.db,
-            user=self.uistate.viewmanager.user
-        )
+        try:
+            self.filtered_person_handles = self.ftv.generic_filter.apply(
+                self.dbstate.db,
+                user=self.uistate.viewmanager.user
+            )
+        except:
+            dialog = Gtk.MessageDialog(
+                transient_for=self.uistate.window,
+                flags=0,
+                message_type=Gtk.MessageType.INFO,
+                buttons=Gtk.ButtonsType.OK,
+                text="FamilyTreeView",
+            )
+            dialog.format_secondary_markup(_(
+                "<b>Failed to apply filter.</b>\n"
+                "An error occurred while applying the filter. "
+                "This is most likely a bug in the filter rules. "
+                "No filter is applied."
+            ))
+            dialog.run()
+            dialog.destroy()
+
+            self.filtered_person_handles = None
 
     def reset(self):
         """Should be called if the new tree is not closely related to the previous one, e.g. based on a different person."""
