@@ -204,12 +204,12 @@ class FamilyTreeView(NavigationView, Callback):
                     # also reset the boxes (line height, best name
                     # abbreviations).
                     config.connect(key, lambda *args: GLib.idle_add(self.widget_manager.canvas_manager.reset_boxes))
-                config.connect(key, lambda *args: GLib.idle_add(self.close_info_and_rebuild))
+                config.connect(key, lambda *args: GLib.idle_add(self._cb_global_appearance_config_changed))
 
         # There doesn't seem to be a signal for updating colors.
         # TODO This is not an ideal solution.
         for config_name in config.get_section_settings("colors"):
-            config.connect("colors." + config_name, self.close_info_and_rebuild)
+            config.connect("colors." + config_name, self._cb_global_appearance_config_changed)
 
         self.addons_registered_badges = False
 
@@ -268,7 +268,11 @@ class FamilyTreeView(NavigationView, Callback):
 
     def _cb_db_changed(self, db):
         self._change_db(db)
-        self.close_info_and_rebuild()
+        if self.active:
+            # The view will be updated when it is activated
+            # (NavigationView.set_active() causes build_tree and
+            # goto_handle to be called).
+            self.close_info_and_rebuild()
 
     def build_widget(self):
         # Widget is built during __init__ and only returned here.
@@ -314,9 +318,13 @@ class FamilyTreeView(NavigationView, Callback):
 
         # Maybe there are more cases which can be identified...
 
-        # TODO Maybe detect if build_tree() was called to apply filter
-        # and only reset in this case, since updating when not needed is
-        # expensive.
+        # The filter is applied each time, since changes to the database
+        # that affect the filter result must be taken into account.\
+        # TODO Maybe keep track if there were db updates and only run
+        # filter if there were. Note that filter changes also need to be
+        # tracked. hash(self.generic_filter) doesn't change if rules are
+        # being added, but it changes every time the filter button is
+        # clicked since a new GenericFilter object is instantiated.
         self.widget_manager.tree_builder.reset_filtered()
 
         if rebuild_now:
@@ -344,8 +352,20 @@ class FamilyTreeView(NavigationView, Callback):
         self.callman.add_db_signal("event-update", self._object_updated)
 
     def _object_updated(self, handle):
-        offset = self.widget_manager.canvas_manager.get_center_in_units()
-        self.close_info_and_rebuild(offset=offset)
+        if self.active:
+            # The view will be updated when it is activated
+            # (NavigationView.set_active() causes build_tree and
+            # goto_handle to be called).
+            offset = self.widget_manager.canvas_manager.get_center_in_units()
+            self.close_info_and_rebuild(offset=offset)
+
+    def _cb_global_appearance_config_changed(self, *args):
+        if self.active:
+            # The view will be updated when it is activated
+            # (NavigationView.set_active() causes build_tree and
+            # goto_handle to be called).
+            offset = self.widget_manager.canvas_manager.get_center_in_units()
+            self.close_info_and_rebuild(offset=offset)
 
     def close_info_and_rebuild(self, *_, offset=None): # *_ required when used as callback
         self.widget_manager.info_box_manager.close_info_box()
