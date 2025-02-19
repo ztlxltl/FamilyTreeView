@@ -196,11 +196,10 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                 z
             """
 
+        line_width = self.ftv._config.get("appearance.familytreeview-box-line-width")
         if x == 0 and generation == 0 and self.ftv._config.get("appearance.familytreeview-highlight-root-person"):
             # This is the root person.
-            line_width = 4
-        else:
-            line_width = 2
+            line_width = min(line_width + 2, line_width * 2)
 
         box = GooCanvas.CanvasPath(
             parent=parent,
@@ -262,11 +261,13 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             a {r} {r} 90 0 1 {-r} {-r}
             z
         """
+        line_width = self.ftv._config.get("appearance.familytreeview-box-line-width")
         box = GooCanvas.CanvasPath(
             parent=parent,
             data=data,
             fill_color=primary_color,
-            stroke_color=secondary_color
+            stroke_color=secondary_color,
+            line_width=line_width,
         )
 
         contrast_color = rgb_to_hex(get_contrast_color(tuple(box.props.fill_color_gdk_rgba)[:3]))
@@ -470,20 +471,23 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         else:
             line_dash = None
 
-        GooCanvas.CanvasPath(
-            parent=self.connection_group,
-            data=data,
-            stroke_color=fg_color,
-            line_width=2,
-            line_dash=line_dash
-        )
-        # add additional (invisible) path for larger clickable area
+        line_width = self.ftv._config.get("appearance.familytreeview-connections-line-width")
         path = GooCanvas.CanvasPath(
             parent=self.connection_group,
             data=data,
-            line_width=5,
-            stroke_color=None
+            stroke_color=fg_color,
+            line_width=line_width,
+            line_dash=line_dash
         )
+        if line_width < 5:
+            # add additional (invisible) path for larger clickable area
+            path = GooCanvas.CanvasPath(
+                parent=self.connection_group,
+                data=data,
+                line_width=5,
+                stroke_color=None
+            )
+        # path is visible CanvasPath if no invisible was drawn.
         path.connect("button-press-event", self.click_callback, click_callback, ym)
 
     def add_badges(self, badges, x, y):

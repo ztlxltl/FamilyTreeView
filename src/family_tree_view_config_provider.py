@@ -53,6 +53,8 @@ class FamilyTreeViewConfigProvider:
         return (
             ("appearance.familytreeview-num-ancestor-generations-default", 2),
             ("appearance.familytreeview-num-descendant-generations-default", 2),
+            ("appearance.familytreeview-connections-line-width", 2.0),
+            ("appearance.familytreeview-box-line-width", 2.0),
             ("appearance.familytreeview-highlight-root-person", True),
             ("appearance.familytreeview-show-deceased-ribbon", True),
             ("appearance.familytreeview-filter-person-gray-out", True),
@@ -301,6 +303,33 @@ class FamilyTreeViewConfigProvider:
             "appearance.familytreeview-num-descendant-generations-default",
             (0, 20) # more might can performance issues, expanders can be used
         )
+
+        def spin_button_float_changed(spin_button, key):
+            self.ftv._config.set(key, spin_button.get_value())
+
+        row += 1
+        connection_line_width_spinner = configdialog.add_spinner(
+            grid,
+            _("Line width of connections"),
+            row,
+            "appearance.familytreeview-connections-line-width",
+            (0.1, 10.0),
+            callback=spin_button_float_changed,
+        )
+        connection_line_width_spinner.set_digits(1)
+        connection_line_width_spinner.get_adjustment().set_step_increment(0.1)
+
+        row += 1
+        box_line_width_spinner = configdialog.add_spinner(
+            grid,
+            _("Line width of boxes"),
+            row,
+            "appearance.familytreeview-box-line-width",
+            (0.0, 10.0),
+            callback=spin_button_float_changed,
+        )
+        box_line_width_spinner.set_digits(1)
+        box_line_width_spinner.get_adjustment().set_step_increment(0.1)
 
         row += 1
         configdialog.add_checkbox(
