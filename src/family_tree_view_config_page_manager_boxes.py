@@ -44,6 +44,8 @@ BOX_ITEMS = {
         ("attribute", _("Attribute"), _("The value of the attribute of the specified type"), {"attribute_type": "Nickname", "lines": 1}),
         ("gender", _("Gender"), _("The gender of the person"), {"word_or_symbol": "Word"}), # TODO are the symbols always available?
         ("gramps_id", _("Gramps ID"), _("The Gramps ID of the person"), {"lines": 1}),
+        ("generation_num", _("Generation number"), _("The number of the generation of the person"), {"lines": 1}),
+        ("genealogical_num", _("Ahnentafel number"), _("The Ahnentafel number of the person"), {"lines": 1}),
         ("tags", _("Tags"), _("The tags of the person"), {"lines": 1, "tag_visualization": "text_colors_counted"}),
         # TODO custom items (like badges)
     ],

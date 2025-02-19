@@ -173,7 +173,7 @@ class FamilyTreeViewTreeBuilder():
             if person is None:
                 person_box_bounds = self.widget_manager.add_missing_person(x_person, person_generation, alignment)
             else:
-                person_box_bounds = self.widget_manager.add_person(person_handle, x_person, person_generation, alignment)
+                person_box_bounds = self.widget_manager.add_person(person_handle, x_person, person_generation, alignment, ahnentafel=ahnentafel)
             person_bounds.update(person_box_bounds)
         else:
             person_bounds.update({"bx_t": 0, "bx_b": 0}) # replacement values

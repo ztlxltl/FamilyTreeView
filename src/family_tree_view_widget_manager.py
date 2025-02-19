@@ -227,7 +227,7 @@ class FamilyTreeViewWidgetManager:
             self.search_widget.hide_search_popover()
             self.search_widget.set_items_list(self.person_handle_list)
 
-    def add_person(self, person_handle, x, person_generation, alignment):
+    def add_person(self, person_handle, x, person_generation, alignment, ahnentafel=None):
         person = self.ftv.get_person_from_handle(person_handle)
 
         alive = probably_alive(person, self.ftv.dbstate.db)
@@ -354,6 +354,13 @@ class FamilyTreeViewWidgetManager:
                             text = self.ftv.symbols.get_symbol_fallback(symbol)
                 elif item[0] == "gramps_id":
                     text = person.get_gramps_id()
+                elif item[0] == "generation_num":
+                    text = str(person_generation)
+                elif item[0] == "genealogical_num":
+                    if ahnentafel is None:
+                        text = ""
+                    else:
+                        text = str(ahnentafel)
                 elif item[0] == "tags":
                     tag_handle_list = person.get_tag_list()
                     text = self.get_tag_markup(tag_handle_list, item[1]["tag_visualization"])
