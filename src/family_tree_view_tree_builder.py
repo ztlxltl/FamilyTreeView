@@ -22,7 +22,7 @@
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
-from gi.repository import Gtk
+from gi.repository import GLib, Gtk
 
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.lib.childreftype import ChildRefType
@@ -45,6 +45,7 @@ class FamilyTreeViewTreeBuilder():
 
         self.use_progress = False
         self.progress_meter = None
+        self.progress_pass_person_handles = []
 
         self.reset_filtered()
         self.reset()
@@ -96,20 +97,24 @@ class FamilyTreeViewTreeBuilder():
         self.expander_types_shown = self.ftv._config.get("expanders.familytreeview-expander-types-shown")
         self.expander_types_expanded = self.ftv._config.get("expanders.familytreeview-expander-types-expanded")
 
+        # By preventing Gramps from freezing, the tree is redrawn often.
+        # Hide the tree while building it to avoid flickering.
+        self.widget_manager.info_box_overlay_container.set_opacity(0)
+
         self.use_progress = self.ftv._config.get("experimental.familytreeview-tree-builder-use-progress")
         if self.use_progress:
-            # Because of the progress meter, the tree is redrawn often
-            # (probably the whole window is redrawn on every time .step() is
-            # called). Hide the tree while building it to avoid flickering.
-            self.widget_manager.info_box_overlay_container.set_opacity(0)
-
             self.progress_meter = ProgressMeter(
                 "FamilyTreeView",
                 can_cancel=True,
                 parent=self.uistate.window,
             )
+            self.progress_meter._ProgressMeter__dialog.hide()
+            self.show_event_source_id = GLib.timeout_add(
+                1000, # Show ProgressMeter after this amount of ms.
+                self.show_progress_meter
+            )
             self.progress_meter.set_pass(
-                header=_("Building the tree..."),
+                header=_("Building tree..."),
                 mode=ProgressMeter.MODE_ACTIVITY,
             )
 
@@ -119,10 +124,16 @@ class FamilyTreeViewTreeBuilder():
         )
 
         if self.use_progress:
+            if self.show_event_source_id is not None:
+                GLib.source_remove(self.show_event_source_id)
             self.progress_meter.close()
             self.progress_meter = None
 
-            self.widget_manager.info_box_overlay_container.set_opacity(1)
+        self.widget_manager.info_box_overlay_container.set_opacity(1)
+
+    def show_progress_meter(self, *args):
+        self.progress_meter._ProgressMeter__dialog.show()
+        self.show_event_source_id = None
 
     def get_cancelled(self):
         if not self.use_progress:
@@ -162,8 +173,23 @@ class FamilyTreeViewTreeBuilder():
         skip_family_handle=None, # needed when processing a parent to skip main family
         child_handle_with_other_parents_to_collapse=None, # needed when expanding other families of this person
     ):
+        step = False
         if self.use_progress:
+            if self.progress_meter._ProgressMeter__mode == ProgressMeter.MODE_FRACTION:
+                if person_handle not in self.progress_pass_person_handles and not dry_run:
+                    self.progress_pass_person_handles.append(person_handle)
+                    step = True
+            else: # ProgressMeter.MODE_ACTIVITY:
+                if person_handle not in self.progress_pass_person_handles:
+                    self.progress_pass_person_handles.append(person_handle)
+                step = True # always show activity
+        if step:
             self.progress_meter.step()
+        else:
+            # Prevent Gramps from freezing. ProgressMeter.step() also
+            # does this.
+            while Gtk.events_pending():
+                Gtk.main_iteration()
 
         person_width = self.canvas_manager.person_width
 
@@ -210,7 +236,7 @@ class FamilyTreeViewTreeBuilder():
         if process_families and not self.get_cancelled():
             if self.use_progress and not dry_run and person_generation == 0 and x_person == 0:
                 self.progress_meter.set_pass(
-                    header=_("Building the families and descendants..."),
+                    header=_("Building families and descendants..."),
                     mode=ProgressMeter.MODE_ACTIVITY,
                 )
             person_bounds = self.process_families(person_handle, person_bounds, x_person, person_generation, dry_run, process_descendants, skip_family_handle=skip_family_handle, child_handle_with_other_parents_to_collapse=child_handle_with_other_parents_to_collapse)
@@ -221,6 +247,13 @@ class FamilyTreeViewTreeBuilder():
         if process_ancestors and not self.get_cancelled():
             # parents, siblings etc.
             if not dry_run and person_generation == 0 and self.ftv._config.get("experimental.familytreeview-adaptive-ancestor-generation-dist"):
+                if self.use_progress and x_person == 0:
+                    self.progress_meter.set_pass(
+                        header=_("Preparing to build ancestors..."),
+                        mode=ProgressMeter.MODE_ACTIVITY,
+                    )
+                    self.progress_pass_person_handles = []
+
                 # This dry_run is required for the generation distance. By filling self.num_connections_per_generation, the generation distance can be chosen to be no larger than necessary.
                 # deepcopy is required here to avoid changed person_bounds due to dry_run.
                 self.process_ancestors(person, deepcopy(person_bounds), x_person, person_generation, ahnentafel, alignment, dry_run=True)
@@ -229,9 +262,11 @@ class FamilyTreeViewTreeBuilder():
 
                 if self.use_progress and x_person == 0:
                     self.progress_meter.set_pass(
-                        header=_("Building the ancestors..."),
-                        mode=ProgressMeter.MODE_ACTIVITY,
+                        header=_("Building ancestors..."),
+                        total=len(self.progress_pass_person_handles),
+                        mode=ProgressMeter.MODE_FRACTION,
                     )
+                    self.progress_pass_person_handles = []
             person_bounds = self.process_ancestors(person, person_bounds, x_person, person_generation, ahnentafel, alignment, dry_run=dry_run)
 
         return person_bounds
@@ -422,6 +457,13 @@ class FamilyTreeViewTreeBuilder():
         if not expand_children:
             return person_bounds
 
+        if not dry_run and self.use_progress and x_person == 0 and person_generation == 0:
+            self.progress_meter.set_pass(
+                header=_("Preparing to build descendants..."),
+                mode=ProgressMeter.MODE_ACTIVITY,
+            )
+            self.progress_pass_person_handles = []
+
         child_handles = [ref.ref for ref in child_refs]
         if self.ftv._config.get("experimental.familytreeview-filter-person-prune"):
             child_handles = self.filter_person_handles(child_handles)
@@ -440,6 +482,13 @@ class FamilyTreeViewTreeBuilder():
         x_child = x_family - children_subtree_width/2 # subtree should be centered
 
         if not dry_run:
+            if self.use_progress and x_person == 0 and person_generation == 0:
+                self.progress_meter.set_pass(
+                    header=_("Building descendants..."),
+                    total=len(self.progress_pass_person_handles),
+                    mode=ProgressMeter.MODE_FRACTION,
+                )
+                self.progress_pass_person_handles = []
             for i_child, child_handle in enumerate(child_handles):
                 if self.get_cancelled():
                     break
@@ -455,6 +504,13 @@ class FamilyTreeViewTreeBuilder():
                 )
                 x_child += children_bounds[i_child]["st_r"]
                 x_child += child_sep
+
+            # reset to generic progress
+            if self.use_progress and x_person == 0 and person_generation == 0:
+                self.progress_meter.set_pass(
+                    header=_("Building families and descendants..."),
+                    mode=ProgressMeter.MODE_ACTIVITY,
+                )
         person_bounds["st_l"] = min(person_bounds["st_l"], x_family-x_person-children_subtree_width/2) # /2: descendants are centered
         person_bounds["st_r"] = max(person_bounds["st_r"], x_family-x_person+children_subtree_width/2)
         return person_bounds
