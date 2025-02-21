@@ -28,15 +28,15 @@ import cairo
 from gi.repository import GdkPixbuf, GLib, Gtk
 
 from gramps.gen.config import config
-from gramps.gen.const import GRAMPS_LOCALE
+from gramps.gen.const import CUSTOM_FILTERS, GRAMPS_LOCALE
 from gramps.gen.display.place import displayer as place_displayer
-from gramps.gen.errors import HandleError
+from gramps.gen.errors import HandleError, WindowActiveError
 from gramps.gen.lib import EventType
 from gramps.gen.utils.callback import Callback
 from gramps.gen.utils.file import find_file, media_path_full
 from gramps.gen.utils.symbols import Symbols
 from gramps.gen.utils.thumbnails import get_thumbnail_path
-from gramps.gui.editors import EditFamily, EditPerson
+from gramps.gui.editors import EditFamily, EditPerson, FilterEditor
 from gramps.gui.pluginmanager import GuiPluginManager
 from gramps.gui.views.bookmarks import PersonBookmarks
 from gramps.gui.views.navigationview import NavigationView
@@ -53,6 +53,17 @@ _ = GRAMPS_LOCALE.translation.gettext
 
 class FamilyTreeView(NavigationView, Callback):
     ADDITIONAL_UI = [
+        # "Family Trees" menu: 
+        # Export as SVG is also added here since list views have their
+        # export here.
+        """
+        <placeholder id="LocalExport">
+            <item>
+                <attribute name="action">win.ExportSvgView</attribute>
+                <attribute name="label" translatable="yes">Export view as SVG...</attribute>
+            </item>
+        </placeholder>
+        """,
         # "Edit" menu:
         """
         <section id="CommonEdit" groups="RW">
@@ -65,6 +76,14 @@ class FamilyTreeView(NavigationView, Callback):
                 <attribute name="label" translatable="yes">Export as SVG...</attribute>
             </item>
         </section>
+        """,
+        """
+        <placeholder id="otheredit">
+            <item>
+                <attribute name="action">win.FilterEdit</attribute>
+                <attribute name="label" translatable="yes">Person Filter Editor</attribute>
+            </item>
+        </placeholder>
         """,
         # "Go" menu:
         """
@@ -248,7 +267,8 @@ class FamilyTreeView(NavigationView, Callback):
     def define_actions(self):
         super().define_actions()
         self._add_action("PrintView", self.print_view, "<PRIMARY><SHIFT>P")
-        self._add_action("ExportSvgView", self.export_svg_view,)
+        self._add_action("ExportSvgView", self.export_svg_view)
+        self._add_action("FilterEdit", self.open_filter_editor)
 
     def config_connect(self):
         self.config_provider.config_connect(self._config, self.cb_update_config)
@@ -605,6 +625,12 @@ class FamilyTreeView(NavigationView, Callback):
         family = self.dbstate.db.get_family_from_handle(family_handle)
         if family is not None:
             EditFamily(self.dbstate, self.uistate, [], family)
+
+    def open_filter_editor(self, *args):
+        try:
+            FilterEditor("Person", CUSTOM_FILTERS, self.dbstate, self.uistate)
+        except WindowActiveError:
+            pass
 
     # printing
 
