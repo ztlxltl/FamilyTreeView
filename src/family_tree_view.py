@@ -385,7 +385,7 @@ class FamilyTreeView(NavigationView, Callback):
         ))
         if self.widget_manager.tree_builder.filtered_person_handles is not None:
             text += (" (Filter: %d/%d)" % (
-                self.widget_manager.num_persons_not_matching_filter_added,
+                self.widget_manager.num_persons_matching_filter_added,
                 len(self.widget_manager.tree_builder.filtered_person_handles),
             ))
         self.uistate.status.set_filter(text)

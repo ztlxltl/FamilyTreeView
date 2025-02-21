@@ -70,7 +70,7 @@ class FamilyTreeViewWidgetManager:
         self.main_widget.set_border_width(4)
 
         self.num_persons_added = 0
-        self.num_persons_not_matching_filter_added = 0
+        self.num_persons_matching_filter_added = 0
         self.num_missing_persons_added = 0
         self.num_families_added = 0
         self.person_handle_list = []
@@ -227,7 +227,7 @@ class FamilyTreeViewWidgetManager:
         self.minimap_manager.reset_minimap()
 
         self.num_persons_added = 0
-        self.num_persons_not_matching_filter_added = 0
+        self.num_persons_matching_filter_added = 0
         self.num_missing_persons_added = 0
         self.num_families_added = 0
         self.person_handle_list = []
@@ -385,8 +385,8 @@ class FamilyTreeViewWidgetManager:
         self.minimap_manager.add_person(x, person_generation, background_color)
 
         self.num_persons_added += 1
-        if not matches_filter:
-            self.num_persons_not_matching_filter_added += 1
+        if matches_filter:
+            self.num_persons_matching_filter_added += 1
 
         self.person_handle_list.append(person_handle)
         self.position_of_handle[person_handle] = [person_bounds["oc_x"], person_bounds["oc_y"]]
