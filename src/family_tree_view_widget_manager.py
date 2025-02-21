@@ -69,6 +69,10 @@ class FamilyTreeViewWidgetManager:
         self.main_widget = Gtk.Box(spacing=4, orientation=Gtk.Orientation.VERTICAL)
         self.main_widget.set_border_width(4)
 
+        self.num_persons_added = 0
+        self.num_persons_not_matching_filter_added = 0
+        self.num_missing_persons_added = 0
+        self.num_families_added = 0
         self.person_handle_list = []
 
         self.toolbar = Gtk.Box(spacing=4, orientation=Gtk.Orientation.HORIZONTAL)
@@ -222,6 +226,10 @@ class FamilyTreeViewWidgetManager:
         self.canvas_manager.reset_canvas()
         self.minimap_manager.reset_minimap()
 
+        self.num_persons_added = 0
+        self.num_persons_not_matching_filter_added = 0
+        self.num_missing_persons_added = 0
+        self.num_families_added = 0
         self.person_handle_list = []
         if self.search_widget is not None:
             self.search_widget.hide_search_popover()
@@ -239,10 +247,10 @@ class FamilyTreeViewWidgetManager:
             if is_home_person:
                 background_color = config.get("colors.home-person")[config.get("colors.scheme")]
 
+        matches_filter = self.tree_builder.filter_matches_person_handle(person_handle)
         if (
             self.ftv._config.get("appearance.familytreeview-filter-person-gray-out")
-            and self.ftv.generic_filter is not None
-            and not self.tree_builder.filter_matches_person_handle(person_handle)
+            and not matches_filter
         ):
             background_color = rgb_to_hex(
                 # average of r, g, and b for all 3 values
@@ -376,6 +384,10 @@ class FamilyTreeViewWidgetManager:
         )
         self.minimap_manager.add_person(x, person_generation, background_color)
 
+        self.num_persons_added += 1
+        if not matches_filter:
+            self.num_persons_not_matching_filter_added += 1
+
         self.person_handle_list.append(person_handle)
         self.position_of_handle[person_handle] = [person_bounds["oc_x"], person_bounds["oc_y"]]
 
@@ -416,6 +428,8 @@ class FamilyTreeViewWidgetManager:
             click_callback=None # TODO create new person
         )
         self.minimap_manager.add_person(x, person_generation, background_color)
+
+        self.num_missing_persons_added += 1
 
         return person_bounds
 
@@ -512,6 +526,8 @@ class FamilyTreeViewWidgetManager:
             badges=badges
         )
         self.minimap_manager.add_family(x, family_generation, background_color)
+
+        self.num_families_added += 1
 
         self.position_of_handle[family_handle] = [family_bounds["oc_x"], family_bounds["oc_y"]]
 

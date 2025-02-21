@@ -131,6 +131,8 @@ class FamilyTreeViewTreeBuilder():
 
         self.widget_manager.info_box_overlay_container.set_opacity(1)
 
+        self.ftv._set_filter_status()
+
     def show_progress_meter(self, *args):
         self.progress_meter._ProgressMeter__dialog.show()
         self.show_event_source_id = None

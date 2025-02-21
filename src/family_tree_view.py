@@ -346,6 +346,30 @@ class FamilyTreeView(NavigationView, Callback):
         self.rebuild_tree()
         self.uistate.modify_statusbar(self.dbstate)
 
+    def set_active(self):
+        NavigationView.set_active(self)
+        self._set_filter_status()
+
+    def _set_filter_status(self):
+        try:
+            self.widget_manager
+        except AttributeError:
+            # initializing
+            self.uistate.status.clear_filter()
+            return
+
+        text = self.uistate.viewmanager.active_page.get_title()
+        text += (": %d/%d" % (
+            self.widget_manager.num_persons_added,
+            self.dbstate.db.get_number_of_people(),
+        ))
+        if self.widget_manager.tree_builder.filtered_person_handles is not None:
+            text += (" (Filter: %d/%d)" % (
+                self.widget_manager.num_persons_not_matching_filter_added,
+                len(self.widget_manager.tree_builder.filtered_person_handles),
+            ))
+        self.uistate.status.set_filter(text)
+
     def _connect_db_signals(self):
         self.callman.add_db_signal("person-update", self._object_updated)
         self.callman.add_db_signal("family-update", self._object_updated)
