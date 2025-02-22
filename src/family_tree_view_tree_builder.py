@@ -22,7 +22,7 @@
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
-from gi.repository import GLib, Gtk
+from gi.repository import Gdk, GLib, Gtk
 
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.lib.childreftype import ChildRefType
@@ -113,8 +113,25 @@ class FamilyTreeViewTreeBuilder():
         self.expander_types_expanded = self.ftv._config.get("expanders.familytreeview-expander-types-expanded")
 
         # By preventing Gramps from freezing, the tree is redrawn often.
-        # Hide the tree while building it to avoid flickering.
-        self.widget_manager.info_box_overlay_container.set_opacity(0)
+        # Hide the tree while building it to avoid flickering caused by
+        # the many tree updates. Use an image for the old tree to
+        # prevent only briefly hiding the tree (small tree build fast).
+        # If the widget is not in a window, it's not visible yet and we
+        # don't need to hide it.
+        widget = self.widget_manager.main_container_paned
+        window = widget.get_window()
+        if window is not None:
+            # TODO This solution is not ideal: because of the static
+            # image, the scrollbars don't disappear after a few seconds,
+            # and resizing the window or the sidebar before the progress
+            # meter pops up causes a wrong visualization (it looks
+            # different when the canvas can adjust to the changed size).
+            alloc = widget.get_allocation()
+            pixbuf = Gdk.pixbuf_get_from_window(window, alloc.x, alloc.y, alloc.width, alloc.height)
+            image = Gtk.Image.new_from_pixbuf(pixbuf)
+            self.widget_manager.main_widget.remove(widget)
+            self.widget_manager.main_widget.pack_start(image, True, True, 0)
+            self.widget_manager.main_widget.show_all()
 
         self.use_progress = self.ftv._config.get("experimental.familytreeview-tree-builder-use-progress")
         if self.use_progress:
@@ -139,7 +156,13 @@ class FamilyTreeViewTreeBuilder():
             self.progress_meter.close()
             self.progress_meter = None
 
-        self.widget_manager.info_box_overlay_container.set_opacity(1)
+        if window is not None:
+            self.widget_manager.main_widget.remove(image)
+            self.widget_manager.main_widget.pack_start(widget, True, True, 0)
+            # Make sure there are no pending events (to compute widget
+            # sizes to correctly center the root person).
+            while Gtk.events_pending():
+                Gtk.main_iteration()
 
         self.ftv._set_filter_status()
 
