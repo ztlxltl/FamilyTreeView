@@ -20,6 +20,7 @@
 
 
 from copy import deepcopy
+from time import time
 from typing import TYPE_CHECKING
 
 from gi.repository import Gdk, GLib, Gtk
@@ -159,10 +160,26 @@ class FamilyTreeViewTreeBuilder():
         if window is not None:
             self.widget_manager.main_widget.remove(image)
             self.widget_manager.main_widget.pack_start(widget, True, True, 0)
-            # Make sure there are no pending events (to compute widget
-            # sizes to correctly center the root person).
-            while Gtk.events_pending():
-                Gtk.main_iteration()
+
+            # TODO This is a suboptimal workaround for a problem that
+            # makes no sense to me. (If no one can explain this, I would
+            # even dare to claim that this is a bug in Gtk.) Even though
+            # we're executing all pending main iterations, the main
+            # container sometimes only allocates a 1x1 rectangle. This
+            # causes problems later when we try to center the tree.
+            # idle_add and timeout_add with a small timeout don't work
+            # reliably, even after running the below while loop once or
+            # twice. (Using a larger timeout works, but causes
+            # flickering.) We need to force Gtk to allocate a valid
+            # rectangle for this widget before continuing.
+            start = time()
+            while (
+                self.widget_manager.main_container_paned.get_allocation().height == 1
+                and time() < start + 2 # 2 second timeout
+            ):
+                self.widget_manager.main_widget.show_all()
+                while Gtk.events_pending():
+                    Gtk.main_iteration()
 
         self.ftv._set_filter_status()
 
