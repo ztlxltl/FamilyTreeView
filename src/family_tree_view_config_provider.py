@@ -119,7 +119,7 @@ class FamilyTreeViewConfigProvider:
             ("experimental.familytreeview-adaptive-ancestor-generation-dist", True),
             ("experimental.familytreeview-connection-follow-on-click", False),
             ("experimental.familytreeview-filter-person-prune", False),
-            ("experimental.familytreeview-tree-builder-use-progress", False),
+            ("experimental.familytreeview-tree-builder-use-progress", True),
 
             # without config ui
             ("paths.familytreeview-recent-export-dir", USER_HOME),
