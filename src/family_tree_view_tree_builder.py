@@ -136,15 +136,8 @@ class FamilyTreeViewTreeBuilder():
 
         self.use_progress = self.ftv._config.get("experimental.familytreeview-tree-builder-use-progress")
         if self.use_progress:
-            self.progress_meter = ProgressMeter(
-                "FamilyTreeView",
-                can_cancel=True,
-                parent=self.uistate.window,
-            )
-            self.progress_meter._ProgressMeter__dialog.hide()
-            self.progress_meter.set_pass(
-                header=_("Building tree..."),
-                mode=ProgressMeter.MODE_ACTIVITY,
+            self.set_progress_meter_pass(
+                _("Building tree..."),
             )
 
         self.process_person(
@@ -154,8 +147,9 @@ class FamilyTreeViewTreeBuilder():
 
         if self.use_progress:
             self.cancel_checks_to_show_progress_meter()
-            self.progress_meter.close()
-            self.progress_meter = None
+            if self.progress_meter is not None:
+                self.progress_meter.close()
+                self.progress_meter = None
 
         if window is not None:
             self.widget_manager.main_widget.remove(image)
@@ -183,10 +177,37 @@ class FamilyTreeViewTreeBuilder():
 
         self.ftv._set_filter_status()
 
+    def set_progress_meter_pass(self, header, total=None):
+        if total is None:
+            mode = ProgressMeter.MODE_ACTIVITY
+            total = 100 # default of ProgressMeter
+        else:
+            mode = ProgressMeter.MODE_FRACTION
+        self.progress_meter_header = header
+        self.progress_meter_mode = mode
+        self.progress_meter_total = total
+        self.progress_meter_index = 0
+        if self.progress_meter is not None:
+            self.progress_meter.set_pass(
+                header=self.progress_meter_header,
+                mode=self.progress_meter_mode,
+                total=self.progress_meter_total,
+            )
+        self.schedule_check_to_show_progress_meter(mode==ProgressMeter.MODE_ACTIVITY)
+
+    def step_progress_meter(self):
+        self.progress_meter_index += 1
+        if self.progress_meter is not None:
+            self.progress_meter.step()
+        else:
+            # This is also done by step. Prevents Gramps from freezing.
+            while Gtk.events_pending():
+                Gtk.main_iteration()
+
     def schedule_check_to_show_progress_meter(self, activity=False):
         self.cancel_checks_to_show_progress_meter()
 
-        if self.progress_meter._ProgressMeter__dialog.get_visible():
+        if self.progress_meter is not None:
             # Nothing to do if already visible.
             return
 
@@ -207,25 +228,38 @@ class FamilyTreeViewTreeBuilder():
         # TODO Drawback of the current implementation: If none of the
         # multiple passes triggers to show the progress meter, it may
         # still take longer than the threshold to build the tree.
-        mode = self.progress_meter._ProgressMeter__mode
+        mode = self.progress_meter_mode
         if activity:
             if mode == ProgressMeter.MODE_ACTIVITY:
                 # If still in activity mode, this will take long.
                 # (Activity is used for fast dry runs.)
-                self.progress_meter._ProgressMeter__dialog.show()
-                self.cancel_checks_to_show_progress_meter()
+                self.show_progress_meter()
             # else: Just switched to fraction mode but not yet cancelled
             # this call.
         else:
-            index = self.progress_meter._ProgressMeter__pbar_index
-            max_index = self.progress_meter._ProgressMeter__pbar_max
+            index = self.progress_meter_index
+            total = self.progress_meter_total
             delay = self.check_to_show_progress_meter_fraction_delay
             threshold = self.show_progress_meter_time_threshold
-            if index/max_index < delay/threshold:
+            if index/total < delay/threshold:
                 # This will take longer than the threshold so show the
                 # progress meter.
-                self.progress_meter._ProgressMeter__dialog.show()
-                self.cancel_checks_to_show_progress_meter()
+                self.show_progress_meter()
+
+    def show_progress_meter(self):
+        self.cancel_checks_to_show_progress_meter()
+        self.progress_meter = ProgressMeter(
+            "FamilyTreeView",
+            can_cancel=True,
+            parent=self.uistate.window,
+        )
+        self.progress_meter.set_pass(
+            header=self.progress_meter_header,
+            mode=self.progress_meter_mode,
+            total=self.progress_meter_total,
+        )
+        if self.progress_meter_mode == ProgressMeter.MODE_FRACTION:
+           self.progress_meter._ProgressMeter__pbar_index = self.progress_meter_index
 
     def cancel_checks_to_show_progress_meter(self):
         for source in self.check_to_show_progress_meter_event_sources:
@@ -237,7 +271,8 @@ class FamilyTreeViewTreeBuilder():
         if not self.use_progress:
             return False
         if self.progress_meter is None:
-            return True
+            # Without the progress meter, the user cannot cancel.
+            return False
         return self.progress_meter.get_cancelled()
 
     def get_y_of_generation(self, generation):
@@ -273,7 +308,7 @@ class FamilyTreeViewTreeBuilder():
     ):
         step = False
         if self.use_progress:
-            if self.progress_meter._ProgressMeter__mode == ProgressMeter.MODE_FRACTION:
+            if self.progress_meter_mode == ProgressMeter.MODE_FRACTION:
                 if person_handle not in self.progress_pass_person_handles and not dry_run:
                     self.progress_pass_person_handles.append(person_handle)
                     step = True
@@ -282,7 +317,7 @@ class FamilyTreeViewTreeBuilder():
                     self.progress_pass_person_handles.append(person_handle)
                 step = True # always show activity
         if step:
-            self.progress_meter.step()
+            self.step_progress_meter()
         else:
             # Prevent Gramps from freezing. ProgressMeter.step() also
             # does this.
@@ -333,9 +368,8 @@ class FamilyTreeViewTreeBuilder():
 
         if process_families and not self.get_cancelled():
             if self.use_progress and not dry_run and person_generation == 0 and x_person == 0:
-                self.progress_meter.set_pass(
-                    header=_("Building families and descendants..."),
-                    mode=ProgressMeter.MODE_ACTIVITY,
+                self.set_progress_meter_pass(
+                    _("Building families and descendants..."),
                 )
             person_bounds = self.process_families(person_handle, person_bounds, x_person, person_generation, dry_run, process_descendants, skip_family_handle=skip_family_handle, child_handle_with_other_parents_to_collapse=child_handle_with_other_parents_to_collapse)
 
@@ -346,11 +380,9 @@ class FamilyTreeViewTreeBuilder():
             # parents, siblings etc.
             if not dry_run and person_generation == 0 and self.ftv._config.get("experimental.familytreeview-adaptive-ancestor-generation-dist"):
                 if self.use_progress and x_person == 0:
-                    self.progress_meter.set_pass(
-                        header=_("Preparing to build ancestors..."),
-                        mode=ProgressMeter.MODE_ACTIVITY,
+                    self.set_progress_meter_pass(
+                        _("Preparing to build ancestors..."),
                     )
-                    self.schedule_check_to_show_progress_meter(activity=True)
                     self.progress_pass_person_handles = []
 
                 # This dry_run is required for the generation distance. By filling self.num_connections_per_generation, the generation distance can be chosen to be no larger than necessary.
@@ -360,12 +392,10 @@ class FamilyTreeViewTreeBuilder():
                 self.generation_spread = {}
 
                 if self.use_progress and x_person == 0:
-                    self.progress_meter.set_pass(
-                        header=_("Building ancestors..."),
-                        total=len(self.progress_pass_person_handles),
-                        mode=ProgressMeter.MODE_FRACTION,
+                    self.set_progress_meter_pass(
+                        _("Building ancestors..."),
+                        len(self.progress_pass_person_handles),
                     )
-                    self.schedule_check_to_show_progress_meter()
                     self.progress_pass_person_handles = []
             person_bounds = self.process_ancestors(person, person_bounds, x_person, person_generation, ahnentafel, alignment, dry_run=dry_run)
 
@@ -558,11 +588,9 @@ class FamilyTreeViewTreeBuilder():
             return person_bounds
 
         if not dry_run and self.use_progress and x_person == 0 and person_generation == 0:
-            self.progress_meter.set_pass(
-                header=_("Preparing to build descendants..."),
-                mode=ProgressMeter.MODE_ACTIVITY,
+            self.set_progress_meter_pass(
+                _("Preparing to build descendants..."),
             )
-            self.schedule_check_to_show_progress_meter(activity=True)
             self.progress_pass_person_handles = []
 
         child_handles = [ref.ref for ref in child_refs]
@@ -584,12 +612,10 @@ class FamilyTreeViewTreeBuilder():
 
         if not dry_run:
             if self.use_progress and x_person == 0 and person_generation == 0:
-                self.progress_meter.set_pass(
-                    header=_("Building descendants..."),
-                    total=len(self.progress_pass_person_handles),
-                    mode=ProgressMeter.MODE_FRACTION,
+                self.set_progress_meter_pass(
+                    _("Building descendants..."),
+                    len(self.progress_pass_person_handles),
                 )
-                self.schedule_check_to_show_progress_meter()
                 self.progress_pass_person_handles = []
             for i_child, child_handle in enumerate(child_handles):
                 if self.get_cancelled():
@@ -609,11 +635,9 @@ class FamilyTreeViewTreeBuilder():
 
             # reset to generic progress
             if self.use_progress and x_person == 0 and person_generation == 0:
-                self.progress_meter.set_pass(
-                    header=_("Building families and descendants..."),
-                    mode=ProgressMeter.MODE_ACTIVITY,
+                self.set_progress_meter_pass(
+                    _("Building families and descendants..."),
                 )
-                self.schedule_check_to_show_progress_meter(activity=True)
         person_bounds["st_l"] = min(person_bounds["st_l"], x_family-x_person-children_subtree_width/2) # /2: descendants are centered
         person_bounds["st_r"] = max(person_bounds["st_r"], x_family-x_person+children_subtree_width/2)
         return person_bounds
