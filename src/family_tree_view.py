@@ -287,12 +287,21 @@ class FamilyTreeView(NavigationView, Callback):
         return self.config_provider.get_configure_page_funcs()
 
     def _cb_db_changed(self, db):
+        # When changing the db, the tree could rebuild tree times:
+        # - goto_handle() called by NavigationView.goto_active() on
+        #   receiving the active-changed signal (emitted while clearing
+        #   the history after database-changed is emitted by
+        #   CLIManager._post_load_newdb_nongui())
+        # - database-changed signal
+        # - goto_handle() called by NavigationView.goto_active() called
+        #   indirectly by ViewManager._post_load_newdb_gui()
+        # The call to goto_handle() due to the active-changed signal
+        # caused by a db change is identified and ignored. The
+        # database-changed signal is not used to rebuild the tree, only
+        # to update callbacks by a base class. Only the call to
+        # goto_handle() caused by "changing" the active view is used to
+        # rebuild the tree.
         self._change_db(db)
-        if self.active:
-            # The view will be updated when it is activated
-            # (NavigationView.set_active() causes build_tree and
-            # goto_handle to be called).
-            self.close_info_and_rebuild()
 
     def build_widget(self):
         # Widget is built during __init__ and only returned here.
@@ -352,6 +361,14 @@ class FamilyTreeView(NavigationView, Callback):
 
     def goto_handle(self, handle):
         # See also self.build_tree().
+
+        # See self._cb_db_changed() for context.
+        stack = inspect.stack()
+        if ("_post_load_newdb_nongui", "grampscli.py") in [
+            (frame.function, os.path.basename(frame.filename))
+            for frame in stack
+        ]:
+            return
 
         if handle:
             try:
