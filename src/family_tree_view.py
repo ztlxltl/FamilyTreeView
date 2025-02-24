@@ -25,7 +25,7 @@ from sqlite3 import InterfaceError
 import traceback
 
 import cairo
-from gi.repository import GdkPixbuf, GLib, Gtk
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from gramps.gen.config import config
 from gramps.gen.const import CUSTOM_FILTERS, GRAMPS_LOCALE
@@ -275,13 +275,11 @@ class FamilyTreeView(NavigationView, Callback):
 
     def cb_update_config(self, client, connection_id, entry, data):
 
-        # Required to apply changed number of generations to show.
-        self.widget_manager.tree_builder.reset()
-
         # Required to apply changed box size or number of lines for abbreviated names.
         self.widget_manager.canvas_manager.reset_boxes()
 
-        self.close_info_and_rebuild()
+        # reset: Required to apply changed number of generations to show.
+        self.close_info_and_rebuild(reset=True)
 
     def _get_configure_page_funcs(self):
         return self.config_provider.get_configure_page_funcs()
@@ -428,12 +426,12 @@ class FamilyTreeView(NavigationView, Callback):
             offset = self.widget_manager.canvas_manager.get_center_in_units()
             self.close_info_and_rebuild(offset=offset)
 
-    def close_info_and_rebuild(self, *_, offset=None): # *_ required when used as callback
+    def close_info_and_rebuild(self, *_, offset=None, reset=False): # *_ required when used as callback
         self.widget_manager.info_box_manager.close_info_box()
         self.widget_manager.close_panel()
-        self.rebuild_tree(offset=offset)
+        self.rebuild_tree(offset=offset, reset=reset)
 
-    def rebuild_tree(self, offset=None):
+    def rebuild_tree(self, offset=None, reset=False):
         self.uistate.set_busy_cursor(True)
 
         self.widget_manager.reset_tree()
@@ -448,15 +446,35 @@ class FamilyTreeView(NavigationView, Callback):
                 root_person_handle = root_person_handle[0]
 
             if root_person_handle is not None and len(root_person_handle) > 0: # handle can be empty string
-                if offset is None:
-                    # If there is no offset, the new tree is not closely related to the previous one.
-                    self.widget_manager.tree_builder.reset()
-                self.widget_manager.tree_builder.build_tree(root_person_handle)
-                if offset is None:
-                    self.widget_manager.canvas_manager.move_to_center()
-                else:
-                    self.widget_manager.canvas_manager.move_to_center(*offset)
+                # If there is no offset, the new tree is not closely
+                # related to the previous one.
+                reset = reset or offset is None
+                self._rebuild_tree(root_person_handle, offset, reset=reset)
         self.uistate.set_busy_cursor(False)
+
+    def _rebuild_tree(self, root_person_handle, offset=None, reset=False):
+
+        # Hide the widget temporarily to avoid flickering. See code of
+        # widget manager for more info. 
+        # If the widget is not in a window, it's not visible yet and we
+        # don't need to hide it.
+        widget = self.widget_manager.main_container_paned
+        window = widget.get_window()
+        if window is not None:
+            alloc = widget.get_allocation()
+            pixbuf = Gdk.pixbuf_get_from_window(window, alloc.x, alloc.y, alloc.width, alloc.height)
+            self.widget_manager.replacement_image.set_from_pixbuf(pixbuf)
+            self.widget_manager.main_container_stack.set_visible_child_name("image")
+
+        self.widget_manager.tree_builder.build_tree(root_person_handle, reset=reset)
+
+        if offset is None:
+            self.widget_manager.canvas_manager.move_to_center()
+        else:
+            self.widget_manager.canvas_manager.move_to_center(*offset)
+
+        if window is not None:
+            self.widget_manager.main_container_stack.set_visible_child_name("actual")
 
     def check_and_handle_special_db_cases(self):
         """Returns True if special cases were handled (no tree should be built)."""

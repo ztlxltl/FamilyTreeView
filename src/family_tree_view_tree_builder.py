@@ -20,10 +20,9 @@
 
 
 from copy import deepcopy
-from time import time
 from typing import TYPE_CHECKING
 
-from gi.repository import Gdk, GLib, Gtk
+from gi.repository import GLib, Gtk
 
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.lib.childreftype import ChildRefType
@@ -64,7 +63,6 @@ class FamilyTreeViewTreeBuilder():
         self.progress_pass_person_handles = []
 
         self.reset_filtered()
-        self.reset()
 
     def reset_filtered(self):
         if self.ftv.generic_filter is None:
@@ -95,12 +93,14 @@ class FamilyTreeViewTreeBuilder():
 
             self.filtered_person_handles = None
 
-    def reset(self):
-        """Should be called if the new tree is not closely related to the previous one, e.g. based on a different person."""
-        # Reset what was expanded and what not.
-        self.expanded = {}
+    def build_tree(self, root_person_handle, reset=True):
 
-    def build_tree(self, root_person_handle):
+        # The tree needs to reset if the new tree is not closely related
+        # to the previous one, e.g. based on a different person.
+        if reset:
+            # Reset what was expanded and what not.
+            self.expanded = {}
+
         # NOTE: ancestors have positive generation number (descendants negative)
         self.generation_spread = {}
 
@@ -112,27 +112,6 @@ class FamilyTreeViewTreeBuilder():
 
         self.expander_types_shown = self.ftv._config.get("expanders.familytreeview-expander-types-shown")
         self.expander_types_expanded = self.ftv._config.get("expanders.familytreeview-expander-types-expanded")
-
-        # By preventing Gramps from freezing, the tree is redrawn often.
-        # Hide the tree while building it to avoid flickering caused by
-        # the many tree updates. Use an image for the old tree to
-        # prevent only briefly hiding the tree (small tree build fast).
-        # If the widget is not in a window, it's not visible yet and we
-        # don't need to hide it.
-        widget = self.widget_manager.main_container_paned
-        window = widget.get_window()
-        if window is not None:
-            # TODO This solution is not ideal: because of the static
-            # image, the scrollbars don't disappear after a few seconds,
-            # and resizing the window or the sidebar before the progress
-            # meter pops up causes a wrong visualization (it looks
-            # different when the canvas can adjust to the changed size).
-            alloc = widget.get_allocation()
-            pixbuf = Gdk.pixbuf_get_from_window(window, alloc.x, alloc.y, alloc.width, alloc.height)
-            image = Gtk.Image.new_from_pixbuf(pixbuf)
-            self.widget_manager.main_widget.remove(widget)
-            self.widget_manager.main_widget.pack_start(image, True, True, 0)
-            self.widget_manager.main_widget.show_all()
 
         self.use_progress = self.ftv._config.get("experimental.familytreeview-tree-builder-use-progress")
         if self.use_progress:
@@ -150,30 +129,6 @@ class FamilyTreeViewTreeBuilder():
             if self.progress_meter is not None:
                 self.progress_meter.close()
                 self.progress_meter = None
-
-        if window is not None:
-            self.widget_manager.main_widget.remove(image)
-            self.widget_manager.main_widget.pack_start(widget, True, True, 0)
-
-            # TODO This is a suboptimal workaround for a problem that
-            # makes no sense to me. (If no one can explain this, I would
-            # even dare to claim that this is a bug in Gtk.) Even though
-            # we're executing all pending main iterations, the main
-            # container sometimes only allocates a 1x1 rectangle. This
-            # causes problems later when we try to center the tree.
-            # idle_add and timeout_add with a small timeout don't work
-            # reliably, even after running the below while loop once or
-            # twice. (Using a larger timeout works, but causes
-            # flickering.) We need to force Gtk to allocate a valid
-            # rectangle for this widget before continuing.
-            start = time()
-            while (
-                self.widget_manager.main_container_paned.get_allocation().height == 1
-                and time() < start + 2 # 2 second timeout
-            ):
-                self.widget_manager.main_widget.show_all()
-                while Gtk.events_pending():
-                    Gtk.main_iteration()
 
         self.ftv._set_filter_status()
 

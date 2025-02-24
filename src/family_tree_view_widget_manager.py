@@ -125,6 +125,18 @@ class FamilyTreeViewWidgetManager:
 
         self.main_widget.pack_start(self.toolbar, False, False, 0)
 
+        # By preventing Gramps from freezing, the tree is redrawn often.
+        # The stack is used to hide the tree while building it to avoid
+        # flickering caused by the many tree updates. Use an image for
+        # the old tree to prevent only briefly hiding the tree (small
+        # tree build fast).
+        # TODO This solution is not ideal: because of the static image,
+        # the scrollbars don't disappear after a few seconds, and
+        # resizing the window or the sidebar before the progress meter
+        # pops up causes a wrong visualization (it looks different when
+        # the canvas can adjust to the changed size).
+        self.main_container_stack = Gtk.Stack()
+
         self.main_container_paned = Gtk.Paned()
         self.main_container_paned_size_allocate_first_call = True
         self.main_container_paned.connect("size-allocate", self.main_container_paned_size_allocate)
@@ -148,7 +160,12 @@ class FamilyTreeViewWidgetManager:
 
         self.panel_manager = FamilyTreeViewPanelManager(self)
         self.main_container_paned.pack2(self.panel_manager.panel_widget)
-        self.main_widget.pack_start(self.main_container_paned, True, True, 0)
+        self.main_container_stack.add_named(self.main_container_paned, "actual")
+
+        self.replacement_image = Gtk.Image()
+        self.main_container_stack.add_named(self.replacement_image, "image")
+
+        self.main_widget.pack_start(self.main_container_stack, True, True, 0)
         self.external_panel = False
 
         self.panel_hidden = True
