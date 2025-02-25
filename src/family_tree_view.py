@@ -368,6 +368,7 @@ class FamilyTreeView(NavigationView, Callback):
         ]:
             return
 
+        goto_handle_was_called = False
         if handle:
             try:
                 person = self.get_person_from_handle(handle)
@@ -375,11 +376,15 @@ class FamilyTreeView(NavigationView, Callback):
                 # not a person
                 pass
             else:
-                if person is not None:
-                    # a person
+                # By setting the the active person, goto_handle will be
+                # called again if it's a different person.
+                if person is not None and handle != self.get_active():
+                    # It's a person and not the active person.
                     self.change_active(handle)
-        self.rebuild_tree()
-        self.uistate.modify_statusbar(self.dbstate)
+                    goto_handle_was_called = True
+        if not goto_handle_was_called:
+            self.rebuild_tree()
+            self.uistate.modify_statusbar(self.dbstate)
 
     def set_active(self):
         NavigationView.set_active(self)
