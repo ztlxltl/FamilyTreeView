@@ -365,13 +365,17 @@ class FamilyTreeViewConfigProvider:
         ]
         def _cb_image_resolution_combo_changed(combo, constant):
             self.ftv._config.set(constant, image_resolution_options[combo.get_active()][0])
+        active_i = [opt[0] for opt in image_resolution_options].index(
+            self.ftv._config.get("appearance.familytreeview-person-image-resolution")
+        )
         configdialog.add_combo(
             grid,
             _("Resolution of the images"),
             row,
             "appearance.familytreeview-person-image-resolution",
             image_resolution_options,
-            callback=_cb_image_resolution_combo_changed
+            callback=_cb_image_resolution_combo_changed,
+            setactive=active_i,
         )
 
         row += 1
