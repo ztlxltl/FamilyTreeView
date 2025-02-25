@@ -702,7 +702,7 @@ class FamilyTreeViewWidgetManager:
             function = self.ftv.set_active_person
             data = [person_handle]
         elif action == 5: # set as home
-            function = self.ftv.set_home_person()
+            function = self.ftv.set_home_person
             data = [person_handle, True] # also_set_active
         else:
             return False
