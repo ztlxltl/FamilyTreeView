@@ -78,6 +78,8 @@ class FamilyTreeViewConfigProvider:
             ("interaction.familytreeview-family-single-click-action", 1),
             ("interaction.familytreeview-family-double-click-action", 3),
             ("interaction.familytreeview-double-click-timeout-milliseconds", 200),
+            ("interaction.familytreeview-zoom-level-default", 0),
+            ("interaction.familytreeview-zoom-level-step", 0.15),
             ("interaction.familytreeview-family-info-box-set-active-button", False),
             ("interaction.familytreeview-printing-scale-to-page", False),
 
@@ -304,9 +306,6 @@ class FamilyTreeViewConfigProvider:
             (0, 20) # more might can performance issues, expanders can be used
         )
 
-        def spin_button_float_changed(spin_button, key):
-            self.ftv._config.set(key, spin_button.get_value())
-
         row += 1
         connection_line_width_spinner = configdialog.add_spinner(
             grid,
@@ -314,7 +313,7 @@ class FamilyTreeViewConfigProvider:
             row,
             "appearance.familytreeview-connections-line-width",
             (0.1, 10.0),
-            callback=spin_button_float_changed,
+            callback=self.spin_button_float_changed,
         )
         connection_line_width_spinner.set_digits(1)
         connection_line_width_spinner.get_adjustment().set_step_increment(0.1)
@@ -326,7 +325,7 @@ class FamilyTreeViewConfigProvider:
             row,
             "appearance.familytreeview-box-line-width",
             (0.0, 10.0),
-            callback=spin_button_float_changed,
+            callback=self.spin_button_float_changed,
         )
         box_line_width_spinner.set_digits(1)
         box_line_width_spinner.get_adjustment().set_step_increment(0.1)
@@ -659,6 +658,49 @@ class FamilyTreeViewConfigProvider:
         )
 
         row += 1
+        zoom_level_default_spin_button = configdialog.add_spinner(
+            grid,
+            _("Default zoom level"),
+            row,
+            "interaction.familytreeview-zoom-level-default",
+            (
+                self.ftv.widget_manager.canvas_manager.zoom_level_min,
+                self.ftv.widget_manager.canvas_manager.zoom_level_max
+            ),
+            callback=self.spin_button_float_changed,
+        )
+        zoom_level_default_spin_button.set_digits(2)
+        zoom_level_default_spin_button.get_adjustment().set_step_increment(0.1)
+
+        row += 1
+        set_default_zoom_button = configdialog.add_button(
+            grid,
+            _("Set current zoom level as default zoom level"),
+            row,
+            "",
+            extra_callback=lambda button:
+                zoom_level_default_spin_button.set_value(round(
+                    self.ftv.widget_manager.canvas_manager.get_zoom_level(),
+                    2 # two digits, same as displayed
+                ))
+        )
+        # move 1 grid column to the right (under spin button)
+        grid.remove(set_default_zoom_button)
+        grid.attach(set_default_zoom_button, 2, row, 1, 1)
+
+        row += 1
+        zoom_level_step_spin_button = configdialog.add_spinner(
+            grid,
+            _("Zoom level step size"),
+            row,
+            "interaction.familytreeview-zoom-level-step",
+            (0.01, 2.0),
+            callback=self.spin_button_float_changed,
+        )
+        zoom_level_step_spin_button.set_digits(2)
+        zoom_level_step_spin_button.get_adjustment().set_step_increment(0.05)
+
+        row += 1
         configdialog.add_checkbox(
             grid,
             _("Show \"Set active\" button in family info box (it has no effect on FamilyTreeView)"),
@@ -960,3 +1002,8 @@ class FamilyTreeViewConfigProvider:
 
     def get_family_content_item_defs(self):
         return self.boxes_page_manager._get_box_content_item_defs("family")
+
+    # utils
+
+    def spin_button_float_changed(self, spin_button, key):
+        self.ftv._config.set(key, spin_button.get_value())

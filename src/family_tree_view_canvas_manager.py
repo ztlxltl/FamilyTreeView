@@ -91,13 +91,18 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.other_parent_families_sep = sep_for_two_expanders
 
         # defaults
-        self.default_scale = 1
+        self.reset_zoom_values()
         self.reset_transform()
 
         self.reset_canvas()
         self.reset_boxes()
         self.svg_pixbuf_cache = {}
 
+        for key in [
+            "interaction.familytreeview-zoom-level-default",
+            "interaction.familytreeview-zoom-level-step"
+        ]:
+            self.ftv._config.connect(key, self.reset_zoom_values)
         for config_name in self.ftv._config.get_section_settings("boxes"):
             key = "boxes."+config_name
             self.ftv._config.connect(key, self.reset_boxes)
@@ -109,6 +114,10 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         # Connections are added to a group created as first canvas element so connections are below everything else.
         self.connection_group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
         self.canvas_bounds = [0, 0, 0, 0] # left, top, right, bottom
+
+    def reset_zoom_values(self, *args): # *args needed when used as a callback
+        self.default_zoom_level = self.ftv._config.get("interaction.familytreeview-zoom-level-default")
+        self.zoom_level_step = self.ftv._config.get("interaction.familytreeview-zoom-level-step")
 
     def reset_abbrev_names(self):
         self.fitting_abbrev_names = {}
