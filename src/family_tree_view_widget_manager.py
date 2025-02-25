@@ -162,8 +162,17 @@ class FamilyTreeViewWidgetManager:
         self.main_container_paned.pack2(self.panel_manager.panel_widget)
         self.main_container_stack.add_named(self.main_container_paned, "actual")
 
+        # Without a ScrolledWindow parent, Image would request it's size
+        # even when not visible in Stack. This would prevent the
+        # Sidebar and the Bottombar from expanding after a tree rebuild.
+        repl_image_scrolled = Gtk.ScrolledWindow()
+        # No scroll bars. (Those from the screenshot might be visible.)
+        repl_image_scrolled.set_policy(Gtk.PolicyType.EXTERNAL, Gtk.PolicyType.EXTERNAL)
+        # Deactivate scrolling, do nothing, don't propagate.
+        repl_image_scrolled.connect("scroll-event", lambda *args: True)
         self.replacement_image = Gtk.Image()
-        self.main_container_stack.add_named(self.replacement_image, "image")
+        repl_image_scrolled.add(self.replacement_image)
+        self.main_container_stack.add_named(repl_image_scrolled, "image")
 
         self.main_widget.pack_start(self.main_container_stack, True, True, 0)
         self.external_panel = False
