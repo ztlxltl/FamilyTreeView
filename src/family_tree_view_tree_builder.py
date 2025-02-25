@@ -119,16 +119,52 @@ class FamilyTreeViewTreeBuilder():
                 _("Building tree..."),
             )
 
-        self.process_person(
-            root_person_handle, 0, 0,
-            ahnentafel=1
-        )
+        failed = False
+        try:
+            self.process_person(
+                root_person_handle, 0, 0,
+                ahnentafel=1
+            )
+        except RecursionError:
+            failed = True
+            text = (
+                "The following are known causes of this issue. They will be "
+                "addressed in a future update.\n"
+                "- One or multiple loops in the database near the active "
+                "person. \n"
+                "Possible workaround: Try to reduce the number of generations "
+                "and/or disable expander expansion by default in the "
+                "FamilyTreeView's config window."
+            )
+        finally:
+            # Close the progress meter even when unknown errors occur.
+            if self.use_progress:
+                self.cancel_checks_to_show_progress_meter()
+                if self.progress_meter is not None:
+                    self.progress_meter.close()
+                    self.progress_meter = None
 
-        if self.use_progress:
-            self.cancel_checks_to_show_progress_meter()
-            if self.progress_meter is not None:
-                self.progress_meter.close()
-                self.progress_meter = None
+        if failed:
+            dialog = Gtk.MessageDialog(
+                transient_for=self.uistate.window,
+                flags=0,
+                message_type=Gtk.MessageType.INFO,
+                buttons=Gtk.ButtonsType.OK,
+                text=_("FamilyTreeView"),
+            )
+            # Since the tree is only build and only the visualization is
+            # modified, Gramps session and the database cannot be
+            # affected by an error in self.process_person().
+            dialog.format_secondary_markup(_(
+                "<b>Failed to build the tree.</b>\n"
+                "An error occurred while building the tree visualization.\n"
+                "This error has been handled by FamilyTreeView to prevent it "
+                "from adversely affecting the Gramps session or database "
+                "integrity. The visualization may be blank or incomplete.\n"
+                "\n" + text
+            ))
+            dialog.run()
+            dialog.destroy()
 
         self.ftv._set_filter_status()
 
