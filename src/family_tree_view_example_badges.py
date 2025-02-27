@@ -265,7 +265,12 @@ class FilterResultBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
         if self.ftv.generic_filter is None:
             return []
 
-        if not self.ftv.generic_filter.match(handle, dbstate.db):
+        try:
+            match = self.ftv.generic_filter.match(handle, dbstate.db)
+        except:
+            return []
+
+        if not match:
             return []
 
         return [{
