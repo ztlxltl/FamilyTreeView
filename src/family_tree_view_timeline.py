@@ -334,7 +334,7 @@ class FamilyTreeViewTimeline:
                     event_age_str = f"({age_str}) "
             event_type = _(str(event.type))
             event_date_str = get_date(event)
-            event_place_str = self.ftv.get_full_place_name_from_event(event)
+            event_place_str = self.ftv.get_place_name_from_event(event)
             if event_place_str is None: # no place
                 event_place_str = ""
             else:
@@ -524,12 +524,12 @@ class FamilyTreeViewTimeline:
                 fill_color=fg_color,
             )
             if i_tick == 0:
-                ink_extend_rect, logical_extend_rect =  tick_label.get_natural_extents()
-                Pango.extents_to_pixels(logical_extend_rect)
+                ink_extent_rect, logical_extent_rect =  tick_label.get_natural_extents()
+                Pango.extents_to_pixels(logical_extent_rect)
                 GooCanvas.CanvasText(
                     parent=root_item,
-                    x=x_tick - logical_extend_rect.width, # left align to tick_label
-                    y=self.timeline_top_margin - logical_extend_rect.height/2, # line above (in case there is a 0 at the first event)
+                    x=x_tick - logical_extent_rect.width, # left align to tick_label
+                    y=self.timeline_top_margin - logical_extent_rect.height/2, # line above (in case there is a 0 at the first event)
                     text=tick_unit_name,
                     alignment=Pango.Alignment.LEFT,
                     anchor=GooCanvas.CanvasAnchorType.SOUTH_WEST,
@@ -560,8 +560,8 @@ class FamilyTreeViewTimeline:
                 )
 
             label_allocation = event_label.get_allocation()
-            logical_extend_rect = get_label_line_height(event_label)
-            first_line_height = logical_extend_rect
+            logical_extent_rect = get_label_line_height(event_label)
+            first_line_height = logical_extent_rect
             first_line_center = label_allocation.y - canvas_allocation.y + self.event_margin + self.event_padding + first_line_height/2
 
             GooCanvas.CanvasEllipse(

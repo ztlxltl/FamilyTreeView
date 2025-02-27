@@ -50,12 +50,42 @@ def get_contrast_color(color):
         return "white"
     return "black"
 
+def get_event_from_person(db, person, event_type_name, idx=0):
+    events = []
+    for event_ref in person.get_event_ref_list():
+        if event_ref.get_role().is_primary():
+            event = db.get_event_from_handle(event_ref.ref)
+            if event.get_type().is_type(event_type_name):
+                if idx == 0:
+                    return event
+                else:
+                    events.append(event)
+    try:
+        return events[idx]
+    except IndexError:
+        return None
+
+def get_event_from_family(db, family, event_type_name, idx=0):
+    events = []
+    for event_ref in family.get_event_ref_list():
+        if event_ref.get_role().is_family():
+            event = db.get_event_from_handle(event_ref.ref)
+            if event.get_type().is_type(event_type_name):
+                if idx == 0:
+                    return event
+                else:
+                    events.append(event)
+    try:
+        return events[idx]
+    except IndexError:
+        return None
+
 def get_label_line_height(label):
     label_layout = label.get_layout()
     line = label_layout.get_line(0)
-    ink_extend_rect, logical_extend_rect = line.get_extents()
-    Pango.extents_to_pixels(logical_extend_rect)
-    return logical_extend_rect.height
+    ink_extent_rect, logical_extent_rect = line.get_extents()
+    Pango.extents_to_pixels(logical_extent_rect)
+    return logical_extent_rect.height
 
 def get_start_stop_ymd(event, calendar):
     start_ymd = event.date.to_calendar(calendar).get_ymd()
