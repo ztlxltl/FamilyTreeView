@@ -19,6 +19,8 @@
 #
 
 
+from math import log2
+
 from gi.repository import Gdk, Gtk
 
 from family_tree_view_utils import import_GooCanvas
@@ -29,11 +31,11 @@ GooCanvas = import_GooCanvas()
 class FamilyTreeViewCanvasManagerBase:
     def __init__(self, resize_reference=None):
 
-        self.scale_factor_zoom = 0.9
-        self.scale_factor_max = 20
-        self.scale_factor_min = 1/20
+        self.zoom_level_step = 0.1
+        self.zoom_level_max = 4
+        self.zoom_level_min = -4
 
-        self.default_scale = 1
+        self.default_zoom_level = 0
         self.default_x = 0
         self.default_y = 0
         self.clicking_canvas = False
@@ -56,7 +58,7 @@ class FamilyTreeViewCanvasManagerBase:
         self.canvas = GooCanvas.Canvas()
         self.canvas.connect("scroll-event", self.mouse_scroll)
         self.connect_root_item()
-        self.set_scale(self.default_scale)
+        self.set_zoom_level(self.default_zoom_level)
         self.canvas.set_bounds(-10000, -10000, 10000, 10000) # TODO
 
         self.canvas_container.add(self.canvas)
@@ -101,22 +103,21 @@ class FamilyTreeViewCanvasManagerBase:
         """
         Increase zoom scale.
         """
-        scale_factor = 1/self.scale_factor_zoom
-        scale = self.get_scale() * scale_factor
-        if scale > self.scale_factor_max:
-            scale = self.scale_factor_max
+        zoom_level = self.get_zoom_level() + self.zoom_level_step
+        if zoom_level > self.zoom_level_max:
+            zoom_level = self.zoom_level_max
+        scale = 2**zoom_level
         scale_factor = self.get_scale() / scale
-
         self.zoom_at_pointer(scale_factor)
 
     def zoom_out(self):
         """
         Decrease zoom scale.
         """
-        scale_factor = self.scale_factor_zoom
-        scale = self.get_scale() * scale_factor
-        if scale < self.scale_factor_min:
-            scale = self.scale_factor_min
+        zoom_level = self.get_zoom_level() - self.zoom_level_step
+        if zoom_level < self.zoom_level_min:
+            zoom_level = self.zoom_level_min
+        scale = 2**zoom_level
         scale_factor = self.get_scale() / scale
         self.zoom_at_pointer(scale_factor)
 
@@ -139,8 +140,14 @@ class FamilyTreeViewCanvasManagerBase:
 
         self.set_scale(scale)
 
+    def set_zoom_level(self, zoom_level):
+        self.set_scale(2**zoom_level)
+
     def set_scale(self, scale):
         self.canvas.set_scale(scale)
+
+    def get_zoom_level(self):
+        return log2(self.get_scale())
 
     def get_scale(self):
         return self.canvas.get_scale()
@@ -205,7 +212,7 @@ class FamilyTreeViewCanvasManagerBase:
         self.vadjustment.set_value(v_adj)
 
     def reset_transform(self):
-        self.set_scale(self.default_scale)
+        self.set_zoom_level(self.default_zoom_level)
         self.move_to_center()
 
     def move_to_center(self, x=None, y=None):

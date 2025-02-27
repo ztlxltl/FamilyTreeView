@@ -60,8 +60,8 @@ class FamilyTreeViewBadgeManager:
 
     BADGE_CONTENT_TYPES = [
         "text",
-        "icon_svg_inline",
-        "icon_svg_default",
+        "icon_file_svg",
+        "icon_svg_data_callback",
     ]
 
     BADGE_KEYS = [
@@ -129,17 +129,19 @@ class FamilyTreeViewBadgeManager:
             if content_element_info["content_type"] == "text":
                 content_element_type_keys = [
                     "text",
-                    "text_color"
+                    "text_color",
                 ]
-            elif content_element_info["content_type"] == "icon_svg_inline":
+            elif content_element_info["content_type"] == "icon_file_svg":
                 content_element_type_keys = [
-                    "svg_inline",
-                    "icon_fill_color"
+                    "file",
+                    "current_color",
                 ]
-            elif content_element_info["content_type"] == "icon_svg_default":
+            elif content_element_info["content_type"] == "icon_svg_data_callback":
                 content_element_type_keys = [
-                    "svg_default",
-                    "icon_fill_color"
+                    "callback",
+                    "fill_color",
+                    "stroke_color",
+                    "line_width",
                 ]
             # TODO image / pixel graphic
             assert all(key in self.CONTENT_ELEMENT_KEYS+content_element_type_keys for key in content_element_info) # all keys are known

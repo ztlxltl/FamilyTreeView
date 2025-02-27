@@ -19,6 +19,8 @@
 #
 
 
+import os
+
 from gramps.gen.config import config
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.lib.childreftype import ChildRefType
@@ -149,11 +151,16 @@ class NumChildrenBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
             # no badge(s)
             return []
 
+        # changed folder structure in package
+        base_dir = os.path.dirname(__file__)
+        if os.path.basename(base_dir) != "src":
+            base_dir = os.path.join(base_dir, "src")
+
         content = [
             {
-                "content_type": "icon_svg_inline",
-                "svg_inline": "descendants_simple",
-                "icon_fill_color": "SaddleBrown"
+                "content_type": "icon_file_svg",
+                "file": os.path.join(base_dir, "icons", "descendants.svg"),
+                "current_color": "black"
             },
             {
                 "content_type": "text",
@@ -166,7 +173,7 @@ class NumChildrenBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
                 "content_type": "text",
                 "tooltip": _("Number of all children: ") + str(num_children),
                 "text": "(" + str(num_children) + ")",
-                "text_color": "SaddleBrown"
+                "text_color": "saddlebrown"
             })
         return [
             {
@@ -186,15 +193,25 @@ class NumChildrenBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
             # no badge
             return []
 
+        # changed folder structure in package
+        base_dir = os.path.dirname(__file__)
+        if os.path.basename(base_dir) != "src":
+            base_dir = os.path.join(base_dir, "src")
+
         return [
             {
                 "background_color": "BurlyWood",
                 "tooltip": _("Number of all children: ") + str(num_children),
                 "content": [
                     {
+                        "content_type": "icon_file_svg",
+                        "file": os.path.join(base_dir, "icons", "descendants.svg"),
+                        "current_color": "saddlebrown"
+                    },
+                    {
                         "content_type": "text",
                         "text": str(num_children),
-                        "text_color": "SaddleBrown"
+                        "text_color": "saddlebrown"
                     }
                 ]
             }
@@ -248,7 +265,12 @@ class FilterResultBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
         if self.ftv.generic_filter is None:
             return []
 
-        if not self.ftv.generic_filter.match(handle, dbstate.db):
+        try:
+            match = self.ftv.generic_filter.match(handle, dbstate.db)
+        except:
+            return []
+
+        if not match:
             return []
 
         return [{

@@ -157,12 +157,14 @@ class FamilyTreeViewInfoBoxManager(FamilyTreeViewInfoWidgetManager):
         # Leaving it visible would cause a flickering, immediate height change.
         self.info_box_widget.set_opacity(0)
 
+        # self.info_box_widget is hidden for some reason:
+        self.info_box_widget.show_all()
+
         # The info box uses an overlay as it's size should be independent on zoom,
         # i.e. you should be able to read info on persons when zoomed out.
         # Furthermore, buttons are in the info box and zoom cannot be applied to widgets.
         self.position_child_connection_handle = self.overlay_container.connect("get-child-position", position_child)
         self.overlay_container.add_overlay(self.info_box_widget)
-        self.overlay_container.show_all()
 
         # adjust height to content
         # TODO: Why is sometimes the height too big?
