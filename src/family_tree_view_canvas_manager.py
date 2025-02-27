@@ -19,7 +19,7 @@
 #
 
 
-from math import atan, cos, pi, sin
+from math import atan, cos, pi, sin, sqrt
 from typing import TYPE_CHECKING
 
 from gi.repository import Gtk, GdkPixbuf, Pango
@@ -27,7 +27,6 @@ from gi.repository import Gtk, GdkPixbuf, Pango
 from gramps.gui.utils import get_contrast_color, rgb_to_hex
 
 from family_tree_view_canvas_manager_base import FamilyTreeViewCanvasManagerBase
-from family_tree_view_icons import get_svg_data
 from family_tree_view_utils import import_GooCanvas, make_hashable
 if TYPE_CHECKING:
     from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
@@ -53,7 +52,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
 
         self.max_name_line_count = 2
 
-        self.expander_sep = 5 # distance between expander and nearby boxes/expanders 
+        self.expander_sep = 5 # distance between expander and nearby boxes/expanders
 
         # horizontal seps
         self.spouse_sep = 10 # horizontal space between spouses
@@ -64,17 +63,11 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
 
         # box sizes
         self.corner_radius = 10
-        self.person_width = 130 # width of person boxes
-        self.person_height = 185 # height of person boxes
-        self.family_width = 2 * self.person_width + self.spouse_sep # width of family boxes
-        self.family_height = 25 # height of family boxes
-        self.image_width = 80
-        self.image_height = 80
         self.highlight_spread_radius = 20
-        self.person_info_box_width = 3 * self.person_width
-        self.person_info_box_height = 1.0 * self.person_height
-        self.family_info_box_width = 1.5 * self.family_width
-        self.family_info_box_height = 0.75 * self.person_info_box_height
+        self.person_info_box_width = 400
+        self.person_info_box_height = 200
+        self.family_info_box_width = 450
+        self.family_info_box_height = 150
         self.expander_size = 20
 
         # badges
@@ -88,11 +81,8 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.connection_sep = 10
 
         # combinations
-        self.bottom_family_offset = self.above_family_sep + self.family_height # vertical offset between bottom of family and bottom of spouses above it
         self.expander_space_needed = self.expander_sep + self.expander_size + self.expander_sep
         self.below_family_sep = self.expander_space_needed + 2*self.connection_radius + self.expander_space_needed + self.badge_radius
-        self.generation_sep = self.bottom_family_offset + self.below_family_sep # vertical space between persons from consecutive generations (generation < 3)
-        self.generation_offset = self.generation_sep + self.person_height
         sep_for_two_expanders = 2*self.expander_space_needed # with double self.expander_sep in the middle
         self.child_subtree_sep = sep_for_two_expanders
         self.sibling_sep = sep_for_two_expanders
@@ -101,13 +91,21 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.other_parent_families_sep = sep_for_two_expanders
 
         # defaults
-        self.default_scale = 1
-        self.default_y = -self.person_height/2
+        self.reset_zoom_values()
         self.reset_transform()
 
         self.reset_canvas()
-        self.reset_abbrev_names()
+        self.reset_boxes()
+        self.svg_pixbuf_cache = {}
 
+        for key in [
+            "interaction.familytreeview-zoom-level-default",
+            "interaction.familytreeview-zoom-level-step"
+        ]:
+            self.ftv._config.connect(key, self.reset_zoom_values)
+        for config_name in self.ftv._config.get_section_settings("boxes"):
+            key = "boxes."+config_name
+            self.ftv._config.connect(key, self.reset_boxes)
         self.ftv.uistate.connect("nameformat-changed", self.reset_abbrev_names)
         self.ftv.connect("abbrev-rules-changed", self.reset_abbrev_names)
 
@@ -116,12 +114,64 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         # Connections are added to a group created as first canvas element so connections are below everything else.
         self.connection_group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
         self.canvas_bounds = [0, 0, 0, 0] # left, top, right, bottom
-        self.ppi = self.ftv._config.get("experimental.familytreeview-canvas-font-size-ppi")
+
+    def reset_zoom_values(self, *args): # *args needed when used as a callback
+        self.default_zoom_level = self.ftv._config.get("interaction.familytreeview-zoom-level-default")
+        self.zoom_level_step = self.ftv._config.get("interaction.familytreeview-zoom-level-step")
 
     def reset_abbrev_names(self):
         self.fitting_abbrev_names = {}
 
-    def add_person(self, x, generation, name, abbr_names, birth_date, death_date, primary_color, secondary_color, image_spec, alive, round_lower_corners, click_callback=None, badges=None):
+    def reset_boxes(self, *args): # *args needed when used as a callback
+        # different size of box or different number of lines
+        self.reset_abbrev_names()
+        self.calculate_dimensions()
+
+    def calculate_dimensions(self):
+        self.calculate_line_height()
+
+        self.person_width = self.ftv.config_provider.get_person_width()
+        self.person_height = self.get_height_of_box_content_px("person") + 2*self.padding
+        self.family_height = self.get_height_of_box_content_px("family") + 2*self.padding
+
+        self.family_width = 2 * self.person_width + self.spouse_sep
+
+        # vertical offset between bottom of family and bottom of spouses
+        # above it:
+        self.bottom_family_offset = self.above_family_sep + self.family_height
+        # vertical space between persons from consecutive generations
+        # (only generation <= 2, above also considers multiple
+        # connections):
+        self.generation_sep = self.bottom_family_offset + self.below_family_sep
+        self.generation_offset = self.generation_sep + self.person_height
+
+        self.default_y = -self.person_height/2
+
+    def calculate_line_height(self):
+        style_context = self.canvas_container.get_style_context()
+        font_desc = style_context.get_font(Gtk.StateFlags.NORMAL)
+        text_item = GooCanvas.CanvasText(text=" ",font_desc=font_desc)
+        ink_extent_rect, logical_extent_rect = text_item.get_natural_extents()
+        # convert from Pango units to pixels
+        self.line_height_px = logical_extent_rect.height/Pango.SCALE
+
+    def get_height_of_box_content_px(self, box_type):
+        # sum up gutter, image height and lines
+        h = 0
+        if box_type == "person":
+            content_items = self.ftv.config_provider.get_person_content_item_defs()
+        else:
+            content_items = self.ftv.config_provider.get_family_content_item_defs()
+        for item in content_items:
+            if item[0] == "gutter":
+                h += item[1]["size"]
+            elif item[0] == "image":
+                h += item[1]["max_height"]
+            else:
+                h += item[1].get("lines", 1) * self.line_height_px
+        return h
+
+    def add_person(self, x, generation, content_items, primary_color, secondary_color, alive, round_lower_corners, click_callback=None, badges=None):
 
         # group
         group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
@@ -155,11 +205,10 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                 z
             """
 
+        line_width = self.ftv._config.get("appearance.familytreeview-box-line-width")
         if x == 0 and generation == 0 and self.ftv._config.get("appearance.familytreeview-highlight-root-person"):
             # This is the root person.
-            line_width = 4
-        else:
-            line_width = 2
+            line_width = min(line_width + 2, line_width * 2)
 
         box = GooCanvas.CanvasPath(
             parent=parent,
@@ -171,135 +220,22 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
 
         contrast_color = rgb_to_hex(get_contrast_color(tuple(box.props.fill_color_gdk_rgba)[:3]))
 
-        font_desc = self.canvas_container.get_style_context().get_font(Gtk.StateFlags.NORMAL)
-
-        # image
-        img_max_width = self.person_width - 2*self.padding
-        img_max_height = 80
-        if image_spec is None:
-            pass # no image
-        elif image_spec[0] == "path":
-            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(image_spec[1], img_max_width, img_max_height)
-            image_filter = self.ftv._config.get("appearance.familytreeview-person-image-filter")
-            if (image_filter == 1 and not alive) or image_filter == 2:
-                # grayscale
-                pixbuf.saturate_and_pixelate(pixbuf, 0, False)
-            img = GooCanvas.CanvasImage(
-                parent=parent,
-                x=x-img_max_width/2,
-                y=y-self.person_height+self.padding,
-                width=img_max_width,
-                height=img_max_height,
-                pixbuf=pixbuf
-            )
-            # center image
-            img.props.x += (img_max_width-img.props.width)/2
-            img.props.y += (img_max_height-img.props.height)/2
-        elif image_spec[0] == "svg_default":
-            img_max_width_red = img_max_width - self.padding*2
-            img_max_height_red = img_max_height - self.padding
-            svg_ds = get_svg_data(
-                image_spec[1],
-                x-img_max_width_red/2,
-                y-self.person_height+self.padding+self.padding, # extra padding
-                img_max_width_red,
-                img_max_height_red,
-                centered=True
-            )
-            for svg_d in svg_ds:
-                GooCanvas.CanvasPath(
-                    parent=parent,
-                    data=svg_d,
-                    fill_color=secondary_color,
-                    line_width=0
-                )
-        elif image_spec[0] == "text":
-            image_text_label = GooCanvas.CanvasText(
-                parent=parent,
-                x=x,
-                y=y-self.person_height+self.padding+img_max_height/2,
-                text=image_spec[1],
-                alignment=Pango.Alignment.CENTER,
-                anchor=GooCanvas.CanvasAnchorType.CENTER,
-                width=self.person_width-2*self.padding,
-                font_desc=font_desc,
-                fill_color=contrast_color,
-                # TODO somehow make ellipsize work for multiline (most likely has to kick in after using abbreviated names)
-            )
-            image_text_label
-
-        sep_below_image = 5 # between image and name
-        sep_below_name = 5 # between name and dates
-
-        max_text_height = self.person_height - 2*self.padding - img_max_height - sep_below_image
-        num_lines_dates = 2
-        num_max_name_text = 2
-        max_name_height = (max_text_height - sep_below_name) / (num_lines_dates+num_max_name_text) * num_max_name_text
-
-        # name
-        name_label = GooCanvas.CanvasText(
-            parent=parent,
-            x=x,
-            y=y-self.person_height+self.padding+img_max_height+sep_below_image,
-            text=abbr_names[0],
-            use_markup=True,
-            alignment=Pango.Alignment.CENTER,
-            anchor=GooCanvas.CanvasAnchorType.NORTH,
-            width=self.person_width-2*self.padding,
-            height=max_name_height,
-            font_desc=font_desc,
-            fill_color=contrast_color,
-            # TODO somehow make ellipsize work for multiline (most likely has to kick in after using abbreviated names)
-        )
-
-        if name is not None:
-            hashable_name = make_hashable(name.serialize())
-            if hashable_name in self.fitting_abbrev_names:
-                name_label.text_data.text = self.fitting_abbrev_names[hashable_name]
-            else:
-                size_pt = font_desc.get_size() / Pango.SCALE
-                ppi = self.ppi # TODO assumption: 96
-                size_px = size_pt * ppi/72
-                line_height_px = size_px * 1.2 # TODO how to compute this ? (current value seems to work)
-                for abbr_name in abbr_names[1:]: # skip full name used above
-                    ink_extend_rect, logical_extend_rect = name_label.get_natural_extents()
-                    Pango.extents_to_pixels(logical_extend_rect)
-                    # NOTE: logical_extend_rect is independent of the canvas scale
-                    if logical_extend_rect.height > 2*line_height_px:
-                        name_label.text_data.text = abbr_name
-                    else:
-                        break
-                self.fitting_abbrev_names[hashable_name] = name_label.text_data.text
-
-        # dates
-        if birth_date == "":
-            # Line hight doesn't change when zooming,
-            # if the line of birth date is empty.
-            birth_date = " "
-        GooCanvas.CanvasText(
-            parent=parent,
-            x=x,
-            y=y-self.person_height+self.padding+img_max_height+sep_below_image+max_name_height+sep_below_name,
-            text=f"{birth_date}\n{death_date}",
-            alignment=Pango.Alignment.CENTER,
-            anchor=GooCanvas.CanvasAnchorType.NORTH,
-            width=self.person_width-2*self.padding,
-            height=max_name_height,
-            font_desc=font_desc,
-            fill_color=contrast_color,
-            # ellipsization required for long dates (e.g. non-regular, non-default calendar)
-            ellipsize=Pango.EllipsizeMode.END
-        )
+        y_item = y - self.person_height + self.padding
+        content_width = self.person_width-2*self.padding
+        self.add_content_items(content_items, parent, x, y_item, secondary_color, contrast_color, content_width, alive)
 
         if not alive and self.ftv._config.get("appearance.familytreeview-show-deceased-ribbon"):
-            svg_ds = get_svg_data("deceased_ribbon", x-self.person_width/2, y-self.person_height, 25, 25)
-            for svg_d in svg_ds:
-                GooCanvas.CanvasPath(
-                    parent=parent,
-                    data=svg_d,
-                    fill_color=secondary_color,
-                    line_width=0
-                )
+            s = 25
+            r = 4
+            svg_data = f"M {s-r*sqrt(2)} 0 h {r*sqrt(2)} l {-s} {s} v {-r*sqrt(2)} z"
+            GooCanvas.CanvasPath(
+                parent=parent,
+                data=svg_data,
+                fill_color=secondary_color,
+                line_width=0,
+                x=x-self.person_width/2,
+                y=y-self.person_height,
+            )
 
         if badges is not None:
             self.add_badges(badges, x+self.person_width/2-self.padding, y-self.person_height)
@@ -315,7 +251,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             "bx_b": y
         }
 
-    def add_family(self, x, generation, marriage_date, primary_color, secondary_color, click_callback=None, badges=None):
+    def add_family(self, x, generation, content_items, primary_color, secondary_color, click_callback=None, badges=None):
 
         # group
         group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
@@ -334,31 +270,20 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             a {r} {r} 90 0 1 {-r} {-r}
             z
         """
+        line_width = self.ftv._config.get("appearance.familytreeview-box-line-width")
         box = GooCanvas.CanvasPath(
             parent=parent,
             data=data,
             fill_color=primary_color,
-            stroke_color=secondary_color
+            stroke_color=secondary_color,
+            line_width=line_width,
         )
 
         contrast_color = rgb_to_hex(get_contrast_color(tuple(box.props.fill_color_gdk_rgba)[:3]))
 
-        # date
-        font_desc = self.canvas_container.get_style_context().get_font(Gtk.StateFlags.NORMAL)
-        GooCanvas.CanvasText(
-            parent=parent,
-            x=x,
-            y=y+self.padding/2,
-            text=marriage_date,
-            alignment=Pango.Alignment.CENTER,
-            anchor=GooCanvas.CanvasAnchorType.NORTH,
-            width=self.family_width-2*self.padding,
-            height=self.family_height+2*self.padding,
-            font_desc=font_desc,
-            fill_color=contrast_color,
-            ellipsize=Pango.EllipsizeMode.END
-        )
-
+        y_item = y + self.padding
+        content_width = self.family_width-2*self.padding
+        self.add_content_items(content_items, parent, x, y_item, "#000", contrast_color, content_width, True)
         if badges is not None:
             self.add_badges(badges, x+self.family_width/2-self.padding, y)
 
@@ -373,6 +298,121 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             "bx_b": y + self.family_height,
             "x": x
         }
+
+    def add_content_items(self, content_items, parent, x, y_item, avatar_color, contrast_color, content_width, alive):
+        font_desc = self.canvas_container.get_style_context().get_font(Gtk.StateFlags.NORMAL)
+        for item in content_items:
+            if item[0] == "gutter":
+                y_item += item[1]["size"]
+            elif item[0] == "image":
+                img_max_height = item[1]["max_height"]
+                img_max_width = item[1]["max_width"]
+                image_spec = item[2]["image_spec"]
+                if image_spec is None:
+                    pass # no image
+                else:
+                    image_filter = self.ftv._config.get("appearance.familytreeview-person-image-filter")
+                    self.add_from_image_spec(
+                        parent,
+                        image_spec,
+                        x-img_max_width/2,
+                        y_item,
+                        min(content_width, img_max_width), img_max_height,
+                        grayscale=(image_filter == 1 and not alive) or image_filter == 2,
+                        color=avatar_color,
+                    )
+
+                y_item += img_max_height
+
+            elif item[0] in ["name", "names", "text"]:
+                max_height = self.line_height_px * item[1].get("lines", 1)
+                if item[0] == "name":
+                    if item[2]["name"] is None:
+                        text = ""
+                    else:
+                        # first name in list is full name
+                        text = item[2]["abbr_name_strs"][0]
+                elif item[0] == "names":
+                    if all(name is None for name in item[2]["names"]):
+                        text = ""
+                    else:
+                        # first item in list is combination of full names
+                        text = item[2]["abbr_name_strs"][0]
+                else:
+                    text = item[2]["text"]
+
+                text_item = GooCanvas.CanvasText(
+                    parent=parent,
+                    x=x,
+                    y=y_item,
+                    text=text,
+                    use_markup=True,
+                    alignment=Pango.Alignment.CENTER,
+                    anchor=GooCanvas.CanvasAnchorType.NORTH,
+                    width=content_width,
+                    height=max_height,
+                    font_desc=font_desc,
+                    fill_color=contrast_color,
+                    # ellipsize needs to be applied after abbreviation selection
+                    wrap=Pango.WrapMode.WORD,
+                )
+
+                if (
+                    (item[0] == "name" and item[2]["name"] is not None)
+                    or (item[0] == "names" and any(name is not None for name in item[2]["names"]))
+                ):
+                    # The hashes are valid for the name format returned by
+                    # self.ftv.abbrev_name_display.get_num_for_name_abbrev
+                    # for the names.
+                    if item[0] == "name":
+                        hashable_name = make_hashable(item[2]["name"].serialize())
+                    else:
+                        hashable_name = make_hashable(tuple(
+                            [item[2]["fmt_str"], item[1]["name_format"]] + [
+                                name
+                                if name is None else
+                                name.serialize()
+                                for name in item[2]["names"]
+                            ]
+                        ))
+                    if hashable_name in self.fitting_abbrev_names:
+                        text_item.text_data.text = self.fitting_abbrev_names[hashable_name]
+                    else:
+                        line_height_px = self.line_height_px
+                        for abbr_name in item[2]["abbr_name_strs"][1:]: # skip full name used above
+                            ink_extent_rect, logical_extent_rect = text_item.get_natural_extents()
+
+                            # Check the height since too many lines
+                            # requires the use of abbreviations.
+                            actual_height_px = logical_extent_rect.height/Pango.SCALE
+                            expected_height_px = item[1].get("lines", 1)*line_height_px
+                            # equivalent to rounding the number of lines
+                            height_threshold_px = expected_height_px + line_height_px/2
+
+                            # Also check the width, as long name parts
+                            # can be too long for the content width.
+                            # This is not ideal, because if the long
+                            # name part is abbreviated last, other name
+                            # parts are abbreviated which doesn't help.
+                            actual_width_px = logical_extent_rect.width/Pango.SCALE
+
+                            if (
+                                actual_height_px > height_threshold_px
+                                or actual_width_px > content_width
+                            ):
+                                text_item.text_data.text = abbr_name
+                            else:
+                                break
+                        self.fitting_abbrev_names[hashable_name] = text_item.text_data.text
+
+                if item[1].get("lines", 1) == 1:
+                    ellipsize = Pango.EllipsizeMode.END
+                else:
+                    # TODO somehow make ellipsize work for multiline
+                    ellipsize = Pango.EllipsizeMode.NONE
+                text_item.props.ellipsize = ellipsize
+
+                y_item += max_height
 
     def add_connection(self, x1, y1, x2, y2, ym=None, m=None, dashed=False, click_callback=None):
         if ym is None:
@@ -440,20 +480,23 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         else:
             line_dash = None
 
-        GooCanvas.CanvasPath(
-            parent=self.connection_group,
-            data=data,
-            stroke_color=fg_color,
-            line_width=2,
-            line_dash=line_dash
-        )
-        # add additional (invisible) path for larger clickable area
+        line_width = self.ftv._config.get("appearance.familytreeview-connections-line-width")
         path = GooCanvas.CanvasPath(
             parent=self.connection_group,
             data=data,
-            line_width=5,
-            stroke_color=None
+            stroke_color=fg_color,
+            line_width=line_width,
+            line_dash=line_dash
         )
+        if line_width < 5:
+            # add additional (invisible) path for larger clickable area
+            path = GooCanvas.CanvasPath(
+                parent=self.connection_group,
+                data=data,
+                line_width=5,
+                stroke_color=None
+            )
+        # path is visible CanvasPath if no invisible was drawn.
         path.connect("button-press-event", self.click_callback, click_callback, ym)
 
     def add_badges(self, badges, x, y):
@@ -496,19 +539,8 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             x += self.badge_content_sep # padding will be subtracted in loop
             for badge_content_info in reversed(badge_info["content"]): # start with last as badges are right aligned
                 x -= self.badge_content_sep
-                if badge_content_info["content_type"] == "icon_svg_inline":
-                    icon_size = 10
-                    svg_data = get_svg_data(badge_content_info["svg_inline"], x-icon_size, y-icon_size/2, icon_size, icon_size)
-                    for svg_d in svg_data:
-                        badge_content_text = GooCanvas.CanvasPath(
-                            parent=group,
-                            data=svg_d,
-                            fill_color="#000",
-                            line_width=0,
-                            tooltip=badge_content_info.get("tooltip", badge_info.get("tooltip")),
-                        )
-                    x = x - icon_size
-                elif badge_content_info["content_type"] == "text":
+                tooltip = badge_content_info.get("tooltip", badge_info.get("tooltip"))
+                if badge_content_info["content_type"] == "text":
                     badge_content_text = GooCanvas.CanvasText(
                         parent=group,
                         x=x,
@@ -518,11 +550,39 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                         alignment=Pango.Alignment.RIGHT,
                         anchor=GooCanvas.CanvasAnchorType.EAST,
                         font_desc=font_desc,
-                        tooltip=badge_content_info.get("tooltip", badge_info.get("tooltip")),
+                        tooltip=tooltip,
                     )
-                    ink_extend_rect, logical_extend_rect = badge_content_text.get_natural_extents()
-                    Pango.extents_to_pixels(logical_extend_rect)
-                    x = x - logical_extend_rect.width
+                    ink_extent_rect, logical_extent_rect = badge_content_text.get_natural_extents()
+                    Pango.extents_to_pixels(logical_extent_rect)
+                    x = x - logical_extent_rect.width
+                elif badge_content_info["content_type"][:5] == "icon_":
+                    icon_size = 10
+                    if badge_content_info["content_type"] == "icon_file_svg":
+                        self.add_from_image_spec(
+                            group, ("svg_path", badge_content_info["file"]),
+                            x-icon_size,
+                            y-icon_size/2,
+                            icon_size,
+                            icon_size,
+                            color=badge_content_info.get("current_color", "black"),
+                            tooltip=tooltip,
+                        )
+                    elif badge_content_info["content_type"] == "icon_svg_data_callback":
+                        svg_data = badge_content_info["callback"](icon_size, icon_size)
+                        fill_color = badge_content_info.get("fill_color", "#000")
+                        stroke_color = badge_content_info.get("line_width", None)
+                        line_width = badge_content_info.get("line_width", 0)
+                        GooCanvas.CanvasPath(
+                            parent=group,
+                            data=svg_data,
+                            fill_color=fill_color,
+                            stroke_color=stroke_color,
+                            line_width=line_width,
+                            tooltip=tooltip,
+                            x=x-icon_size,
+                            y=y-icon_size/2,
+                        )
+                    x = x - icon_size
 
             # TODO remove badge and break if too little space.
 
@@ -577,6 +637,88 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             data=data,
             stroke_color=rgb_to_hex(fg_color),
         ).rotate(ang, x, y)
+
+    def add_from_image_spec(self, parent, image_spec, x, y, max_width, max_height, color=None, grayscale=False, tooltip=None):
+        if image_spec[0] in ["path", "svg_path", "pixbuf"]:
+            if image_spec[0] == "path":
+                path = image_spec[1]
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
+            elif image_spec[0] == "svg_path":
+                svg_factor = 16 # if 1: too pixelated, if too large: slow
+                path = image_spec[1]
+                if color is None:
+                    # When viewBox is specified, the scaling will
+                    # increase resolution. If its not specified, the svg
+                    # is scaled down.
+                    pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(path, max_width*svg_factor, max_height*svg_factor)
+                else:
+                    with open(path, 'r') as file:
+                        svg_code = file.read()
+
+                    # Insert the color to use for currentcolor.
+                    # TODO Is this robust enough?
+                    index = svg_code.lower().find("svg")
+                    # 3 to insert after "svg"
+                    svg_code = svg_code[:index+3] + f""" style="color: {color}" """ + svg_code[index+3:]
+
+                    # Rendering SVGs at high resolution takes time.
+                    # Caching the result speeds up building large trees.
+                    if svg_code in self.svg_pixbuf_cache:
+                        pixbuf = self.svg_pixbuf_cache[svg_code]
+                    else:
+                        pixbuf_loader = GdkPixbuf.PixbufLoader()
+                        pixbuf_loader.set_size(
+                            max_width*svg_factor,
+                            max_height*svg_factor
+                        )
+                        pixbuf_loader.write(svg_code.encode())
+                        pixbuf_loader.close()
+                        pixbuf = pixbuf_loader.get_pixbuf()
+                        self.svg_pixbuf_cache[svg_code] = pixbuf
+            else:
+                pixbuf = image_spec[1]
+            if grayscale:
+                pixbuf.saturate_and_pixelate(pixbuf, 0, False)
+            img = GooCanvas.CanvasImage(
+                parent=parent,
+                x=x,
+                y=y,
+                pixbuf=pixbuf,
+                tooltip=tooltip,
+            )
+            # Setting image size with arguments doesn't work.
+            scale = min(
+                max_height/pixbuf.get_height(),
+                max_width/pixbuf.get_width()
+            )
+            img.props.width=pixbuf.get_width()*scale
+            img.props.height=pixbuf.get_height()*scale
+            # Otherwise, the image is cropped instead of scaled:
+            img.props.scale_to_fit=True
+
+            # center image
+            # needs to be done after setting size
+            img.props.x += (max_width-img.props.width)/2
+            img.props.y += (max_height-img.props.height)/2
+        elif image_spec[0] == "svg_data_callback":
+            svg_data, width, height = image_spec[1](
+                max_width,
+                max_height,
+            )
+            # Setting width and height (as a kwarg or the property),
+            # causes distortion (the order of defining/setting those
+            # matters). This happens when using absolute coordinates
+            # (upper-case letters) as well as when using relative
+            # coordinates (lower-case letters) in the path data.
+            GooCanvas.CanvasPath(
+                parent=parent,
+                data=svg_data,
+                fill_color=color,
+                line_width=0,
+                x=x+(max_width-width)/2,
+                y=y+(max_height-height)/2,
+                tooltip=tooltip,
+            )
 
     def click_callback(self, root_item, target, event, other_callback=None, *other_args, **other_kwargs):
         if self.widget_manager.search_widget is not None:

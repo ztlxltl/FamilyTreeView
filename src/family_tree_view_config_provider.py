@@ -25,9 +25,11 @@ from typing import TYPE_CHECKING
 from gi.repository import Gtk
 
 from gramps.gen.config import config
-from gramps.gen.const import GRAMPS_LOCALE
+from gramps.gen.const import GRAMPS_LOCALE, SIZE_LARGE, SIZE_NORMAL, USER_HOME
+from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.lib.eventtype import EventType
 
+from family_tree_view_config_page_manager_boxes import BOX_ITEMS, PREDEF_BOXES_DEFS, FamilyTreeViewConfigPageManagerBoxes
 from family_tree_view_config_provider_names import names_page, DEFAULT_ABBREV_RULES
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
@@ -40,6 +42,8 @@ class FamilyTreeViewConfigProvider:
         self.ftv = ftv
         self.badge_manager = ftv.badge_manager
 
+        self.boxes_page_manager = FamilyTreeViewConfigPageManagerBoxes(self)
+
     @staticmethod
     def get_config_settings():
         default_event_types_show_description = [
@@ -49,10 +53,14 @@ class FamilyTreeViewConfigProvider:
         return (
             ("appearance.familytreeview-num-ancestor-generations-default", 2),
             ("appearance.familytreeview-num-descendant-generations-default", 2),
+            ("appearance.familytreeview-connections-line-width", 2.0),
+            ("appearance.familytreeview-box-line-width", 2.0),
             ("appearance.familytreeview-highlight-root-person", True),
             ("appearance.familytreeview-show-deceased-ribbon", True),
             ("appearance.familytreeview-filter-person-gray-out", True),
+            ("appearance.familytreeview-person-image-resolution", 1),
             ("appearance.familytreeview-person-image-filter", 0),
+            ("appearance.familytreeview-place-format", -1),
             ("appearance.familytreeview-timeline-mode-default-person", 3),
             ("appearance.familytreeview-timeline-mode-default-family", 3),
             ("appearance.familytreeview-timeline-short-age", True),
@@ -70,17 +78,13 @@ class FamilyTreeViewConfigProvider:
             ("interaction.familytreeview-family-single-click-action", 1),
             ("interaction.familytreeview-family-double-click-action", 3),
             ("interaction.familytreeview-double-click-timeout-milliseconds", 200),
+            ("interaction.familytreeview-zoom-level-default", 0),
+            ("interaction.familytreeview-zoom-level-step", 0.15),
             ("interaction.familytreeview-family-info-box-set-active-button", False),
+            ("interaction.familytreeview-printing-scale-to-page", False),
 
-            ("badges.familytreeview-badges-active", { # most examples are turned off by default
-                "num_citations": {"person": False, "family": False},
-                "num_events_without_citations": {"person": False, "family": False},
-                "num_children": {"person": False, "family": False},
-                "num_other_families": {"person": False, "family": False},
-                "filter_result": {"person": True, "family": False},
-                "gramps_id": {"person": False, "family": False},
-                "gramps_handle": {"person": False, "family": False},
-            }),
+            ("boxes.familytreeview-boxes-custom-defs", {}),
+            ("boxes.familytreeview-boxes-selected-def-key", "regular"),
 
             ("names.familytreeview-abbrev-name-format-id", 0),
             ("names.familytreeview-abbrev-name-format-always", True),
@@ -104,9 +108,23 @@ class FamilyTreeViewConfigProvider:
                 "children": None, # controlled by generation num-descendant-generations-default
             }),
 
-            ("experimental.familytreeview-adaptive-ancestor-generation-dist", False),
+            ("badges.familytreeview-badges-active", { # most examples are turned off by default
+                "num_citations": {"person": False, "family": False},
+                "num_events_without_citations": {"person": False, "family": False},
+                "num_children": {"person": False, "family": False},
+                "num_other_families": {"person": False, "family": False},
+                "filter_result": {"person": True, "family": False},
+                "gramps_id": {"person": False, "family": False},
+                "gramps_handle": {"person": False, "family": False},
+            }),
+
+            ("experimental.familytreeview-adaptive-ancestor-generation-dist", True),
             ("experimental.familytreeview-connection-follow-on-click", False),
-            ("experimental.familytreeview-canvas-font-size-ppi", 96),
+            ("experimental.familytreeview-filter-person-prune", False),
+            ("experimental.familytreeview-tree-builder-use-progress", True),
+
+            # without config ui
+            ("paths.familytreeview-recent-export-dir", USER_HOME),
         )
 
     @staticmethod
@@ -135,31 +153,65 @@ class FamilyTreeViewConfigProvider:
                 if changed:
                     _config.set(key, event_types_config)
 
-        key = "badges.familytreeview-badges-active"
-        badge_config = _config.get(key)
+        key = "boxes.familytreeview-boxes-custom-defs"
+        content_def_config = _config.get(key)
         default_value = FamilyTreeViewConfigProvider.get_default_value(key)
-        if not isinstance(badge_config, dict):
+        if not isinstance(content_def_config, dict):
             _config.set(key, default_value)
         else:
             changed = False
-            for badge_id in badge_config:
-                if not isinstance(badge_config[badge_id], dict):
-                    if badge_id in default_value:
-                        badge_config[badge_id] = default_value[badge_id]
-                    else:
-                        badge_config[badge_id] = {"person": False, "family": False}
+            for k, v in content_def_config.items():
+                if not isinstance(k, str):
+                    content_def_config[str(k)] = content_def_config.pop(k)
+                    k = str(k)
                     changed = True
+
+                v_changed = False
+                if len(v) != 4:
+                    del content_def_config[k]
+                    changed = True
+                elif not isinstance(v[0], str):
+                    v[0] = str(v[0])
+                elif not isinstance(v[1], int):
+                    try:
+                        v[1] = int(v[1])
+                    except ValueError:
+                        v[1] = PREDEF_BOXES_DEFS["regular"][1]
+                    v_changed = True
                 else:
-                    for badge_loc in ["person", "family"]:
-                        if badge_loc not in badge_config[badge_id]:
-                            badge_config[badge_id][badge_loc] = False # default
-                            changed = True
+                    for i, box_type in [(2, "person"), (3, "family")]:
+                        if not isinstance(v[i], list):
+                            v[i] = PREDEF_BOXES_DEFS["regular"][i]
+                            v_changed = True
+                        else:
+                            js_to_delete = []
+                            for j in range(len(v[i])):
+                                if (
+                                    not isinstance(v[i][j][0], str)
+                                    or v[i][j][0] not in [item[0] for item in BOX_ITEMS[box_type]]
+                                    or not isinstance(v[i][j][1], dict)
+                                ):
+                                    js_to_delete.append(j)
+                                else:
+                                    idx = [item[0] for item in BOX_ITEMS[box_type]].index(v[i][j][0])
+                                    for k_, v_ in v[i][j][1].items():
+                                        if k_ not in BOX_ITEMS[box_type][idx][3].keys():
+                                            js_to_delete.append(j)
+                                        elif type(v_) != type(BOX_ITEMS[box_type][idx][3][k_]):
+                                            js_to_delete.append(j)
+                            for j in reversed(js_to_delete):
+                                v[i].pop(j)
+                                v_changed = True
+
+                if v_changed:
+                    content_def_config[k] = v
+                    changed = True
             if changed:
-                _config.set(key, badge_config)
+                _config.set(key, content_def_config)
 
         for key in [
             "expanders.familytreeview-expander-types-shown",
-            "expanders.familytreeview-expander-types-expanded"
+            "expanders.familytreeview-expander-types-expanded",
         ]:
             expander_config = _config.get(key)
             default_value = FamilyTreeViewConfigProvider.get_default_value(key)
@@ -190,6 +242,28 @@ class FamilyTreeViewConfigProvider:
                 if changed:
                     _config.set(key, expander_config)
 
+        key = "badges.familytreeview-badges-active"
+        badge_config = _config.get(key)
+        default_value = FamilyTreeViewConfigProvider.get_default_value(key)
+        if not isinstance(badge_config, dict):
+            _config.set(key, default_value)
+        else:
+            changed = False
+            for badge_id in badge_config:
+                if not isinstance(badge_config[badge_id], dict):
+                    if badge_id in default_value:
+                        badge_config[badge_id] = default_value[badge_id]
+                    else:
+                        badge_config[badge_id] = {"person": False, "family": False}
+                    changed = True
+                else:
+                    for badge_loc in ["person", "family"]:
+                        if badge_loc not in badge_config[badge_id]:
+                            badge_config[badge_id][badge_loc] = False # default
+                            changed = True
+            if changed:
+                _config.set(key, badge_config)
+
     @staticmethod
     def get_default_value(key):
         for key_, value in FamilyTreeViewConfigProvider.get_config_settings():
@@ -200,6 +274,7 @@ class FamilyTreeViewConfigProvider:
         return [
             self.appearance_page,
             self.interaction_page,
+            self.boxes_page,
             self.names_page,
             self.expanders_page,
             self.badges_page,
@@ -232,6 +307,30 @@ class FamilyTreeViewConfigProvider:
         )
 
         row += 1
+        connection_line_width_spinner = configdialog.add_spinner(
+            grid,
+            _("Line width of connections"),
+            row,
+            "appearance.familytreeview-connections-line-width",
+            (0.1, 10.0),
+            callback=self.spin_button_float_changed,
+        )
+        connection_line_width_spinner.set_digits(1)
+        connection_line_width_spinner.get_adjustment().set_step_increment(0.1)
+
+        row += 1
+        box_line_width_spinner = configdialog.add_spinner(
+            grid,
+            _("Line width of boxes"),
+            row,
+            "appearance.familytreeview-box-line-width",
+            (0.0, 10.0),
+            callback=self.spin_button_float_changed,
+        )
+        box_line_width_spinner.set_digits(1)
+        box_line_width_spinner.get_adjustment().set_step_increment(0.1)
+
+        row += 1
         configdialog.add_checkbox(
             grid,
             _("Highlight the root (active) person with a thick outline"),
@@ -259,6 +358,27 @@ class FamilyTreeViewConfigProvider:
         )
 
         row += 1
+        image_resolution_options = [
+            (SIZE_NORMAL, _("Normal")),
+            (SIZE_LARGE, _("High")),
+            (-1, _("Original")),
+        ]
+        def _cb_image_resolution_combo_changed(combo, constant):
+            self.ftv._config.set(constant, image_resolution_options[combo.get_active()][0])
+        active_i = [opt[0] for opt in image_resolution_options].index(
+            self.ftv._config.get("appearance.familytreeview-person-image-resolution")
+        )
+        configdialog.add_combo(
+            grid,
+            _("Resolution of the images"),
+            row,
+            "appearance.familytreeview-person-image-resolution",
+            image_resolution_options,
+            callback=_cb_image_resolution_combo_changed,
+            setactive=active_i,
+        )
+
+        row += 1
         configdialog.add_combo(
             grid,
             _("Person image filter"),
@@ -269,6 +389,25 @@ class FamilyTreeViewConfigProvider:
                 (1, _("Apply grayscale to dead persons")),
                 (2, _("Apply grayscale to all persons")),
             ]
+        )
+
+        row += 1
+        place_format_options = [(-1, _("Default"))]
+        for i, place_format in enumerate(place_displayer.get_formats()):
+            place_format_options.append((i, place_format.name))
+        def _cb_place_format_combo_changed(combo, constant):
+            self.ftv._config.set(constant, place_format_options[combo.get_active()][0])
+        active = self.ftv._config.get("appearance.familytreeview-place-format")+1
+        if active not in [i for i, format_name in place_format_options]:
+            active = -1+1
+        configdialog.add_combo(
+            grid,
+            _("Place format in the tree"),
+            row,
+            "appearance.familytreeview-place-format",
+            place_format_options,
+            setactive=active,
+            callback=_cb_place_format_combo_changed,
         )
 
         row += 1
@@ -523,6 +662,49 @@ class FamilyTreeViewConfigProvider:
         )
 
         row += 1
+        zoom_level_default_spin_button = configdialog.add_spinner(
+            grid,
+            _("Default zoom level"),
+            row,
+            "interaction.familytreeview-zoom-level-default",
+            (
+                self.ftv.widget_manager.canvas_manager.zoom_level_min,
+                self.ftv.widget_manager.canvas_manager.zoom_level_max
+            ),
+            callback=self.spin_button_float_changed,
+        )
+        zoom_level_default_spin_button.set_digits(2)
+        zoom_level_default_spin_button.get_adjustment().set_step_increment(0.1)
+
+        row += 1
+        set_default_zoom_button = configdialog.add_button(
+            grid,
+            _("Set current zoom level as default zoom level"),
+            row,
+            "",
+            extra_callback=lambda button:
+                zoom_level_default_spin_button.set_value(round(
+                    self.ftv.widget_manager.canvas_manager.get_zoom_level(),
+                    2 # two digits, same as displayed
+                ))
+        )
+        # move 1 grid column to the right (under spin button)
+        grid.remove(set_default_zoom_button)
+        grid.attach(set_default_zoom_button, 2, row, 1, 1)
+
+        row += 1
+        zoom_level_step_spin_button = configdialog.add_spinner(
+            grid,
+            _("Zoom level step size"),
+            row,
+            "interaction.familytreeview-zoom-level-step",
+            (0.01, 2.0),
+            callback=self.spin_button_float_changed,
+        )
+        zoom_level_step_spin_button.set_digits(2)
+        zoom_level_step_spin_button.get_adjustment().set_step_increment(0.05)
+
+        row += 1
         configdialog.add_checkbox(
             grid,
             _("Show \"Set active\" button in family info box (it has no effect on FamilyTreeView)"),
@@ -531,7 +713,23 @@ class FamilyTreeViewConfigProvider:
             stop=3 # same width as spinners and combos
         )
 
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _(
+                "Printing: Scale down tree to fit on Letter and A4 paper. "
+                "Uncheck to print at 1:1 scale.\n"
+                "Note that scaling down can cause distorted text on some systems."
+            ),
+            row,
+            "interaction.familytreeview-printing-scale-to-page",
+            stop=3 # same width as spinners and combos
+        )
+
         return (_("Interaction"), grid)
+
+    def boxes_page(self, configdialog):
+        return self.boxes_page_manager.boxes_page(configdialog)
 
     def names_page(self, configdialog):
         return names_page(self.ftv, configdialog)
@@ -779,18 +977,37 @@ class FamilyTreeViewConfigProvider:
         )
 
         row += 1
-        configdialog.add_spinner(
+        configdialog.add_checkbox(
             grid,
-            _(
-                "PPI (pixels per inch) to calculate font size in pixels for name display on canvas"
-                "(increase if there is only one line, decrease if there are more that two lines, default: 96)"
-            ),
+            _("Prune people who do not match the sidebar filter"),
             row,
-            "experimental.familytreeview-canvas-font-size-ppi",
-            (20, 1000)
+            "experimental.familytreeview-filter-person-prune",
+            stop=3 # same width as spinners and combos
         )
-        label = grid.get_child_at(1, row)
-        label.set_line_wrap(True)
-        label.set_xalign(0)
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _("Display progress dialog while building the tree"),
+            row,
+            "experimental.familytreeview-tree-builder-use-progress",
+            stop=3 # same width as spinners and combos
+        )
 
         return (_("Experimental"), grid)
+
+    # boxes page wrappers
+
+    def get_person_width(self):
+        return self.boxes_page_manager._get_person_width()
+
+    def get_person_content_item_defs(self):
+        return self.boxes_page_manager._get_box_content_item_defs("person")
+
+    def get_family_content_item_defs(self):
+        return self.boxes_page_manager._get_box_content_item_defs("family")
+
+    # utils
+
+    def spin_button_float_changed(self, spin_button, key):
+        self.ftv._config.set(key, spin_button.get_value())
