@@ -308,7 +308,7 @@ class AbbreviatedNameDisplay():
         if return_step_description:
             use_cached = False
 
-        hashable_name = make_hashable(name.serialize())
+        hashable_name = make_hashable((name.serialize(), num))
         if use_cached and hashable_name in self.cache:
             return self.cache[hashable_name]
 

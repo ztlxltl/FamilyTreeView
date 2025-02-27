@@ -172,7 +172,7 @@ class FamilyTreeViewInfoWidgetManager:
             event_type_label = self.create_label_for_grid(markup=f"<b>{_(str(event.type))}</b>")
             grid.attach(event_type_label, 0, i_row, 1, 1)
 
-            place_name = self.ftv.get_full_place_name_from_event(event)
+            place_name = self.ftv.get_place_name_from_event(event)
             if place_name is not None:
                 event_data_label = self.create_label_for_grid(f"{get_date(event)}\n{place_name}")
                 grid.attach(event_data_label, 1, i_row, 1, 1)
