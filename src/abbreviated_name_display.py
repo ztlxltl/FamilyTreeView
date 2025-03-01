@@ -216,7 +216,7 @@ def _raw_single_surname(raw_surn_data_list):
     """method for the 'q' symbol: surnames without prefix and connectors"""
     result = []
     for raw_surn_data in raw_surn_data_list:
-        result += [("primary-prefix", raw_surn_data[_PREFIX_IN_LIST]), " "]
+        result += [("primary-surname", raw_surn_data[_SURNAME_IN_LIST]), " "]
     return __strip(__split_join(result))
 
 def __format_raw_surname(raw_surn_data, primary=False):
