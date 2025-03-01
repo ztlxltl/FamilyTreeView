@@ -55,7 +55,7 @@ class FamilyTreeViewPanelGramplet(FamilyTreeViewGramplet):
                     ))
 
             # unrealized is emitted when a Gramplet is removed, destroy is not emitted.
-            container.connect("unrealize", lambda *args: self.ftv.widget_manager.use_internal_handle())
+            container.connect("unrealize", lambda *args: self.ftv.widget_manager.use_internal_panel())
         else:
             self.panel_manager = None
 

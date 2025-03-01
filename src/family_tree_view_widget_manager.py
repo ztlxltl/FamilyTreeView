@@ -19,6 +19,7 @@
 #
 
 
+import inspect
 import os
 import sys
 from typing import TYPE_CHECKING
@@ -183,16 +184,26 @@ class FamilyTreeViewWidgetManager:
 
         self.position_of_handle = {} # keep record of what is placed where
 
-    def use_internal_handle(self):
-        # TODO skip if Gramps is closed
-        if self.panel_manager.panel_widget.get_parent() != self.main_container_paned:
-            if self.panel_manager.panel_widget.get_parent() is not None:
-                self.panel_manager.panel_widget.get_parent().remove(self.panel_manager.panel_widget)
-            self.main_container_paned.pack2(self.panel_manager.panel_widget)
-        if self.panel_manager.panel_scrolled.get_parent() != self.panel_manager.panel_widget:
-            if self.panel_manager.panel_scrolled.get_parent() is not None:
-                self.panel_manager.panel_scrolled.get_parent().remove(self.panel_manager.panel_scrolled)
-            self.panel_manager.panel_widget.add(self.panel_manager.panel_scrolled)
+    def use_internal_panel(self):
+        stack = inspect.stack()
+        frame = stack[2]
+        if not (
+            frame.function == "remove_gramplet"
+            and os.path.basename(frame.filename) == "grampletbar.py"
+        ):
+            # Gramps is closing. No need to move widgets around.
+            return
+
+        panel_widget = self.panel_manager.panel_widget
+        panel_scrolled = self.panel_manager.panel_scrolled
+        if panel_widget.get_parent() != self.main_container_paned:
+            if panel_widget.get_parent() is not None:
+                panel_widget.get_parent().remove(panel_widget)
+            self.main_container_paned.pack2(panel_widget)
+        if panel_scrolled.get_parent() != panel_widget:
+            if panel_scrolled.get_parent() is not None:
+                panel_scrolled.get_parent().remove(panel_scrolled)
+            panel_widget.add(panel_scrolled)
         self.external_panel = False
 
     def use_external_panel(self, new_container, show_panel_header_in_external_panel=False):
