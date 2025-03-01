@@ -232,10 +232,12 @@ class FamilyTreeViewConfigPageManagerBoxes:
         main_grid.attach(self.content_def_combo, 3, row, 2, 1)
 
         row += 1
-        def_option_box = Gtk.Box()
         label = Gtk.Label(_("Boxes definition name:"))
         label.set_halign(Gtk.Align.START)
         main_grid.attach(label, 1, row, 2, 1)
+        def_option_box = Gtk.ButtonBox()
+        def_option_box.set_layout(Gtk.ButtonBoxStyle.EXPAND)
+        def_option_box.set_homogeneous(False)
         self.boxes_def_name_entry = Gtk.Entry()
         self.boxes_def_name_entry.set_hexpand(True)
         self.boxes_def_name_entry.set_text(self._get_content_def_name())
@@ -251,11 +253,13 @@ class FamilyTreeViewConfigPageManagerBoxes:
         self.boxes_def_name_entry.connect("changed", _cb_boxes_def_name_changed)
         def_option_box.add(self.boxes_def_name_entry)
         duplicate_def_button = Gtk.Button(image=Gtk.Image(icon_name="edit-copy"))
+        duplicate_def_button.set_tooltip_text(_("Duplicate this boxes definition"))
         def _cb_boxes_def_duplicate(button):
             self._duplicate_def(show_message=False)
         duplicate_def_button.connect("clicked", _cb_boxes_def_duplicate)
-        def_option_box.add(duplicate_def_button)
+        def_option_box.pack_start(duplicate_def_button, False, False, 0)
         remove_def_button = Gtk.Button(image=Gtk.Image(icon_name="list-remove"))
+        remove_def_button.set_tooltip_text(_("Remove this boxes definition"))
         remove_def_button.set_sensitive(not self._is_predef_boxes_def())
         def _cb_boxes_def_remove(button):
             key_to_remove = self.ftv._config.get("boxes.familytreeview-boxes-selected-def-key")
@@ -269,7 +273,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
             self.boxes_defs.pop(active_idx)
             self._remove_boxes_def(key_to_remove)
         remove_def_button.connect("clicked", _cb_boxes_def_remove)
-        def_option_box.add(remove_def_button)
+        def_option_box.pack_start(remove_def_button, False, False, 0)
         main_grid.attach(def_option_box, 3, row, 2, 1)
 
         row +=1
@@ -378,29 +382,34 @@ class FamilyTreeViewConfigPageManagerBoxes:
             item_def_buttons_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
             add_item_def_button = Gtk.Button(image=Gtk.Image(icon_name="list-add"))
+            add_item_def_button.set_tooltip_text(_("Add a new box item definition"))
             self.add_item_def_buttons[box_type] = add_item_def_button
             add_item_def_button.connect("clicked", self._cb_add_item_def_button_clicked, box_type)
             item_def_buttons_box.add(add_item_def_button)
 
             duplicate_item_def_button = Gtk.Button(image=Gtk.Image(icon_name="edit-copy"))
+            duplicate_item_def_button.set_tooltip_text(_("Duplicate the selected item definition"))
             self.duplicate_item_def_buttons[box_type] = duplicate_item_def_button
             duplicate_item_def_button.set_sensitive(False)
             duplicate_item_def_button.connect("clicked", self._cb_duplicate_item_def_button_clicked, box_type)
             item_def_buttons_box.add(duplicate_item_def_button)
 
             up_item_def_button = Gtk.Button(image=Gtk.Image(icon_name="go-up-symbolic"))
+            up_item_def_button.set_tooltip_text(_("Move the selected item definition up"))
             self.up_item_def_buttons[box_type] = up_item_def_button
             up_item_def_button.set_sensitive(False)
             up_item_def_button.connect("clicked", self._cb_up_item_def_button_clicked, box_type)
             item_def_buttons_box.add(up_item_def_button)
 
             down_item_def_button = Gtk.Button(image=Gtk.Image(icon_name="go-down-symbolic"))
+            down_item_def_button.set_tooltip_text(_("Move the selected item definition down"))
             self.down_item_def_buttons[box_type] = down_item_def_button
             down_item_def_button.set_sensitive(False)
             down_item_def_button.connect("clicked", self._cb_down_item_def_button_clicked, box_type)
             item_def_buttons_box.add(down_item_def_button)
 
             remove_item_def_button = Gtk.Button(image=Gtk.Image(icon_name="list-remove"))
+            remove_item_def_button.set_tooltip_text(_("Remove the selected item definition"))
             self.remove_item_def_buttons[box_type] = remove_item_def_button
             remove_item_def_button.set_sensitive(False)
             remove_item_def_button.connect("clicked", self._cb_remove_item_def_button_clicked, box_type)
