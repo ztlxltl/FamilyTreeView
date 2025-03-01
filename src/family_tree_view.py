@@ -465,7 +465,7 @@ class FamilyTreeView(NavigationView, Callback):
         # don't need to hide it.
         widget = self.widget_manager.main_container_paned
         window = widget.get_window()
-        if window is not None:
+        if window is not None and window.is_viewable():
             alloc = widget.get_allocation()
             pixbuf = Gdk.pixbuf_get_from_window(window, alloc.x, alloc.y, alloc.width, alloc.height)
             self.widget_manager.replacement_image.set_from_pixbuf(pixbuf)
