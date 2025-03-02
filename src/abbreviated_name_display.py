@@ -242,13 +242,17 @@ def __format_raw_surname(raw_surn_data, primary=False):
 
 def __strip(x):
     while (
-        (isinstance(x[0], str) and x[0].strip() == "")
-        or (isinstance(x[0], tuple) and x[0][1].strip() == "")
+        len(x) > 0 and (
+            (isinstance(x[0], str) and x[0].strip() == "")
+            or (isinstance(x[0], tuple) and x[0][1].strip() == "")
+        )
     ):
         x.pop(0)
     while (
-        (isinstance(x[-1], str) and x[-1].strip() == "")
-        or (isinstance(x[-1], tuple) and x[-1][1].strip() == "")
+        len(x) > 0 and (
+            (isinstance(x[-1], str) and x[-1].strip() == "")
+            or (isinstance(x[-1], tuple) and x[-1][1].strip() == "")
+        )
     ):
         x.pop()
     return x
