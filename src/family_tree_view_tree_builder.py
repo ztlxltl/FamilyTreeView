@@ -1211,7 +1211,7 @@ class FamilyTreeViewTreeBuilder():
                     self.expanded.setdefault(handle_, {})[key_] = False
 
             offset = self.canvas_manager.get_center_in_units()
-            self.ftv.close_info_and_rebuild(self, offset=offset)
+            self.ftv.rebuild_tree(self, offset=offset)
 
         if expanded:
             ang = ang_collapsed + 180

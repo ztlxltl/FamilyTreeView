@@ -260,6 +260,12 @@ class FamilyTreeViewWidgetManager:
     # content
 
     def reset_tree(self):
+        if self.search_widget is not None:
+            self.search_widget.hide_search_popover()
+            self.search_widget.set_items_list(self.person_handle_list)
+        self.close_panel()
+        self.info_box_manager.close_info_box()
+
         self.canvas_manager.reset_canvas()
         self.minimap_manager.reset_minimap()
 
@@ -268,9 +274,6 @@ class FamilyTreeViewWidgetManager:
         self.num_missing_persons_added = 0
         self.num_families_added = 0
         self.person_handle_list = []
-        if self.search_widget is not None:
-            self.search_widget.hide_search_popover()
-            self.search_widget.set_items_list(self.person_handle_list)
 
     def add_person(self, person_handle, x, person_generation, alignment, ahnentafel=None):
         person = self.ftv.get_person_from_handle(person_handle)
