@@ -430,7 +430,7 @@ class FamilyTreeViewWidgetManager:
 
         return person_bounds
 
-    def add_missing_person(self, x, person_generation, alignment):
+    def add_missing_person(self, x, person_generation, alignment, relationship, handle):
         fg_color_found, fg_color = self.main_widget.get_style_context().lookup_color('theme_fg_color')
         if fg_color_found:
             fg_color = tuple(fg_color)[:3]
@@ -462,7 +462,7 @@ class FamilyTreeViewWidgetManager:
             x, person_generation, content_items, background_color, border_color,
             True, # no ribbon
             round_lower_corners,
-            click_callback=None # TODO create new person
+            click_callback=lambda item, target, event: self._cb_missing_person_clicked(event, relationship, handle, alignment)
         )
         self.minimap_manager.add_person(x, person_generation, background_color)
 
@@ -728,6 +728,25 @@ class FamilyTreeViewWidgetManager:
             return False
 
         self._process_click(is_single_click, function, *data)
+
+        return True
+
+    def _cb_missing_person_clicked(self, event, relationship, handle, alignment):
+        if event.type != Gdk.EventType.DOUBLE_BUTTON_PRESS:
+            return False
+
+        if relationship is None:
+            return False
+        elif relationship == "root":
+            return False # TODO
+        elif relationship in ["spouse", "parent"]:
+            fcn = self.ftv.add_new_parent_to_family
+            family_handle = handle
+            is_father = alignment == "r"
+            args = [family_handle, is_father]
+        else:
+            return False
+        self._process_click(False, fcn, *args)
 
         return True
 

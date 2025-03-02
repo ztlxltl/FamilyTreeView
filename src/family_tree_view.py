@@ -521,7 +521,7 @@ class FamilyTreeView(NavigationView, Callback):
         if self.dbstate.db.get_number_of_people() == 0:
             # db has no people
             # show missing person
-            self.widget_manager.add_missing_person(0, 0, "c")
+            self.widget_manager.add_missing_person(0, 0, "c", "root", None)
             return True
         return False
 
@@ -671,6 +671,17 @@ class FamilyTreeView(NavigationView, Callback):
             FilterEditor("Person", CUSTOM_FILTERS, self.dbstate, self.uistate)
         except WindowActiveError:
             pass
+
+    def add_new_parent_to_family(self, family_handle, is_father):
+        family = self.get_family_from_handle(family_handle)
+        if family is None:
+            return
+
+        edit_family = EditFamily(self.dbstate, self.uistate, [], family)
+        if is_father:
+            edit_family.add_father_clicked(None)
+        else:
+            edit_family.add_mother_clicked(None)
 
     # printing
 
