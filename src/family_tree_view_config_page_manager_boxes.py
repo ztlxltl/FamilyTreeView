@@ -533,6 +533,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
                 "Select an item definition on the left to modify its parameters."
             ))
             label.set_halign(Gtk.Align.START)
+            label.set_line_wrap(True)
             self.item_def_type_params_boxes[box_type].add(label)
 
             self.duplicate_item_def_buttons[box_type].set_sensitive(False)

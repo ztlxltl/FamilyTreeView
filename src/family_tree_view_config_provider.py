@@ -441,7 +441,7 @@ class FamilyTreeViewConfigProvider:
         row += 1
         configdialog.add_checkbox(
             grid,
-            _("Use short age representation (much shorter for uncertain dates)"),
+            _("Use short age representation in timeline (much shorter for uncertain dates)"),
             row,
             "appearance.familytreeview-timeline-short-age",
             stop=3 # same width as spinners and combos
@@ -660,6 +660,9 @@ class FamilyTreeViewConfigProvider:
             "interaction.familytreeview-double-click-timeout-milliseconds",
             (1, 5000) # large value: accessibility
         )
+        label = grid.get_child_at(1, row)
+        label.set_xalign(0)
+        label.set_line_wrap(True)
 
         row += 1
         zoom_level_default_spin_button = configdialog.add_spinner(
