@@ -103,9 +103,18 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             "interaction.familytreeview-zoom-level-step"
         ]:
             self.ftv._config.connect(key, self.reset_zoom_values)
+
         for config_name in self.ftv._config.get_section_settings("boxes"):
             key = "boxes."+config_name
             self.ftv._config.connect(key, self.reset_boxes)
+
+        def _cb_scroll_mode_changed(configManager, zero, scroll_mode, none):
+            self.scroll_mode = scroll_mode
+        self.ftv._config.connect(
+            "interaction.familytreeview-scroll-mode",
+            _cb_scroll_mode_changed
+        )
+
         self.ftv.uistate.connect("nameformat-changed", self.reset_abbrev_names)
         self.ftv.connect("abbrev-rules-changed", self.reset_abbrev_names)
 

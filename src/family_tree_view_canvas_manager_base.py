@@ -46,6 +46,7 @@ class FamilyTreeViewCanvasManagerBase:
         self.canvas_container = Gtk.ScrolledWindow()
         self.hadjustment = self.canvas_container.get_hadjustment()
         self.vadjustment = self.canvas_container.get_vadjustment()
+        self.scroll_mode = "map"
         self.canvas_container_size_allocate_first_call = True
         if resize_reference is None:
             self.resize_reference = self.canvas_container
@@ -93,11 +94,30 @@ class FamilyTreeViewCanvasManagerBase:
         """
         Zoom by mouse wheel.
         """
-        if event.direction == Gdk.ScrollDirection.UP:
-            self.zoom_in()
-        elif event.direction == Gdk.ScrollDirection.DOWN:
-            self.zoom_out()
-        return True # no propagation
+        if self.scroll_mode == "map":
+            if event.direction == Gdk.ScrollDirection.UP:
+                self.zoom_in()
+            elif event.direction == Gdk.ScrollDirection.DOWN:
+                self.zoom_out()
+            return True # no propagation
+        elif self.scroll_mode == "doc":
+            if event.state & Gdk.ModifierType.SHIFT_MASK:
+                old_value = self.hadjustment.get_value()
+                # Same step as vertical scrolling:
+                step = self.vadjustment.get_step_increment()
+                if event.direction == Gdk.ScrollDirection.UP:
+                    new_value = old_value - step
+                elif event.direction == Gdk.ScrollDirection.DOWN:
+                    new_value = old_value + step
+                self.hadjustment.set_value(new_value)
+                return True
+            elif event.state & Gdk.ModifierType.CONTROL_MASK:
+                if event.direction == Gdk.ScrollDirection.UP:
+                    self.zoom_in()
+                elif event.direction == Gdk.ScrollDirection.DOWN:
+                    self.zoom_out()
+                return True
+            return False # Let ScrolledWindow do the scrolling.
 
     def zoom_in(self):
         """

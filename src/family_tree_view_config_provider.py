@@ -78,6 +78,7 @@ class FamilyTreeViewConfigProvider:
             ("interaction.familytreeview-family-single-click-action", 1),
             ("interaction.familytreeview-family-double-click-action", 3),
             ("interaction.familytreeview-double-click-timeout-milliseconds", 200),
+            ("interaction.familytreeview-scroll-mode", "map"),
             ("interaction.familytreeview-zoom-level-default", 0),
             ("interaction.familytreeview-zoom-level-step", 0.15),
             ("interaction.familytreeview-family-info-box-set-active-button", False),
@@ -663,6 +664,42 @@ class FamilyTreeViewConfigProvider:
         label = grid.get_child_at(1, row)
         label.set_xalign(0)
         label.set_line_wrap(True)
+
+        row += 1
+        label = Gtk.Label()
+        label.set_markup(_(
+            "Mouse wheel scroll mode\n"
+            "<i>Map mode: scroll wheel zooms\n"
+            "Document mode: scroll wheel scrolls vertically "
+            "(Shift: horizontally, Ctrl: zoom)</i>"
+        ))
+        label.set_halign(Gtk.Align.START)
+        label.set_xalign(0)
+        label.set_line_wrap(True)
+        grid.attach(label, 1, row, 1, 1)
+        scroll_modes = [
+            ("map", _("Map mode")),
+            ("doc", _("Document mode"))
+        ]
+        scroll_mode_list_store = Gtk.ListStore(str, str)
+        for mode in scroll_modes:
+            scroll_mode_list_store.append(mode)
+        scroll_mode_combo_box = Gtk.ComboBox(model=scroll_mode_list_store)
+        # scroll_mode_combo_box.set_vexpand(False)
+        scroll_mode_combo_box.set_valign(Gtk.Align.START)
+        renderer = Gtk.CellRendererText()
+        scroll_mode_combo_box.pack_start(renderer, True)
+        scroll_mode_combo_box.add_attribute(renderer, "text", 1)
+        active_scroll_mode = self.ftv._config.get("interaction.familytreeview-scroll-mode")
+        active_option = [mode[0] for mode in scroll_modes].index(active_scroll_mode)
+        scroll_mode_combo_box.set_active(active_option)
+        def _cb_scroll_mode_changed(combo):
+            self.ftv._config.set(
+                "interaction.familytreeview-scroll-mode",
+                scroll_modes[combo.get_active()][0]
+            )
+        scroll_mode_combo_box.connect("changed", _cb_scroll_mode_changed)
+        grid.attach(scroll_mode_combo_box, 2, row, 1, 1)
 
         row += 1
         zoom_level_default_spin_button = configdialog.add_spinner(
