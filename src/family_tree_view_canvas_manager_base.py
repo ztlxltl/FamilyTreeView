@@ -65,10 +65,11 @@ class FamilyTreeViewCanvasManagerBase:
         self.canvas_container.add(self.canvas)
 
     def reset_canvas(self):
-        self.canvas.get_root_item().remove()
-        new_default_root_item = GooCanvas.CanvasGroup()
-        self.canvas.set_root_item(new_default_root_item)
-        self.connect_root_item()
+        # Remove children of root item (instead of creating a new root
+        # item) to keep signal connections when resetting.
+        root_item = self.canvas.get_root_item()
+        for i in range(root_item.get_n_children()-1, -1, -1):
+            root_item.remove_child(i)
 
     def connect_root_item(self):
         self.canvas.get_root_item().connect("button-press-event", self.mouse_button_press)
@@ -176,25 +177,19 @@ class FamilyTreeViewCanvasManagerBase:
     # navigation: pan
     ################################
 
-    def click_callback(self, root_item, target, event):
-        """To be implemented by subclass."""
-        return False
-
     def mouse_button_press(self, _, __, event):
         button = event.get_button()[1]
         if button == 1 or button == 2:
             self.drag_canvas_last_x = event.x_root
             self.drag_canvas_last_y = event.y_root
             self.clicking_canvas = True
-            return True
         return False
 
     def mouse_button_release(self, root_item, target, event):
         if self.clicking_canvas:
-            ret = self.click_callback(root_item, target, event)
             self.clicking_canvas = False
             self.dragging_canvas = False
-            return ret
+            return True
         if self.dragging_canvas:
             self.mouse_move(root_item, target, event)
             self.canvas.get_parent().get_window().set_cursor(None)

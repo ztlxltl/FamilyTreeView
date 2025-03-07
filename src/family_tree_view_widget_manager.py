@@ -142,7 +142,11 @@ class FamilyTreeViewWidgetManager:
         self.main_container_paned_size_allocate_first_call = True
         self.main_container_paned.connect("size-allocate", self.main_container_paned_size_allocate)
 
-        self.canvas_manager = FamilyTreeViewCanvasManager(self, resize_reference=self.main_container_paned)
+        self.canvas_manager = FamilyTreeViewCanvasManager(
+            self,
+            cb_background=self._cb_background_clicked,
+            resize_reference=self.main_container_paned,
+        )
         self.tree_builder = FamilyTreeViewTreeBuilder(self)
 
         self.minimap_overlay_container = Gtk.Overlay()
@@ -579,7 +583,7 @@ class FamilyTreeViewWidgetManager:
         if not follow_on_click or (handle1 is None and handle2 is None):
             click_callback = None
         else:
-            click_callback = lambda item, target, event, ym: self._db_connection_clicked(handle1, handle2, event, ym)
+            click_callback = lambda item, target, event, ym: self._cb_connection_clicked(handle1, handle2, event, ym)
         self.canvas_manager.add_connection(
             x1, y1, x2, y2, ym=ym, m=m, dashed=dashed,
             click_callback=click_callback
@@ -779,7 +783,7 @@ class FamilyTreeViewWidgetManager:
 
         return True
 
-    def _db_connection_clicked(self, handle1, handle2, event, ym):
+    def _cb_connection_clicked(self, handle1, handle2, event, ym):
         # assuming (y of handle 1) < (y of handle 2) (e.g. handle1 is ancestor)
         if event.type != Gdk.EventType.DOUBLE_BUTTON_PRESS:
             return False
@@ -803,6 +807,19 @@ class FamilyTreeViewWidgetManager:
                 self.canvas_manager.move_to_center(*self.position_of_handle[target_handle])
 
         self._process_click(False, move_to_target)
+
+    def _cb_background_clicked(self, root_item, target, event):
+        if event.type == Gdk.EventType.BUTTON_PRESS:
+            is_single_click = True
+        elif event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS:
+            is_single_click = False
+        else:
+            return False
+
+        def fcn():
+            pass
+
+        self._process_click(is_single_click, fcn)
 
     def _process_click(self, is_single_click, function, *data):
         if is_single_click:

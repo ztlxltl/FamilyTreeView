@@ -35,7 +35,13 @@ if TYPE_CHECKING:
 GooCanvas = import_GooCanvas()
 
 class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
-    def __init__(self, widget_manager: "FamilyTreeViewWidgetManager", *args, **kwargs):
+    def __init__(
+        self,
+        widget_manager: "FamilyTreeViewWidgetManager",
+        *args,
+        cb_background=None,
+        **kwargs
+    ):
         super().__init__(*args, **kwargs)
         self.widget_manager = widget_manager
         self.ftv = self.widget_manager.ftv
@@ -98,6 +104,11 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.reset_boxes()
         self.svg_pixbuf_cache = {}
 
+        # clicks
+        if cb_background is not None:
+            self.canvas.get_root_item().connect("button-press-event", self.click_callback, cb_background)
+
+        # config connect to callbacks
         for key in [
             "interaction.familytreeview-zoom-level-default",
             "interaction.familytreeview-zoom-level-step"
@@ -734,7 +745,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             self.widget_manager.search_widget.hide_search_popover()
         if target is None:
             # background click
-            return self.widget_manager.info_box_manager.close_info_box()
+            self.widget_manager.info_box_manager.close_info_box()
         if other_callback is not None:
             return other_callback(root_item, target, event, *other_args, **other_kwargs)
         return False
