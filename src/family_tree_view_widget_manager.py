@@ -279,6 +279,8 @@ class FamilyTreeViewWidgetManager:
         self.num_families_added = 0
         self.person_handle_list = []
 
+        self.position_of_handle = {}
+
     def add_person(self, person_handle, x, person_generation, alignment, ahnentafel=None):
         person = self.ftv.get_person_from_handle(person_handle)
 
@@ -878,21 +880,30 @@ class FamilyTreeViewWidgetManager:
         active_person_handle = self.ftv.get_active()
         if active_person_handle is None or len(active_person_handle) == 0:
             return
-        active_pos = self.position_of_handle[active_person_handle]
+        try:
+            active_pos = self.position_of_handle[active_person_handle]
+        except KeyError:
+            return
         self.canvas_manager.move_to_center(*active_pos)
 
     def scroll_to_home_person(self):
         home_person = self.ftv.dbstate.db.get_default_person()
         if home_person is None:
             return
-        active_pos = self.position_of_handle[home_person.handle]
+        try:
+            active_pos = self.position_of_handle[home_person.handle]
+        except KeyError:
+            return
         self.canvas_manager.move_to_center(*active_pos)
 
     def scroll_to_active_family(self):
         active_family_handle = self.ftv.get_active_family_handle()
         if active_family_handle is None or len(active_family_handle) == 0:
             return
-        active_pos = self.position_of_handle[active_family_handle]
+        try:
+            active_pos = self.position_of_handle[active_family_handle]
+        except KeyError:
+            return
         self.canvas_manager.move_to_center(*active_pos)
 
     def open_person_context_menu(self, person_handle, event, x, person_generation, alignment):
@@ -984,6 +995,12 @@ class FamilyTreeViewWidgetManager:
         menu_item.connect("activate", lambda *_args:
             self.scroll_to_home_person()
         )
+        home_person = self.ftv.dbstate.db.get_default_person()
+        if home_person is None:
+            home_person_in_tree = False
+        else:
+            home_person_in_tree = home_person.handle in self.position_of_handle
+        menu_item.set_sensitive(home_person_in_tree)
         self.menu.append(menu_item)
 
         menu_item = Gtk.MenuItem(label="Scroll to active family")
