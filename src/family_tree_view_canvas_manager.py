@@ -139,6 +139,10 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.default_zoom_level = self.ftv._config.get("interaction.familytreeview-zoom-level-default")
         self.zoom_level_step = self.ftv._config.get("interaction.familytreeview-zoom-level-step")
 
+    def reset_zoom(self):
+        self.reset_zoom_values()
+        self.set_zoom_level(self.default_zoom_level)
+
     def reset_abbrev_names(self):
         self.fitting_abbrev_names = {}
 

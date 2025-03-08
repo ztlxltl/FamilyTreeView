@@ -627,7 +627,7 @@ class FamilyTreeView(NavigationView, Callback):
         except HandleError:
             return None
 
-    def get_active_family(self):
+    def get_active_family_handle(self):
         nav_group = 0 # TODO not sure about this
         hobj = self.uistate.get_history("Family", nav_group)
         return hobj.present()

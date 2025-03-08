@@ -73,10 +73,24 @@ class FamilyTreeViewConfigProvider:
                 for i, event_str, event_name in EventType._DATAMAP
             }),
 
-            ("interaction.familytreeview-person-single-click-action", 1),
-            ("interaction.familytreeview-person-double-click-action", 3),
-            ("interaction.familytreeview-family-single-click-action", 1),
-            ("interaction.familytreeview-family-double-click-action", 3),
+            ("interaction.familytreeview-person-single-primary-click-action", "open_info_box_person"),
+            ("interaction.familytreeview-person-double-primary-click-action", "edit_person"),
+            ("interaction.familytreeview-person-single-secondary-click-action", "open_context_menu_person"),
+            ("interaction.familytreeview-person-double-secondary-click-action", "nothing"),
+            ("interaction.familytreeview-person-single-middle-click-action", "nothing"),
+            ("interaction.familytreeview-person-double-middle-click-action", "nothing"),
+            ("interaction.familytreeview-family-single-primary-click-action", "open_info_box_family"),
+            ("interaction.familytreeview-family-double-primary-click-action", "edit_family"),
+            ("interaction.familytreeview-family-single-secondary-click-action", "open_context_menu_family"),
+            ("interaction.familytreeview-family-double-secondary-click-action", "nothing"),
+            ("interaction.familytreeview-family-single-middle-click-action", "nothing"),
+            ("interaction.familytreeview-family-double-middle-click-action", "nothing"),
+            ("interaction.familytreeview-background-single-primary-click-action", "nothing"),
+            ("interaction.familytreeview-background-double-primary-click-action", "nothing"),
+            ("interaction.familytreeview-background-single-secondary-click-action", "open_context_menu_background"),
+            ("interaction.familytreeview-background-double-secondary-click-action", "nothing"),
+            ("interaction.familytreeview-background-single-middle-click-action", "nothing"),
+            ("interaction.familytreeview-background-double-middle-click-action", "nothing"),
             ("interaction.familytreeview-double-click-timeout-milliseconds", 200),
             ("interaction.familytreeview-scroll-mode", "map"),
             ("interaction.familytreeview-zoom-level-default", 0),
@@ -580,19 +594,32 @@ class FamilyTreeViewConfigProvider:
         return (_("Appearance"), grid)
 
     def interaction_page(self, configdialog):
-        personOptions = [
-            (0, _("Do nothing")),
-            (1, _("Open info box")),
-            (2, _("Open side panel")),
-            (3, _("Edit person")),
-            (4, _("Set as active person")),
-            (5, _("Set as home person")),
+        person_click_options = [
+            ("nothing", _("Do nothing")),
+            ("open_info_box_person", _("Open info box")),
+            ("open_panel_person", _("Open panel")),
+            ("edit_person", _("Edit person")),
+            ("set_active_person", _("Set as active person")),
+            ("set_home_person", _("Set as home person")),
+            ("open_context_menu_person", _("Open context menu")),
         ]
-        familyOptions = [
-            (0, _("Do nothing")),
-            (1, _("Open info box")),
-            (2, _("Open side panel")),
-            (3, _("Edit family")),
+        family_click_options = [
+            ("nothing", _("Do nothing")),
+            ("open_info_box_family", _("Open info box")),
+            ("open_panel_family", _("Open panel")),
+            ("edit_family", _("Edit family")),
+            ("set_active_family", _("Set as active family")),
+            ("open_context_menu_family", _("Open context menu")),
+        ]
+        background_click_options = [
+            ("nothing", _("Do nothing")),
+            ("open_context_menu_background", _("Open context menu")),
+            ("zoom_in", _("Zoom in")),
+            ("zoom_out", _("Zoom out")),
+            ("zoom_reset", _("Reset zoom")),
+            ("scroll_to_active_person", _("Move to active person")),
+            ("scroll_to_home_person", _("Move to home person")),
+            ("scroll_to_active_family", _("Move to active family")),
         ]
 
         grid = Gtk.Grid()
@@ -618,39 +645,99 @@ class FamilyTreeViewConfigProvider:
         label.set_line_wrap(True)
 
         row += 1
-        configdialog.add_combo(
-            grid,
-            _("Person single click action"),
-            row,
-            "interaction.familytreeview-person-single-click-action",
-            personOptions
-        )
+        click_grid = Gtk.Grid()
+        click_grid.set_column_spacing(6)
+        click_grid.set_row_spacing(6)
+        click_row = -1
 
-        row += 1
-        configdialog.add_combo(
-            grid,
-            _("Person double click action"),
-            row,
-            "interaction.familytreeview-person-double-click-action",
-            personOptions
-        )
+        def _cb_person_click_combo_changed(combo, constant):
+            self.ftv._config.set(constant, person_click_options[combo.get_active()][0])
+        def _cb_family_click_combo_changed(combo, constant):
+            self.ftv._config.set(constant, family_click_options[combo.get_active()][0])
+        def _cb_background_click_combo_changed(combo, constant):
+            self.ftv._config.set(constant, background_click_options[combo.get_active()][0])
 
-        row += 1
-        configdialog.add_combo(
-            grid,
-            _("Family single click action"),
-            row,
-            "interaction.familytreeview-family-single-click-action",
-            familyOptions
+        advanced_click_option_widgets = []
+        check_button = Gtk.CheckButton(label=_("Show advanced click options"))
+        advanced = any(
+            self.ftv._config.get(
+                f"interaction.familytreeview-{pfb}-{sd}-{sm}-click-action"
+            ) != self.get_default_value(
+                f"interaction.familytreeview-{pfb}-{sd}-{sm}-click-action"
+            )
+            for pfb in ["person", "family", "background"]
+            for sm in ["secondary", "middle"] # not primary
+            for sd in ["single", "double"]
         )
+        check_button.set_active(advanced)
+        check_button.get_child().set_line_wrap(True)
+        def advanced_click_toggled(check_button):
+            advanced = check_button.get_active()
+            for widget in advanced_click_option_widgets:
+                widget.set_visible(advanced)
+        check_button.connect("toggled", advanced_click_toggled)
+        click_grid.attach(check_button, 0, 0, 1, 2)
 
-        row += 1
-        configdialog.add_combo(
-            grid,
-            _("Family double click action"),
-            row,
-            "interaction.familytreeview-family-double-click-action",
-            familyOptions
+        for col, text in [
+            (1, _("Primary mouse button (usually: left mouse button)")),
+            (3, _("Secondary mouse button (usually: right mouse button)")),
+            (5, _("Middle mouse button")),
+        ]:
+            label = Gtk.Label(text)
+            click_grid.attach(label, col, 0, 2, 1)
+            if col > 2:
+                advanced_click_option_widgets.append(label)
+            for col2, text2 in [(0, "single click"), (1, "double click")]:
+                label = Gtk.Label(text2)
+                click_grid.attach(label, col+col2, 1, 1, 1)
+                if col > 2:
+                    advanced_click_option_widgets.append(label)
+        for click_row, text, options, callback, config_type in [
+            (2, _("Person click action"), person_click_options, _cb_person_click_combo_changed, "person"),
+            (3, _("Family click action"), family_click_options, _cb_family_click_combo_changed, "family"),
+            (4, _("Background click action"), background_click_options, _cb_background_click_combo_changed, "background"),
+        ]:
+            label = Gtk.Label(text)
+            click_grid.attach(label, 0, click_row, 1, 1)
+            for col, config_button in [
+                (1, "single-primary"),
+                (2, "double-primary"),
+                (3, "single-secondary"),
+                (4, "double-secondary"),
+                (5, "single-middle"),
+                (6, "double-middle"),
+            ]:
+                config_key = f"interaction.familytreeview-{config_type}-{config_button}-click-action"
+                active_click_option = self.ftv._config.get(config_key)
+                combo_list_store = Gtk.ListStore(str, str)
+                for option, x in options:
+                    combo_list_store.append((option, x))
+                click_combo = Gtk.ComboBox(model=combo_list_store)
+                renderer = Gtk.CellRendererText()
+                click_combo.pack_start(renderer, True)
+                click_combo.add_attribute(renderer, "text", 1)
+                click_combo.set_active(
+                    [opt[0] for opt in options].index(active_click_option)
+                )
+                click_combo.connect("changed", callback, config_key)
+                click_grid.attach(click_combo, col, click_row, 1, 1)
+                if col > 2:
+                    advanced_click_option_widgets.append(click_combo)
+        click_grid_scrolled_window = Gtk.ScrolledWindow()
+        click_grid_scrolled_window.set_hexpand(True)
+        click_grid_scrolled_window.set_policy(
+            Gtk.PolicyType.AUTOMATIC, # horizontal
+            Gtk.PolicyType.NEVER # vertical
+        )
+        click_grid_scrolled_window.add(click_grid)
+        grid.attach(click_grid_scrolled_window, 1, row, 2, 1)
+
+        # Hide advanced options (default: check button is unchecked).
+        # The function cannot be called here directly, since when the
+        # config window is shown, all widgets would be made visible
+        # again.
+        configdialog.get_window().connect("show", lambda *args:
+            advanced_click_toggled(check_button)
         )
 
         row += 1

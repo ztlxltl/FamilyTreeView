@@ -301,8 +301,8 @@ class FamilyTreeViewInfoWidgetManager:
         edit_button.connect("clicked", lambda *_: self.ftv.edit_person(person_handle))
         buttons.pack_start(edit_button, False, False, 0)
 
-        set_home_button = self.create_button("Set home", icon="go-home")
         home_person = self.ftv.dbstate.db.get_default_person()
+        set_home_button = self.create_button("Set home", icon="go-home")
         if home_person is not None:
             set_home_button.set_sensitive(home_person.handle!=person_handle)
         set_home_button.connect("clicked", lambda *_: self.ftv.set_home_person(person_handle, also_set_active=False))
@@ -334,7 +334,7 @@ class FamilyTreeViewInfoWidgetManager:
 
         if self.ftv._config.get("interaction.familytreeview-family-info-box-set-active-button"):
             set_active_button = self.create_button("Set active", char="\u2794") # rightwards arrow
-            set_active_button.set_sensitive(self.ftv.get_active_family() != family_handle)
+            set_active_button.set_sensitive(self.ftv.get_active_family_handle() != family_handle)
             set_active_button.connect("clicked", lambda *_: self.ftv.set_active_family(family_handle))
             buttons.pack_start(set_active_button, False, False, 0)
 
