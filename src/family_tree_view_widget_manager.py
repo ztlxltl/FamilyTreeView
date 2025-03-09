@@ -909,31 +909,31 @@ class FamilyTreeViewWidgetManager:
     def open_person_context_menu(self, person_handle, event, x, person_generation, alignment):
         self.menu = Gtk.Menu()
 
-        menu_item = Gtk.MenuItem(label="Edit")
+        menu_item = Gtk.MenuItem(label=_("Edit"))
         menu_item.connect("activate", lambda *_args:
             self.ftv.edit_person(person_handle)
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Set home person")
+        menu_item = Gtk.MenuItem(label=_("Set as home person"))
         menu_item.connect("activate", lambda *_args:
             self.ftv.set_home_person(person_handle)
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Set active person")
+        menu_item = Gtk.MenuItem(label=_("Set as active person"))
         menu_item.connect("activate", lambda *_args:
             self.ftv.set_active_person(person_handle)
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Open info box")
+        menu_item = Gtk.MenuItem(label=_("Open info box"))
         menu_item.connect("activate", lambda *_args:
             self.info_box_manager.open_person_info_box(person_handle, x, person_generation, alignment)
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Open panel")
+        menu_item = Gtk.MenuItem(label=_("Open panel"))
         menu_item.connect("activate", lambda *_args:
             self.panel_manager.open_person_panel(person_handle)
         )
@@ -944,19 +944,19 @@ class FamilyTreeViewWidgetManager:
     def open_family_context_menu(self, family_handle, event, x, family_generation):
         self.menu = Gtk.Menu()
 
-        menu_item = Gtk.MenuItem(label="Edit")
+        menu_item = Gtk.MenuItem(label=_("Edit"))
         menu_item.connect("activate", lambda *_args:
             self.ftv.edit_family(family_handle)
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Open info box")
+        menu_item = Gtk.MenuItem(label=_("Open info box"))
         menu_item.connect("activate", lambda *_args:
             self.info_box_manager.open_family_info_box(family_handle, x, family_generation)
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Open panel")
+        menu_item = Gtk.MenuItem(label=_("Open panel"))
         menu_item.connect("activate", lambda *_args:
             self.panel_manager.open_family_panel(family_handle)
         )
@@ -967,31 +967,31 @@ class FamilyTreeViewWidgetManager:
     def open_background_context_menu(self, event):
         self.menu = Gtk.Menu()
 
-        menu_item = Gtk.MenuItem(label="Zoom in")
+        menu_item = Gtk.MenuItem(label=_("Zoom in"))
         menu_item.connect("activate", lambda *_args:
             self.canvas_manager.zoom_in()
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Zoom out")
+        menu_item = Gtk.MenuItem(label=_("Zoom out"))
         menu_item.connect("activate", lambda *_args:
             self.canvas_manager.zoom_out()
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Reset zoom")
+        menu_item = Gtk.MenuItem(label=_("Reset zoom"))
         menu_item.connect("activate", lambda *_args:
             self.canvas_manager.reset_zoom()
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Scroll to active person")
+        menu_item = Gtk.MenuItem(label=_("Scroll to active person"))
         menu_item.connect("activate", lambda *_args:
             self.scroll_to_active_person()
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Scroll to home person")
+        menu_item = Gtk.MenuItem(label=_("Scroll to home person"))
         menu_item.connect("activate", lambda *_args:
             self.scroll_to_home_person()
         )
@@ -1003,7 +1003,7 @@ class FamilyTreeViewWidgetManager:
         menu_item.set_sensitive(home_person_in_tree)
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Scroll to active family")
+        menu_item = Gtk.MenuItem(label=_("Scroll to active family"))
         menu_item.connect("activate", lambda *_args:
             self.scroll_to_active_family()
         )
