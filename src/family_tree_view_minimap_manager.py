@@ -91,9 +91,11 @@ class FamilyTreeViewMinimapManager:
         self.widget_manager.canvas_manager.vadjustment.connect("value-changed", self.set_view_rect)
 
     def reset_minimap(self):
-        self.minimap_canvas.get_root_item().remove()
-        new_default_root_item = GooCanvas.CanvasGroup()
-        self.minimap_canvas.set_root_item(new_default_root_item)
+        # Remove children of root item (instead of creating a new root
+        # item) to keep signal connections when resetting.
+        root_item = self.minimap_canvas.get_root_item()
+        for i in range(root_item.get_n_children()-1, -1, -1):
+            root_item.remove_child(i)
         self.init_minimap()
 
     def init_minimap(self):
