@@ -194,7 +194,8 @@ class FamilyTreeView(NavigationView, Callback):
         self.uistate = uistate
         self.nav_group = nav_group
         self.dbstate.connect("database-changed", self._cb_db_changed)
-        self.uistate.connect("nameformat-changed", self.close_info_and_rebuild)
+        self.dbstate.connect("no-database", self._cb_db_closed)
+        self.uistate.connect("nameformat-changed", self.rebuild_tree)
 
         self.additional_uis.append(self.ADDITIONAL_UI)
 
@@ -279,7 +280,7 @@ class FamilyTreeView(NavigationView, Callback):
         self.widget_manager.canvas_manager.reset_boxes()
 
         # reset: Required to apply changed number of generations to show.
-        self.close_info_and_rebuild(reset=True)
+        self.rebuild_tree(reset=True)
 
     def _get_configure_page_funcs(self):
         return self.config_provider.get_configure_page_funcs()
@@ -299,7 +300,24 @@ class FamilyTreeView(NavigationView, Callback):
         # to update callbacks by a base class. Only the call to
         # goto_handle() caused by "changing" the active view is used to
         # rebuild the tree.
+
+        # If the database is closed, this signal is also emitted. We use
+        # the no-database signal to handle this case.
+
         self._change_db(db)
+
+    def _cb_db_closed(self):
+        # Clear the tree.
+
+        # When opening a database, DbLoader.read_file() indirectly emits
+        # the no-database signal twice, once when closing the previous
+        # database and once just before using the next database in
+        # DbState.change_database(). We don't have to necessarily clear
+        # the visualization in those cases, so we don't identify them as
+        # clearing is fast.
+
+        self.widget_manager.reset_tree()
+        self.widget_manager.canvas_manager.move_to_center()
 
     def build_widget(self):
         # Widget is built during __init__ and only returned here.
@@ -320,7 +338,7 @@ class FamilyTreeView(NavigationView, Callback):
         # - empty db and other similar cases
         # - sidebar filter is applied
 
-        if self.check_and_handle_empty_db():
+        if self.check_and_handle_special_db_cases():
             return
 
         rebuild_now = True
@@ -421,7 +439,7 @@ class FamilyTreeView(NavigationView, Callback):
             # (NavigationView.set_active() causes build_tree and
             # goto_handle to be called).
             offset = self.widget_manager.canvas_manager.get_center_in_units()
-            self.close_info_and_rebuild(offset=offset)
+            self.rebuild_tree(offset=offset)
 
     def _cb_global_appearance_config_changed(self, *args):
         if self.active:
@@ -429,14 +447,9 @@ class FamilyTreeView(NavigationView, Callback):
             # (NavigationView.set_active() causes build_tree and
             # goto_handle to be called).
             offset = self.widget_manager.canvas_manager.get_center_in_units()
-            self.close_info_and_rebuild(offset=offset)
+            self.rebuild_tree(offset=offset)
 
-    def close_info_and_rebuild(self, *_, offset=None, reset=False): # *_ required when used as callback
-        self.widget_manager.info_box_manager.close_info_box()
-        self.widget_manager.close_panel()
-        self.rebuild_tree(offset=offset, reset=reset)
-
-    def rebuild_tree(self, offset=None, reset=False):
+    def rebuild_tree(self, *_, offset=None, reset=False): # *_ required when used as callback
         self.uistate.set_busy_cursor(True)
 
         self.widget_manager.reset_tree()
@@ -465,7 +478,7 @@ class FamilyTreeView(NavigationView, Callback):
         # don't need to hide it.
         widget = self.widget_manager.main_container_paned
         window = widget.get_window()
-        if window is not None:
+        if window is not None and window.is_viewable():
             alloc = widget.get_allocation()
             pixbuf = Gdk.pixbuf_get_from_window(window, alloc.x, alloc.y, alloc.width, alloc.height)
             self.widget_manager.replacement_image.set_from_pixbuf(pixbuf)
@@ -484,7 +497,8 @@ class FamilyTreeView(NavigationView, Callback):
     def check_and_handle_special_db_cases(self):
         """Returns True if special cases were handled (no tree should be built)."""
         if not self.dbstate.db.is_open():
-            # no db loaded
+            # No database is loaded.
+            self.widget_manager.reset_tree()
             if len(CLIDbManager(self.dbstate).current_names) == 0: # TODO This condition has not been tested yet!
                 # no db to load
                 # TODO Show some replacement text, e.g. 
@@ -497,8 +511,14 @@ class FamilyTreeView(NavigationView, Callback):
                 # "No database loaded. Load, create or import one."
                 # (where import creates one first).
                 pass
+            self.widget_manager.canvas_manager.move_to_center()
             return True
-        if self.check_and_handle_empty_db():
+        if self.dbstate.db.get_number_of_people() == 0:
+            # There are no people in the database. show a missing
+            # person.
+            self.widget_manager.reset_tree()
+            self.widget_manager.add_missing_person(0, 0, "c", "root", None)
+            self.widget_manager.canvas_manager.move_to_center()
             return True
 
         # A db with people is loaded.
@@ -515,14 +535,6 @@ class FamilyTreeView(NavigationView, Callback):
         elif no_home and not no_active:
             self.set_home_person(self.get_active())
         # If both are set, everything is alright.
-        return False
-
-    def check_and_handle_empty_db(self):
-        if self.dbstate.db.get_number_of_people() == 0:
-            # db has no people
-            # show missing person
-            self.widget_manager.add_missing_person(0, 0, "c")
-            return True
         return False
 
     def get_image_spec(self, obj, obj_type):
@@ -615,7 +627,7 @@ class FamilyTreeView(NavigationView, Callback):
         except HandleError:
             return None
 
-    def get_active_family(self):
+    def get_active_family_handle(self):
         nav_group = 0 # TODO not sure about this
         hobj = self.uistate.get_history("Family", nav_group)
         return hobj.present()
@@ -671,6 +683,17 @@ class FamilyTreeView(NavigationView, Callback):
             FilterEditor("Person", CUSTOM_FILTERS, self.dbstate, self.uistate)
         except WindowActiveError:
             pass
+
+    def add_new_parent_to_family(self, family_handle, is_father):
+        family = self.get_family_from_handle(family_handle)
+        if family is None:
+            return
+
+        edit_family = EditFamily(self.dbstate, self.uistate, [], family)
+        if is_father:
+            edit_family.add_father_clicked(None)
+        else:
+            edit_family.add_mother_clicked(None)
 
     # printing
 
