@@ -127,7 +127,7 @@ def names_page(ftv: "FamilyTreeView", configdialog):
         _("Use always this name format in the tree (never name-specific \"Display as:\" name format)"),
         row,
         "names.familytreeview-abbrev-name-format-always",
-        stop=3 # same width as spinners and combos
+        stop=4
     )
 
     row += 1
