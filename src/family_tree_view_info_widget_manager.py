@@ -76,6 +76,23 @@ class FamilyTreeViewInfoWidgetManager:
         label.set_yalign(0) # top align
         return label
 
+    def create_person_name_label_for_grid(self, person):
+        uri = f"gramps://Person/handle/{person.handle}"
+        name = name_displayer.display_name(person.get_primary_name())
+        label = self.create_label_for_grid(markup=
+            name
+            + f" <a href=\"{uri}\" title=\"Set {name} as active person\">\u2794</a>" # rightwards arrow
+        )
+        # TODO Increase font size of arrow without changing line height.
+        # Tried to increase the size of the error with
+        # <big><big><big><span line_height=\"{1/1.2**3}\">...</span></big></big></big>
+        # but the line height wasn't correct, even though <big> scales
+        # by 1.2.
+        label.connect("activate-link", lambda label, uri:
+            self.ftv.open_uri(uri)
+        )
+        return label
+
     def create_birth_death_label_for_grid(self, person):
         birth_or_fallback = get_birth_or_fallback(self.ftv.dbstate.db, person)
         death_or_fallback = get_death_or_fallback(self.ftv.dbstate.db, person)
@@ -214,7 +231,7 @@ class FamilyTreeViewInfoWidgetManager:
                 grid.attach(parent_type_label, 0, i_row, 1, 1)
 
                 if parent is not None:
-                    parent_name_label = self.create_label_for_grid(name_displayer.display_name(parent.get_primary_name()))
+                    parent_name_label = self.create_person_name_label_for_grid(parent)
                     grid.attach(parent_name_label, 1, i_row, 1, 1)
 
                     parent_dates_label = self.create_birth_death_label_for_grid(parent)
@@ -249,7 +266,7 @@ class FamilyTreeViewInfoWidgetManager:
             grid.attach(parent_type_label, 0, i_row, 1, 1)
 
             if parent is not None:
-                parent_name_label = self.create_label_for_grid(name_displayer.display_name(parent.get_primary_name()))
+                parent_name_label = self.create_person_name_label_for_grid(parent)
                 grid.attach(parent_name_label, 1, i_row, 1, 1)
 
                 parent_dates_label = self.create_birth_death_label_for_grid(parent)
@@ -285,7 +302,7 @@ class FamilyTreeViewInfoWidgetManager:
             child_type_label = self.create_label_for_grid(s)
             grid.attach(child_type_label, 0, i_row, 1, 1)
 
-            child_name_label = self.create_label_for_grid(name_displayer.display_name(child.get_primary_name()))
+            child_name_label = self.create_person_name_label_for_grid(child)
             grid.attach(child_name_label, 1, i_row, 1, 1)
 
             child_dates_label = self.create_birth_death_label_for_grid(child)
