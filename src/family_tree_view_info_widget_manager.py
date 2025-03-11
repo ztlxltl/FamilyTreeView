@@ -21,9 +21,7 @@
 
 from typing import TYPE_CHECKING
 
-from gi import require_version
-require_version("Rsvg", "2.0")
-from gi.repository import Gdk, Gtk, Rsvg
+from gi.repository import Gdk, GdkPixbuf, Gtk
 
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.datehandler import get_date
@@ -33,7 +31,6 @@ from gramps.gen.utils.alive import probably_alive
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback, get_divorce_or_fallback
 from gramps.gui.utils import color_graph_box
 
-from family_tree_view_icons import get_svg_data
 from family_tree_view_utils import get_contrast_color
 if TYPE_CHECKING:
     from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
@@ -92,21 +89,44 @@ class FamilyTreeViewInfoWidgetManager:
         return self.create_label_for_grid(s)
 
     def create_image_widget(self, person, img_width=100, img_height=100):
-        image_spec = self.ftv.get_image_spec(person)
-        if image_spec[0] == "path":
-            image = Gtk.Image.new_from_file(image_spec[1])
+        image_spec = self.ftv.get_image_spec(person, "person")
+        if image_spec[0] in ["path", "pixbuf"]:
+            color = None
         else:
             alive = probably_alive(person, self.ftv.dbstate.db)
             gender = person.get_gender()
+            _, color = color_graph_box(alive, gender)
+        return self.create_image_from_image_spec(image_spec, img_width, img_height, color=color)
 
-            background_color, border_color = color_graph_box(alive, gender)
-            data = get_svg_data(image_spec[1], 0, 0, img_width, img_height)
+    def create_image_from_image_spec(self, image_spec, img_width, img_height, color=None):
+        if image_spec[0] in ["path", "svg_path", "pixbuf"]:
+            if image_spec[0] == "path":
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file(image_spec[1])
+            elif image_spec[0] == "svg_path":
+                svg_factor = 16 # if 1: too pixelated, if too large: slow
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(image_spec[1], img_width*svg_factor, img_height*svg_factor)
+            else:
+                pixbuf = image_spec[1]
+            scale = min(
+                img_width / pixbuf.get_width(),
+                img_height / pixbuf.get_height(),
+            )
+            pixbuf = pixbuf.scale_simple(
+                round(pixbuf.get_width() * scale),
+                round(pixbuf.get_height() * scale),
+                GdkPixbuf.InterpType.BILINEAR
+            )
+            image = Gtk.Image.new_from_pixbuf(pixbuf)
+        else: # svg_data_callback
+            data, width, height = image_spec[1](img_width, img_height)
             svg_code = """<svg xmlns="http://www.w3.org/2000/svg">"""
-            for d in data:
-                svg_code += f"""<path fill="{border_color}" d="{d}" />"""
+            svg_code += f"""<path fill="{color}" d="{data}" />"""
             svg_code += "</svg>"
 
-            pixbuf = Rsvg.Handle.new_from_data(svg_code.encode()).get_pixbuf()
+            pixbuf_loader = GdkPixbuf.PixbufLoader()
+            pixbuf_loader.write(svg_code.encode())
+            pixbuf_loader.close()
+            pixbuf = pixbuf_loader.get_pixbuf()
             image = Gtk.Image.new_from_pixbuf(pixbuf)
 
         return image
@@ -152,7 +172,7 @@ class FamilyTreeViewInfoWidgetManager:
             event_type_label = self.create_label_for_grid(markup=f"<b>{_(str(event.type))}</b>")
             grid.attach(event_type_label, 0, i_row, 1, 1)
 
-            place_name = self.ftv.get_full_place_name_from_event(event)
+            place_name = self.ftv.get_place_name_from_event(event)
             if place_name is not None:
                 event_data_label = self.create_label_for_grid(f"{get_date(event)}\n{place_name}")
                 grid.attach(event_data_label, 1, i_row, 1, 1)
@@ -281,8 +301,8 @@ class FamilyTreeViewInfoWidgetManager:
         edit_button.connect("clicked", lambda *_: self.ftv.edit_person(person_handle))
         buttons.pack_start(edit_button, False, False, 0)
 
-        set_home_button = self.create_button("Set home", icon="go-home")
         home_person = self.ftv.dbstate.db.get_default_person()
+        set_home_button = self.create_button("Set home", icon="go-home")
         if home_person is not None:
             set_home_button.set_sensitive(home_person.handle!=person_handle)
         set_home_button.connect("clicked", lambda *_: self.ftv.set_home_person(person_handle, also_set_active=False))
@@ -314,7 +334,7 @@ class FamilyTreeViewInfoWidgetManager:
 
         if self.ftv._config.get("interaction.familytreeview-family-info-box-set-active-button"):
             set_active_button = self.create_button("Set active", char="\u2794") # rightwards arrow
-            set_active_button.set_sensitive(self.ftv.get_active_family() != family_handle)
+            set_active_button.set_sensitive(self.ftv.get_active_family_handle() != family_handle)
             set_active_button.connect("clicked", lambda *_: self.ftv.set_active_family(family_handle))
             buttons.pack_start(set_active_button, False, False, 0)
 
