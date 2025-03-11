@@ -371,6 +371,8 @@ class FamilyTreeViewTimeline:
                         relationship_type = "husband"
                 if isinstance(rel[-1], Person):
                     relative_name = name_displayer.display_name(rel[-1].get_primary_name())
+                    uri = f"gramps://Person/handle/{rel[-1].handle}"
+                    relative_name += f" <a href=\"{uri}\" title=\"Set {relative_name} as active person\">\u2794</a>" # rightwards arrow
                     markup = f"{event_age_str}{event_type} of {relationship_type} <b>{relative_name}</b>{description}:\n{event_date_str}{event_place_str}"
                 else: # Family
                     spouse_name = "Unknown"
@@ -392,6 +394,9 @@ class FamilyTreeViewTimeline:
                     - (self.event_margin + self.event_padding)
                     - get_label_line_height(event_label)/2
                 )
+            event_label.connect("activate-link", lambda label, uri:
+                self.ftv.open_uri(uri)
+            )
             event_labels.append(event_label)
             timeline_label_container.add(event_label)
 

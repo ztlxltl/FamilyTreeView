@@ -661,10 +661,28 @@ class FamilyTreeView(NavigationView, Callback):
             return self.symbols.get_symbol_fallback(symbol)
 
     def change_active_family(self, handle):
+        self.change_active_obj(handle, "Family")
+
+    def change_active_obj(self, handle, obj_class):
         nav_group = 0 # TODO not sure about this
-        hobj = self.uistate.get_history("Family", nav_group)
+        hobj = self.uistate.get_history(obj_class, nav_group)
         if handle and not hobj.lock and not (handle == hobj.present()):
             hobj.push(handle)
+
+    def open_uri(self, uri):
+        if not uri.startswith("gramps://"):
+            return Gtk.show_uri_on_window(uri)
+        obj_class, prop, value = uri[9:].split("/", 2)
+        if prop != "handle":
+            # TODO gramps_id
+            return False
+
+        if obj_class == "Person":
+            self.change_active(value)
+        else:
+            self.change_active_obj(value, obj_class)
+
+        return True
 
     # editing windows
 
