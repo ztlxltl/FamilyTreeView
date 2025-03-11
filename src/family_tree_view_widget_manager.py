@@ -19,6 +19,7 @@
 #
 
 
+import inspect
 import os
 import sys
 from typing import TYPE_CHECKING
@@ -141,7 +142,11 @@ class FamilyTreeViewWidgetManager:
         self.main_container_paned_size_allocate_first_call = True
         self.main_container_paned.connect("size-allocate", self.main_container_paned_size_allocate)
 
-        self.canvas_manager = FamilyTreeViewCanvasManager(self, resize_reference=self.main_container_paned)
+        self.canvas_manager = FamilyTreeViewCanvasManager(
+            self,
+            cb_background=self._cb_background_clicked,
+            resize_reference=self.main_container_paned,
+        )
         self.tree_builder = FamilyTreeViewTreeBuilder(self)
 
         self.minimap_overlay_container = Gtk.Overlay()
@@ -183,16 +188,26 @@ class FamilyTreeViewWidgetManager:
 
         self.position_of_handle = {} # keep record of what is placed where
 
-    def use_internal_handle(self):
-        # TODO skip if Gramps is closed
-        if self.panel_manager.panel_widget.get_parent() != self.main_container_paned:
-            if self.panel_manager.panel_widget.get_parent() is not None:
-                self.panel_manager.panel_widget.get_parent().remove(self.panel_manager.panel_widget)
-            self.main_container_paned.pack2(self.panel_manager.panel_widget)
-        if self.panel_manager.panel_scrolled.get_parent() != self.panel_manager.panel_widget:
-            if self.panel_manager.panel_scrolled.get_parent() is not None:
-                self.panel_manager.panel_scrolled.get_parent().remove(self.panel_manager.panel_scrolled)
-            self.panel_manager.panel_widget.add(self.panel_manager.panel_scrolled)
+    def use_internal_panel(self):
+        stack = inspect.stack()
+        frame = stack[2]
+        if not (
+            frame.function == "remove_gramplet"
+            and os.path.basename(frame.filename) == "grampletbar.py"
+        ):
+            # Gramps is closing. No need to move widgets around.
+            return
+
+        panel_widget = self.panel_manager.panel_widget
+        panel_scrolled = self.panel_manager.panel_scrolled
+        if panel_widget.get_parent() != self.main_container_paned:
+            if panel_widget.get_parent() is not None:
+                panel_widget.get_parent().remove(panel_widget)
+            self.main_container_paned.pack2(panel_widget)
+        if panel_scrolled.get_parent() != panel_widget:
+            if panel_scrolled.get_parent() is not None:
+                panel_scrolled.get_parent().remove(panel_scrolled)
+            panel_widget.add(panel_scrolled)
         self.external_panel = False
 
     def use_external_panel(self, new_container, show_panel_header_in_external_panel=False):
@@ -249,6 +264,12 @@ class FamilyTreeViewWidgetManager:
     # content
 
     def reset_tree(self):
+        if self.search_widget is not None:
+            self.search_widget.hide_search_popover()
+            self.search_widget.set_items_list(self.person_handle_list)
+        self.close_panel()
+        self.info_box_manager.close_info_box()
+
         self.canvas_manager.reset_canvas()
         self.minimap_manager.reset_minimap()
 
@@ -257,9 +278,8 @@ class FamilyTreeViewWidgetManager:
         self.num_missing_persons_added = 0
         self.num_families_added = 0
         self.person_handle_list = []
-        if self.search_widget is not None:
-            self.search_widget.hide_search_popover()
-            self.search_widget.set_items_list(self.person_handle_list)
+
+        self.position_of_handle = {}
 
     def add_person(self, person_handle, x, person_generation, alignment, ahnentafel=None):
         person = self.ftv.get_person_from_handle(person_handle)
@@ -419,7 +439,7 @@ class FamilyTreeViewWidgetManager:
 
         return person_bounds
 
-    def add_missing_person(self, x, person_generation, alignment):
+    def add_missing_person(self, x, person_generation, alignment, relationship, handle):
         fg_color_found, fg_color = self.main_widget.get_style_context().lookup_color('theme_fg_color')
         if fg_color_found:
             fg_color = tuple(fg_color)[:3]
@@ -451,7 +471,7 @@ class FamilyTreeViewWidgetManager:
             x, person_generation, content_items, background_color, border_color,
             True, # no ribbon
             round_lower_corners,
-            click_callback=None # TODO create new person
+            click_callback=lambda item, target, event: self._cb_missing_person_clicked(event, relationship, handle, alignment)
         )
         self.minimap_manager.add_person(x, person_generation, background_color)
 
@@ -565,7 +585,7 @@ class FamilyTreeViewWidgetManager:
         if not follow_on_click or (handle1 is None and handle2 is None):
             click_callback = None
         else:
-            click_callback = lambda item, target, event, ym: self._db_connection_clicked(handle1, handle2, event, ym)
+            click_callback = lambda item, target, event, ym: self._cb_connection_clicked(handle1, handle2, event, ym)
         self.canvas_manager.add_connection(
             x1, y1, x2, y2, ym=ym, m=m, dashed=dashed,
             click_callback=click_callback
@@ -689,64 +709,79 @@ class FamilyTreeViewWidgetManager:
     # callbacks
 
     def _cb_person_clicked(self, person_handle, event, x, person_generation, alignment):
-        is_single_click = True
-        if event.type == Gdk.EventType.BUTTON_PRESS:
-            action = self.ftv._config.get("interaction.familytreeview-person-single-click-action")
-        elif event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS:
-            action = self.ftv._config.get("interaction.familytreeview-person-double-click-action")
-            is_single_click = False
-        else:
-            return False
+        action, is_single_click = self._get_click_config_action("person", event)
 
-        if action == 1: # info box
-            function = self.info_box_manager.open_person_info_box
+        if action == "open_info_box_person":
+            fcn = self.info_box_manager.open_person_info_box
             data = [person_handle, x, person_generation, alignment]
-        elif action == 2: # side panel
-            function = self.panel_manager.open_person_panel
+        elif action == "open_panel_person":
+            fcn = self.panel_manager.open_person_panel
             data = [person_handle]
-        elif action == 3: # edit
-            function = self.ftv.edit_person
+        elif action == "edit_person":
+            fcn = self.ftv.edit_person
             data = [person_handle]
-        elif action == 4: # set as active
-            function = self.ftv.set_active_person
+        elif action == "set_active_person":
+            fcn = self.ftv.set_active_person
             data = [person_handle]
-        elif action == 5: # set as home
-            function = self.ftv.set_home_person
+        elif action == "set_home_person":
+            fcn = self.ftv.set_home_person
             data = [person_handle, True] # also_set_active
+        elif action == "open_context_menu_person":
+            fcn = self.open_person_context_menu
+            data = [person_handle, event, x, person_generation, alignment]
         else:
             return False
 
-        self._process_click(is_single_click, function, *data)
+        self._process_click(is_single_click, fcn, *data)
+
+        return True
+
+    def _cb_missing_person_clicked(self, event, relationship, handle, alignment):
+        if event.type != Gdk.EventType.DOUBLE_BUTTON_PRESS:
+            return False
+
+        if relationship is None:
+            return False
+        elif relationship == "root":
+            return False # TODO
+        elif relationship in ["spouse", "parent"]:
+            fcn = self.ftv.add_new_parent_to_family
+            family_handle = handle
+            is_father = alignment == "r"
+            args = [family_handle, is_father]
+        else:
+            return False
+        self._process_click(False, fcn, *args)
 
         return True
 
     def _cb_family_clicked(self, family_handle, event, x, family_generation):
-        is_single_click = True
-        if event.type == Gdk.EventType.BUTTON_PRESS:
-            action = self.ftv._config.get("interaction.familytreeview-family-single-click-action")
-        elif event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS:
-            action = self.ftv._config.get("interaction.familytreeview-family-double-click-action")
-            is_single_click = False
-        else:
-            return False
+        action, is_single_click = self._get_click_config_action("family", event)
 
-        if action == 1: # info box
-            function = self.info_box_manager.open_family_info_box
+        if action == "open_info_box_family":
+            fcn = self.info_box_manager.open_family_info_box
             data = [family_handle, x, family_generation]
-        elif action == 2: # side panel
-            function = self.panel_manager.open_family_panel
+        elif action == "open_panel_family":
+            fcn = self.panel_manager.open_family_panel
             data = [family_handle]
-        elif action == 3: # edit
-            function = self.ftv.edit_family
+        elif action == "edit_family":
+            fcn = self.ftv.edit_family
             data = [family_handle]
+        elif action == "set_active_family":
+            fcn = self.ftv.set_active_family
+            data = [family_handle]
+        # no home family option
+        elif action == "open_context_menu_family":
+            fcn = self.open_family_context_menu
+            data = [family_handle, event, x, family_generation]
         else:
             return False
 
-        self._process_click(is_single_click, function, *data)
+        self._process_click(is_single_click, fcn, *data)
 
         return True
 
-    def _db_connection_clicked(self, handle1, handle2, event, ym):
+    def _cb_connection_clicked(self, handle1, handle2, event, ym):
         # assuming (y of handle 1) < (y of handle 2) (e.g. handle1 is ancestor)
         if event.type != Gdk.EventType.DOUBLE_BUTTON_PRESS:
             return False
@@ -771,6 +806,60 @@ class FamilyTreeViewWidgetManager:
 
         self._process_click(False, move_to_target)
 
+    def _cb_background_clicked(self, root_item, target, event):
+        action, is_single_click = self._get_click_config_action("background", event)
+
+        if action == "open_context_menu_background":
+            fcn = self.open_background_context_menu
+            data = [event]
+        elif action == "zoom_in":
+            fcn = self.canvas_manager.zoom_in
+            data = []
+        elif action == "zoom_out":
+            fcn = self.canvas_manager.zoom_out
+            data = []
+        elif action == "zoom_reset":
+            fcn = self.canvas_manager.reset_zoom
+            data = []
+        elif action == "scroll_to_active_person":
+            fcn = self.scroll_to_active_person
+            data = []
+        elif action == "scroll_to_home_person":
+            fcn = self.scroll_to_home_person
+            data = []
+        elif action == "scroll_to_active_family":
+            fcn = self.scroll_to_active_family
+            data = []
+        else:
+            return False
+
+        self._process_click(is_single_click, fcn, *data)
+
+    def _get_click_config_action(self, click_type, event):
+        if event.type == Gdk.EventType.BUTTON_PRESS:
+            if event.button == 1: # primary
+                action = self.ftv._config.get(f"interaction.familytreeview-{click_type}-single-primary-click-action")
+            elif event.button == 3: # secondary
+                action = self.ftv._config.get(f"interaction.familytreeview-{click_type}-single-secondary-click-action")
+            elif event.button == 2: # middle
+                action = self.ftv._config.get(f"interaction.familytreeview-{click_type}-single-middle-click-action")
+            else:
+                action = None
+            is_single_click = True
+        elif event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS:
+            if event.button == 1: # primary
+                action = self.ftv._config.get(f"interaction.familytreeview-{click_type}-double-primary-click-action")
+            elif event.button == 3: # secondary
+                action = self.ftv._config.get(f"interaction.familytreeview-{click_type}-double-secondary-click-action")
+            elif event.button == 2: # middle
+                action = self.ftv._config.get(f"interaction.familytreeview-{click_type}-double-middle-click-action")
+            else:
+                action = None
+            is_single_click = False
+        else:
+            return (None, False)
+        return (action, is_single_click)
+
     def _process_click(self, is_single_click, function, *data):
         if is_single_click:
             interval = self.ftv._config.get("interaction.familytreeview-double-click-timeout-milliseconds")
@@ -786,6 +875,166 @@ class FamilyTreeViewWidgetManager:
                     GLib.source_remove(source.get_id())
             self.click_event_sources.clear()
             function(*data)
+
+    def scroll_to_active_person(self):
+        active_person_handle = self.ftv.get_active()
+        if active_person_handle is None or len(active_person_handle) == 0:
+            return
+        try:
+            active_pos = self.position_of_handle[active_person_handle]
+        except KeyError:
+            return
+        self.canvas_manager.move_to_center(*active_pos)
+
+    def scroll_to_home_person(self):
+        home_person = self.ftv.dbstate.db.get_default_person()
+        if home_person is None:
+            return
+        try:
+            active_pos = self.position_of_handle[home_person.handle]
+        except KeyError:
+            return
+        self.canvas_manager.move_to_center(*active_pos)
+
+    def scroll_to_active_family(self):
+        active_family_handle = self.ftv.get_active_family_handle()
+        if active_family_handle is None or len(active_family_handle) == 0:
+            return
+        try:
+            active_pos = self.position_of_handle[active_family_handle]
+        except KeyError:
+            return
+        self.canvas_manager.move_to_center(*active_pos)
+
+    def open_person_context_menu(self, person_handle, event, x, person_generation, alignment):
+        self.menu = Gtk.Menu()
+
+        menu_item = Gtk.MenuItem(label=_("Edit"))
+        menu_item.connect("activate", lambda *_args:
+            self.ftv.edit_person(person_handle)
+        )
+        self.menu.append(menu_item)
+
+        menu_item = Gtk.MenuItem(label=_("Set as home person"))
+        menu_item.connect("activate", lambda *_args:
+            self.ftv.set_home_person(person_handle)
+        )
+        self.menu.append(menu_item)
+
+        menu_item = Gtk.MenuItem(label=_("Set as active person"))
+        menu_item.connect("activate", lambda *_args:
+            self.ftv.set_active_person(person_handle)
+        )
+        self.menu.append(menu_item)
+
+        menu_item = Gtk.MenuItem(label=_("Open info box"))
+        menu_item.connect("activate", lambda *_args:
+            self.info_box_manager.open_person_info_box(person_handle, x, person_generation, alignment)
+        )
+        self.menu.append(menu_item)
+
+        menu_item = Gtk.MenuItem(label=_("Open panel"))
+        menu_item.connect("activate", lambda *_args:
+            self.panel_manager.open_person_panel(person_handle)
+        )
+        self.menu.append(menu_item)
+
+        self.show_menu(event)
+
+    def open_family_context_menu(self, family_handle, event, x, family_generation):
+        self.menu = Gtk.Menu()
+
+        menu_item = Gtk.MenuItem(label=_("Edit"))
+        menu_item.connect("activate", lambda *_args:
+            self.ftv.edit_family(family_handle)
+        )
+        self.menu.append(menu_item)
+
+        menu_item = Gtk.MenuItem(label=_("Open info box"))
+        menu_item.connect("activate", lambda *_args:
+            self.info_box_manager.open_family_info_box(family_handle, x, family_generation)
+        )
+        self.menu.append(menu_item)
+
+        menu_item = Gtk.MenuItem(label=_("Open panel"))
+        menu_item.connect("activate", lambda *_args:
+            self.panel_manager.open_family_panel(family_handle)
+        )
+        self.menu.append(menu_item)
+
+        self.show_menu(event)
+
+    def open_background_context_menu(self, event):
+        self.menu = Gtk.Menu()
+
+        menu_item = Gtk.MenuItem(label=_("Zoom in"))
+        menu_item.connect("activate", lambda *_args:
+            self.canvas_manager.zoom_in()
+        )
+        self.menu.append(menu_item)
+
+        menu_item = Gtk.MenuItem(label=_("Zoom out"))
+        menu_item.connect("activate", lambda *_args:
+            self.canvas_manager.zoom_out()
+        )
+        self.menu.append(menu_item)
+
+        menu_item = Gtk.MenuItem(label=_("Reset zoom"))
+        menu_item.connect("activate", lambda *_args:
+            self.canvas_manager.reset_zoom()
+        )
+        self.menu.append(menu_item)
+
+        menu_item = Gtk.MenuItem(label=_("Scroll to active person"))
+        menu_item.connect("activate", lambda *_args:
+            self.scroll_to_active_person()
+        )
+        self.menu.append(menu_item)
+
+        menu_item = Gtk.MenuItem(label=_("Scroll to home person"))
+        menu_item.connect("activate", lambda *_args:
+            self.scroll_to_home_person()
+        )
+        home_person = self.ftv.dbstate.db.get_default_person()
+        if home_person is None:
+            home_person_in_tree = False
+        else:
+            home_person_in_tree = home_person.handle in self.position_of_handle
+        menu_item.set_sensitive(home_person_in_tree)
+        self.menu.append(menu_item)
+
+        menu_item = Gtk.MenuItem(label=_("Scroll to active family"))
+        menu_item.connect("activate", lambda *_args:
+            self.scroll_to_active_family()
+        )
+        active_family_handle = self.ftv.get_active_family_handle()
+        active_family_set = (
+            active_family_handle is not None
+            and len(active_family_handle) > 0
+        )
+        menu_item.set_sensitive(active_family_set)
+        self.menu.append(menu_item)
+
+        self.show_menu(event)
+
+    def show_menu(self, orig_event):
+        self.menu.show_all()
+
+        # We cannot use the original click event here because it is
+        # garbage collected (at least as I understand it), which causes
+        # event.window to be None, for example. The garbage collection
+        # is triggered because we are delaying the call to this method
+        # with timeout_add to detect double clicks. We need to create a
+        # new event.
+        new_event = Gdk.Event.new(Gdk.EventType.BUTTON_PRESS)
+        new_event.window = self.main_widget.get_window()
+        seat = self.main_widget.get_display().get_default_seat()
+        new_event.device = seat.get_pointer() or seat.get_keyboard()
+        new_event.x = orig_event.x
+        new_event.y = orig_event.y
+        new_event.button = orig_event.button
+        new_event.time = orig_event.time
+        self.menu.popup_at_pointer(new_event)
 
     def add_to_provider(self, s):
         self.provider_str += s

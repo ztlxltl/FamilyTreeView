@@ -48,7 +48,9 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install gramps[GUI,i18n]==5.2.3
+          # Pin PyGObject version because newer versions require girepository-2.0 which is not available on some distributions (e.g. Ubuntu 24.04.2).
+          pip install PyGObject==3.50.0
+          pip install gramps[GUI,i18n]==5.2.4
       - name: Get make.py
         run: wget https://raw.githubusercontent.com/gramps-project/addons-source/refs/heads/maintenance/gramps52/make.py
       - name: Build Addons
