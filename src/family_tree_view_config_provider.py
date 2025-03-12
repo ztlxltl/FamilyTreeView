@@ -97,6 +97,7 @@ class FamilyTreeViewConfigProvider:
             ("interaction.familytreeview-zoom-level-step", 0.15),
             ("interaction.familytreeview-family-info-box-set-active-button", False),
             ("interaction.familytreeview-printing-scale-to-page", False),
+            ("interaction.familytreeview-printing-export-hide-expanders", True),
 
             ("boxes.familytreeview-boxes-custom-defs", {}),
             ("boxes.familytreeview-boxes-selected-def-key", "regular"),
@@ -840,6 +841,16 @@ class FamilyTreeViewConfigProvider:
             stop=3 # same width as spinners and combos
         )
 
+        # TODO Maybe move printing options to appearance?
+        row += 1
+        configdialog.add_text(
+            grid,
+            _(
+                "Printing and exporting:"
+            ),
+            row,
+        )
+
         row += 1
         configdialog.add_checkbox(
             grid,
@@ -850,6 +861,17 @@ class FamilyTreeViewConfigProvider:
             ),
             row,
             "interaction.familytreeview-printing-scale-to-page",
+            stop=3 # same width as spinners and combos
+        )
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _(
+                "Hide expanders in prints and exports."
+            ),
+            row,
+            "interaction.familytreeview-printing-export-hide-expanders",
             stop=3 # same width as spinners and combos
         )
 
