@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING
 
 from gi.repository import Gdk, GdkPixbuf, Gtk
 
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.datehandler import get_date
 from gramps.gen.display.name import displayer as name_displayer
 from gramps.gen.lib import Person
@@ -31,12 +30,12 @@ from gramps.gen.utils.alive import probably_alive
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback, get_divorce_or_fallback
 from gramps.gui.utils import color_graph_box
 
-from family_tree_view_utils import get_contrast_color
+from family_tree_view_utils import get_contrast_color, get_gettext
 if TYPE_CHECKING:
     from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeViewInfoWidgetManager:
     def __init__(self, widget_manager: "FamilyTreeViewWidgetManager"):

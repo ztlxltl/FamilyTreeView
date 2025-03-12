@@ -24,15 +24,15 @@ from typing import TYPE_CHECKING
 
 from gi.repository import GLib, Gtk
 
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.lib.childreftype import ChildRefType
 from gramps.gui.utils import ProgressMeter
 
+from family_tree_view_utils import get_gettext
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeViewWidgetManager
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeViewTreeBuilder():
     """Collects all the information to build the tree and sends it to the canvas."""

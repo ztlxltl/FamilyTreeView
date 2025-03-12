@@ -23,19 +23,18 @@ import re
 from typing import TYPE_CHECKING
 import unicodedata
 
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.display.name import (
     _CONNECTOR_IN_LIST, _F_FMT, _ORIGINMATRO, _ORIGINPATRO, _PREFIX_IN_LIST,
     _PRIMARY_IN_LIST, _SURNAME_IN_LIST, _TYPE_IN_LIST, PAT_AS_SURN,
     displayer as name_displayer, _make_cmp_key, cleanup_name
 )
 
-from family_tree_view_utils import make_hashable
+from family_tree_view_utils import get_gettext, make_hashable
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 def _raw_full_surname(raw_surn_data_list):
     """method for the 'l' symbol: full surnames"""

@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 from gi.repository import Gtk, Pango
 
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.display.name import displayer as name_displayer
 from gramps.gen.lib.attrtype import AttributeType
 from gramps.gen.lib.eventtype import EventType
@@ -14,11 +13,12 @@ from gramps.gen.utils.keyword import (
 )
 from gramps.gui.widgets.monitoredwidgets import MonitoredDataType
 
+from family_tree_view_utils import get_gettext
 if TYPE_CHECKING:
     from family_tree_view_config_provider import FamilyTreeViewConfigProvider
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 EVENT_PARAMS = {
     "event_type_visualization": "symbol",

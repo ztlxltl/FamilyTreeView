@@ -25,17 +25,18 @@ from typing import TYPE_CHECKING
 from gi.repository import Gtk
 
 from gramps.gen.config import config
-from gramps.gen.const import GRAMPS_LOCALE, SIZE_LARGE, SIZE_NORMAL, USER_HOME
+from gramps.gen.const import SIZE_LARGE, SIZE_NORMAL, USER_HOME
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.lib.eventtype import EventType
 
 from family_tree_view_config_page_manager_boxes import BOX_ITEMS, PREDEF_BOXES_DEFS, FamilyTreeViewConfigPageManagerBoxes
 from family_tree_view_config_provider_names import names_page, DEFAULT_ABBREV_RULES
+from family_tree_view_utils import get_gettext
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeViewConfigProvider:
     def __init__(self, ftv: "FamilyTreeView"):

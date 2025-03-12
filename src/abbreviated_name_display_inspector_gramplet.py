@@ -21,13 +21,12 @@
 
 from gi.repository import Gtk
 
-from gramps.gen.const import GRAMPS_LOCALE
-
 from abbreviated_name_display import AbbreviatedNameDisplay
 from family_tree_view_gramplet import FamilyTreeViewGramplet
+from family_tree_view_utils import get_gettext
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class AbbreviatedNameDisplayInspectorGramplet(FamilyTreeViewGramplet):
 

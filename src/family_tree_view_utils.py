@@ -19,8 +19,12 @@
 #
 
 
+import os
+
 from gi import require_version
 from gi.repository import Pango
+
+from gramps.gen.const import GRAMPS_LOCALE
 
 
 def import_GooCanvas():
@@ -38,6 +42,28 @@ def import_GooCanvas():
     if not gooCanvas_available:
         raise Exception("GooCanvas 2 or 3 (http://live.gnome.org/GooCanvas) is required for this view to work.")
     return GooCanvas
+
+def get_gettext(return_ngettext=False, return_sgettext=False):
+    file = os.path.abspath(__file__)
+    dir_name = os.path.basename(os.path.dirname(file))
+    if dir_name == "src":
+        # Python files in subdirectory (e.g. manual installation), use
+        # parent directory.
+        file = os.path.dirname(file)
+
+    try:
+        translation = GRAMPS_LOCALE.get_addon_translator(file)
+    except ValueError:
+        translation = GRAMPS_LOCALE.translation
+
+    if not return_ngettext and not return_sgettext:
+        return translation.gettext
+    elif return_ngettext and not return_sgettext:
+        return translation.gettext, translation.ngettext
+    elif not return_ngettext and return_sgettext:
+        return translation.gettext, translation.sgettext
+    else:
+        return translation.gettext, translation.ngettext, translation.sgettext
 
 def get_contrast_color(color):
     """

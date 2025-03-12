@@ -28,7 +28,7 @@ import cairo
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from gramps.gen.config import config
-from gramps.gen.const import CUSTOM_FILTERS, GRAMPS_LOCALE
+from gramps.gen.const import CUSTOM_FILTERS
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.errors import HandleError, WindowActiveError
 from gramps.gen.lib import EventType
@@ -46,10 +46,11 @@ from abbreviated_name_display import AbbreviatedNameDisplay
 from family_tree_view_badge_manager import FamilyTreeViewBadgeManager
 from family_tree_view_config_provider import FamilyTreeViewConfigProvider
 from family_tree_view_icons import get_family_avatar_svg_data, get_person_avatar_svg_data
+from family_tree_view_utils import get_gettext
 from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeView(NavigationView, Callback):
     ADDITIONAL_UI = [

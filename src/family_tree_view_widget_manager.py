@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING
 from gi.repository import Gdk, GLib, Gtk
 
 from gramps.gen.config import config
-from gramps.gen.const import GRAMPS_LOCALE, USER_PLUGINS
+from gramps.gen.const import USER_PLUGINS
 from gramps.gen.datehandler import get_date
 from gramps.gen.lib import Person
 from gramps.gen.utils.alive import probably_alive
@@ -40,7 +40,7 @@ from family_tree_view_info_box_manager import FamilyTreeViewInfoBoxManager
 from family_tree_view_minimap_manager import FamilyTreeViewMinimapManager
 from family_tree_view_panel_manager import FamilyTreeViewPanelManager
 from family_tree_view_tree_builder import FamilyTreeViewTreeBuilder
-from family_tree_view_utils import get_event_from_family, get_event_from_person, import_GooCanvas
+from family_tree_view_utils import get_event_from_family, get_event_from_person, get_gettext, import_GooCanvas
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
 
@@ -55,7 +55,7 @@ else:
 
 GooCanvas = import_GooCanvas()
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeViewWidgetManager:
     def __init__(self, ftv: "FamilyTreeView"):
