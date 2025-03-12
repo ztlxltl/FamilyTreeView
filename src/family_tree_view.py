@@ -860,4 +860,4 @@ class FamilyTreeView(NavigationView, Callback):
             self.widget_manager.canvas_manager.canvas.render(context, bounds, 0.0)
         finally:
             if hide_expanders:
-                self.widget_manager.canvas_manager.set_expander_visible(False)
+                self.widget_manager.canvas_manager.set_expander_visible(True)
