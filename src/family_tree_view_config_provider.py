@@ -183,45 +183,72 @@ class FamilyTreeViewConfigProvider:
                     k = str(k)
                     changed = True
 
-                v_changed = False
                 if len(v) != 4:
                     del content_def_config[k]
                     changed = True
-                elif not isinstance(v[0], str):
+                    continue
+
+                v = list(v)
+                v_changed = False
+                if not isinstance(v[0], str):
                     v[0] = str(v[0])
-                elif not isinstance(v[1], int):
+                    v_changed = True
+                if not isinstance(v[1], int):
                     try:
                         v[1] = int(v[1])
                     except ValueError:
-                        v[1] = PREDEF_BOXES_DEFS["regular"][1]
+                        v[1] = deepcopy(PREDEF_BOXES_DEFS["regular"][1])
                     v_changed = True
-                else:
-                    for i, box_type in [(2, "person"), (3, "family")]:
-                        if not isinstance(v[i], list):
-                            v[i] = PREDEF_BOXES_DEFS["regular"][i]
+                for i, box_type in [(2, "person"), (3, "family")]:
+                    if not isinstance(v[i], list):
+                        v[i] = deepcopy(PREDEF_BOXES_DEFS["regular"][i])
+                        v_changed = True
+                        continue
+
+                    # Delete all unknown items and fix or delete
+                    # corrupted items.
+                    js_to_delete = []
+                    for j in range(len(v[i])): # loop over items
+                        # corrupted or unknown item type
+                        if (
+                            not isinstance(v[i][j][0], str)
+                            or v[i][j][0] not in [item[0] for item in BOX_ITEMS[box_type]]
+                        ):
+                            js_to_delete.append(j)
+                            continue
+
+                        idx = [item[0] for item in BOX_ITEMS[box_type]].index(v[i][j][0])
+                        dflt_params = deepcopy(BOX_ITEMS[box_type][idx][3])
+
+                        # no dict with params
+                        if not isinstance(v[i][j][1], dict):
+                            # direct assignment to tuple: convert to
+                            # list
+                            v[i][j] = list(v[i][j])
+                            v[i][j][1] = dflt_params
+                            v[i][j] = tuple(v[i][j])
                             v_changed = True
-                        else:
-                            js_to_delete = []
-                            for j in range(len(v[i])):
-                                if (
-                                    not isinstance(v[i][j][0], str)
-                                    or v[i][j][0] not in [item[0] for item in BOX_ITEMS[box_type]]
-                                    or not isinstance(v[i][j][1], dict)
-                                ):
-                                    js_to_delete.append(j)
-                                else:
-                                    idx = [item[0] for item in BOX_ITEMS[box_type]].index(v[i][j][0])
-                                    for k_, v_ in v[i][j][1].items():
-                                        if k_ not in BOX_ITEMS[box_type][idx][3].keys():
-                                            js_to_delete.append(j)
-                                        elif type(v_) != type(BOX_ITEMS[box_type][idx][3][k_]):
-                                            js_to_delete.append(j)
-                            for j in reversed(js_to_delete):
-                                v[i].pop(j)
+                            continue
+
+                        # unknown, corrupted params
+                        for k_, v_ in v[i][j][1].items():
+                            if k_ not in dflt_params.keys():
+                                js_to_delete.append(j)
+                            elif type(v_) != type(dflt_params[k_]):
+                                v[i][j][1][k_] = dflt_params[k_]
                                 v_changed = True
 
+                        # missing params
+                        for k_ in dflt_params.keys():
+                            if k_ not in v[i][j][1].keys():
+                                v[i][j][1][k_] = dflt_params[k_]
+                                v_changed = True
+                    for j in reversed(js_to_delete):
+                        v[i].pop(j)
+                        v_changed = True
+
                 if v_changed:
-                    content_def_config[k] = v
+                    content_def_config[k] = tuple(v)
                     changed = True
             if changed:
                 _config.set(key, content_def_config)
