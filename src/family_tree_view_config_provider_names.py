@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING
 
 from gi.repository import Gtk, Pango
 
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.display.name import displayer as name_displayer
 from gramps.gen.lib import Name, Surname, NameOriginType
 from gramps.gen.utils.keyword import (
@@ -32,11 +31,12 @@ from gramps.gen.utils.keyword import (
     get_translation_from_keyword,
 )
 
+from family_tree_view_utils import get_gettext
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 NAME_PART_TYPES = [
     ("given", _("Given")),

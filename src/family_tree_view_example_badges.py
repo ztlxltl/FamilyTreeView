@@ -22,16 +22,16 @@
 import os
 
 from gramps.gen.config import config
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.lib.childreftype import ChildRefType
 from gramps.gen.simple import make_basic_stylesheet
 from gramps.gui.plug.quick._textbufdoc import TextBufDoc
 
 import children_quick_report
 from family_tree_view_badge_registerer import FamilyTreeViewBadgeRegisterer
+from family_tree_view_utils import get_gettext
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class NumCitationsBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
     def register_badges(self):

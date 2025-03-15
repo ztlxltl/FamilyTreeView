@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING
 from gi.repository import Gdk, GLib, Gtk
 
 from gramps.gen.config import config
-from gramps.gen.const import GRAMPS_LOCALE, USER_PLUGINS
+from gramps.gen.const import USER_PLUGINS
 from gramps.gen.datehandler import get_date
 from gramps.gen.lib import Person
 from gramps.gen.utils.alive import probably_alive
@@ -35,12 +35,13 @@ from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, ge
 from gramps.gen.utils.string import format_gender
 from gramps.gui.utils import color_graph_box, color_graph_family, get_contrast_color, hex_to_rgb, hex_to_rgb_float, rgb_to_hex
 
+from date_display_compact import get_date as get_date_compact
 from family_tree_view_canvas_manager import FamilyTreeViewCanvasManager
 from family_tree_view_info_box_manager import FamilyTreeViewInfoBoxManager
 from family_tree_view_minimap_manager import FamilyTreeViewMinimapManager
 from family_tree_view_panel_manager import FamilyTreeViewPanelManager
 from family_tree_view_tree_builder import FamilyTreeViewTreeBuilder
-from family_tree_view_utils import get_event_from_family, get_event_from_person, import_GooCanvas
+from family_tree_view_utils import get_event_from_family, get_event_from_person, get_gettext, import_GooCanvas
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
 
@@ -55,7 +56,7 @@ else:
 
 GooCanvas = import_GooCanvas()
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeViewWidgetManager:
     def __init__(self, ftv: "FamilyTreeView"):
@@ -596,12 +597,12 @@ class FamilyTreeViewWidgetManager:
 
     # box helpers
 
-    def get_event_for_box(self, event, event_type_visualization_type, display_date, display_only_year, display_place, display_description, display_tags, tag_visualization, place_format):
+    def get_event_for_box(self, event, event_type_visualization_type, display_date, display_only_year, date_compact, display_place, display_description, display_tags, tag_visualization, place_format):
         if event is None:
             return ""
         text = "" # required if no info is displayed
         if display_date:
-            text = self.get_event_date_for_box(event, display_only_year).strip()
+            text = self.get_event_date_for_box(event, display_only_year, date_compact).strip()
         if display_place:
             text = (text + " " + self.get_event_place_for_box(event, place_format)).strip()
         if display_description:
@@ -617,13 +618,14 @@ class FamilyTreeViewWidgetManager:
             params["event_type_visualization"],
             params["date"],
             params["date_only_year"],
+            params["date_compact"],
             params["place"],
             params["description"],
             params["tags"],
             params["tag_visualization"],
         ]
 
-    def get_event_date_for_box(self, event, display_only_year):
+    def get_event_date_for_box(self, event, display_only_year, date_compact):
         if event is None:
             return ""
         if display_only_year:
@@ -631,7 +633,13 @@ class FamilyTreeViewWidgetManager:
             if date.get_year_valid():
                 return str(date.get_year())
             return ""
-        return get_date(event)
+        if date_compact:
+            date_str = get_date_compact(event)
+        else:
+            date_str = get_date(event)
+        date_bytes = date_str.encode("utf-8")
+        date_escstr = GLib.markup_escape_text(date_bytes, len(date_bytes))
+        return date_escstr
 
     def get_event_place_for_box(self, event, place_format):
         if event is None:
@@ -909,31 +917,31 @@ class FamilyTreeViewWidgetManager:
     def open_person_context_menu(self, person_handle, event, x, person_generation, alignment):
         self.menu = Gtk.Menu()
 
-        menu_item = Gtk.MenuItem(label="Edit")
+        menu_item = Gtk.MenuItem(label=_("Edit"))
         menu_item.connect("activate", lambda *_args:
             self.ftv.edit_person(person_handle)
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Set home person")
+        menu_item = Gtk.MenuItem(label=_("Set as home person"))
         menu_item.connect("activate", lambda *_args:
             self.ftv.set_home_person(person_handle)
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Set active person")
+        menu_item = Gtk.MenuItem(label=_("Set as active person"))
         menu_item.connect("activate", lambda *_args:
             self.ftv.set_active_person(person_handle)
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Open info box")
+        menu_item = Gtk.MenuItem(label=_("Open info box"))
         menu_item.connect("activate", lambda *_args:
             self.info_box_manager.open_person_info_box(person_handle, x, person_generation, alignment)
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Open panel")
+        menu_item = Gtk.MenuItem(label=_("Open panel"))
         menu_item.connect("activate", lambda *_args:
             self.panel_manager.open_person_panel(person_handle)
         )
@@ -944,19 +952,19 @@ class FamilyTreeViewWidgetManager:
     def open_family_context_menu(self, family_handle, event, x, family_generation):
         self.menu = Gtk.Menu()
 
-        menu_item = Gtk.MenuItem(label="Edit")
+        menu_item = Gtk.MenuItem(label=_("Edit"))
         menu_item.connect("activate", lambda *_args:
             self.ftv.edit_family(family_handle)
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Open info box")
+        menu_item = Gtk.MenuItem(label=_("Open info box"))
         menu_item.connect("activate", lambda *_args:
             self.info_box_manager.open_family_info_box(family_handle, x, family_generation)
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Open panel")
+        menu_item = Gtk.MenuItem(label=_("Open panel"))
         menu_item.connect("activate", lambda *_args:
             self.panel_manager.open_family_panel(family_handle)
         )
@@ -967,31 +975,31 @@ class FamilyTreeViewWidgetManager:
     def open_background_context_menu(self, event):
         self.menu = Gtk.Menu()
 
-        menu_item = Gtk.MenuItem(label="Zoom in")
+        menu_item = Gtk.MenuItem(label=_("Zoom in"))
         menu_item.connect("activate", lambda *_args:
             self.canvas_manager.zoom_in()
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Zoom out")
+        menu_item = Gtk.MenuItem(label=_("Zoom out"))
         menu_item.connect("activate", lambda *_args:
             self.canvas_manager.zoom_out()
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Reset zoom")
+        menu_item = Gtk.MenuItem(label=_("Reset zoom"))
         menu_item.connect("activate", lambda *_args:
             self.canvas_manager.reset_zoom()
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Scroll to active person")
+        menu_item = Gtk.MenuItem(label=_("Scroll to active person"))
         menu_item.connect("activate", lambda *_args:
             self.scroll_to_active_person()
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Scroll to home person")
+        menu_item = Gtk.MenuItem(label=_("Scroll to home person"))
         menu_item.connect("activate", lambda *_args:
             self.scroll_to_home_person()
         )
@@ -1003,7 +1011,7 @@ class FamilyTreeViewWidgetManager:
         menu_item.set_sensitive(home_person_in_tree)
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label="Scroll to active family")
+        menu_item = Gtk.MenuItem(label=_("Scroll to active family"))
         menu_item.connect("activate", lambda *_args:
             self.scroll_to_active_family()
         )
