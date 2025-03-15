@@ -134,6 +134,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         # Connections are added to a group created as first canvas element so connections are below everything else.
         self.connection_group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
         self.canvas_bounds = [0, 0, 0, 0] # left, top, right, bottom
+        self.expander_list = []
 
     def reset_zoom_values(self, *args): # *args needed when used as a callback
         self.default_zoom_level = self.ftv._config.get("interaction.familytreeview-zoom-level-default")
@@ -622,6 +623,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
     def add_expander(self, x, y, ang, click_callback):
         group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
         group.connect("button-press-event", self.click_callback, click_callback)
+        self.expander_list.append(group)
         parent = group
 
         fg_color_found, fg_color = self.canvas.get_style_context().lookup_color('theme_fg_color')
@@ -761,3 +763,12 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.canvas_bounds[3] = max(self.canvas_bounds[3], bottom+self.canvas_padding)
 
         self.canvas.set_bounds(*self.canvas_bounds)
+
+    def set_expander_visible(self, visible):
+        if visible:
+            visibility = GooCanvas.CanvasItemVisibility.VISIBLE
+        else:
+            visibility = GooCanvas.CanvasItemVisibility.INVISIBLE
+
+        for expander in self.expander_list:
+            expander.props.visibility = visibility

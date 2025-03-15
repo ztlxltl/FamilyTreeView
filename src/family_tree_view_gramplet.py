@@ -23,14 +23,14 @@ from typing import TYPE_CHECKING
 
 from gi.repository import Gtk
 
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.plug import Gramplet
 
+from family_tree_view_utils import get_gettext
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeViewGramplet(Gramplet):
 
