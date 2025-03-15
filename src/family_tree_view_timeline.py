@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 from gi.repository import GLib, Gtk, Pango
 
 from gramps.gen.config import config
+from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.datehandler import get_date
 from gramps.gen.display.name import displayer as name_displayer
 from gramps.gen.lib.date import Date
@@ -34,14 +35,14 @@ from gramps.gen.lib.person import Person
 from gramps.gui.utils import rgb_to_hex
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback, get_divorce_or_fallback
 
-from family_tree_view_utils import calculate_min_max_age_at_event, get_gettext, get_label_line_height, import_GooCanvas
+from family_tree_view_utils import calculate_min_max_age_at_event, get_label_line_height, import_GooCanvas
 if TYPE_CHECKING:
     from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
 
 GooCanvas = import_GooCanvas()
 
-_ = get_gettext()
+_ = GRAMPS_LOCALE.translation.gettext
 
 DAYS_PER_YEAR = 365.2425 # on average in Gregorian calendar
 DAYS_PER_MONTH = DAYS_PER_YEAR / 12; # on average
