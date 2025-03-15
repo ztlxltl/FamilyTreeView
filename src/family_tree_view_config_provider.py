@@ -177,7 +177,7 @@ class FamilyTreeViewConfigProvider:
             _config.set(key, default_value)
         else:
             changed = False
-            for k, v in content_def_config.items():
+            for k, v in list(content_def_config.items()):
                 if not isinstance(k, str):
                     content_def_config[str(k)] = content_def_config.pop(k)
                     k = str(k)
@@ -231,9 +231,10 @@ class FamilyTreeViewConfigProvider:
                             continue
 
                         # unknown, corrupted params
-                        for k_, v_ in v[i][j][1].items():
+                        for k_, v_ in list(v[i][j][1].items()):
                             if k_ not in dflt_params.keys():
-                                js_to_delete.append(j)
+                                del v[i][j][1][k_]
+                                v_changed = True
                             elif type(v_) != type(dflt_params[k_]):
                                 v[i][j][1][k_] = dflt_params[k_]
                                 v_changed = True
@@ -243,6 +244,20 @@ class FamilyTreeViewConfigProvider:
                             if k_ not in v[i][j][1].keys():
                                 v[i][j][1][k_] = dflt_params[k_]
                                 v_changed = True
+
+                        # ensure item param order, important for order
+                        # in UI
+                        if list(v[i][j][1].keys()) != list(dflt_params.keys()):
+                            # direct assignment to tuple: convert to
+                            # list
+                            v[i][j] = list(v[i][j])
+                            v[i][j][1] = {
+                                k: v[i][j][1][k]
+                                for k in dflt_params.keys()
+                            }
+                            v[i][j] = tuple(v[i][j])
+                            v_changed = True
+
                     for j in reversed(js_to_delete):
                         v[i].pop(j)
                         v_changed = True
