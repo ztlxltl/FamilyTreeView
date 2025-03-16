@@ -56,6 +56,7 @@ class FamilyTreeViewConfigProvider:
             ("appearance.familytreeview-num-descendant-generations-default", 2),
             ("appearance.familytreeview-connections-line-width", 2.0),
             ("appearance.familytreeview-box-line-width", 2.0),
+            ("appearance.familytreeview-highlight-home-person", True),
             ("appearance.familytreeview-highlight-root-person", True),
             ("appearance.familytreeview-show-deceased-ribbon", True),
             ("appearance.familytreeview-filter-person-gray-out", True),
@@ -388,6 +389,15 @@ class FamilyTreeViewConfigProvider:
         )
         box_line_width_spinner.set_digits(1)
         box_line_width_spinner.get_adjustment().set_step_increment(0.1)
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _("Highlight the home person according to the active Gramps color scheme"),
+            row,
+            "appearance.familytreeview-highlight-home-person",
+            stop=3 # same width as spinners and combos
+        )
 
         row += 1
         configdialog.add_checkbox(
