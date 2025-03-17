@@ -95,6 +95,11 @@ class FamilyTreeViewTreeBuilder():
 
     def build_tree(self, root_person_handle, reset=True):
 
+        # TODO This is a workaround that fixes a bug that in some cases
+        # (observed on Windows, cause unknown) causes the measured line
+        # height to be incorrect the first time it is calculated.
+        self.canvas_manager.calculate_dimensions()
+
         # The tree needs to reset if the new tree is not closely related
         # to the previous one, e.g. based on a different person.
         if reset:
