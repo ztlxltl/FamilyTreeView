@@ -952,14 +952,14 @@ class FamilyTreeViewTreeBuilder():
                         if grandparent_family is not None and self.get_expand(inner_parent_handle, "parents"):
                             # replacement values
                             if (inner_parent_alignment == "l") ^ mother_first: # mother_first: assumption that this will stay the same
-                                x_inner_parent_ = 105
-                                x_grandparent_family_ = 175
+                                x_inner_parent_ = grandparent_families_sep/2 + person_width/2
+                                x_grandparent_family_ = grandparent_families_sep/2 + family_width/2
                             else:
-                                x_inner_parent_ = -105
-                                x_grandparent_family_ = -175
+                                x_inner_parent_ = -grandparent_families_sep/2 - person_width/2
+                                x_grandparent_family_ = -grandparent_families_sep/2 - family_width/2
                             which = "b"
                             grandparent_family_bottom = 0 # replacement
-                            inner_parent_bounds_ = {"st_l": -65, "st_r": 65, "gs_l": -65, "gs_r": 65}
+                            inner_parent_bounds_ = {"st_l": -person_width/2, "st_r": person_width/2, "gs_l": -person_width/2, "gs_r": person_width/2}
                             inner_parent_bounds_ = self.process_siblings(inner_parent_bounds_, x_inner_parent_, inner_parent_handle, parent_generation, inner_parent_alignment, True, grandparent_family, x_grandparent_family_, grandparent_family_bottom, side, which, None)
                             extra_left += inner_parent_bounds_["st_l"] + person_width/2
                             extra_right += inner_parent_bounds_["st_r"] - person_width/2
