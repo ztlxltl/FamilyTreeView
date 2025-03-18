@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 from gi.repository import Gtk, Pango
 
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.display.name import displayer as name_displayer
 from gramps.gen.lib.attrtype import AttributeType
 from gramps.gen.lib.eventtype import EventType
@@ -14,21 +13,32 @@ from gramps.gen.utils.keyword import (
 )
 from gramps.gui.widgets.monitoredwidgets import MonitoredDataType
 
+from family_tree_view_utils import get_gettext
 if TYPE_CHECKING:
     from family_tree_view_config_provider import FamilyTreeViewConfigProvider
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 EVENT_PARAMS = {
     "event_type_visualization": "symbol",
     "date": True,
     "date_only_year": False,
+    "date_compact": False,
     "place": False,
     "description": False,
     "tags": False,
     "tag_visualization": "text_colors_counted"
 }
+
+BIRTH_DEATH_PARAMS = dict(
+    EVENT_PARAMS,
+    **{
+        "date_only_year": True,
+        "date_compact": True,
+        "event_type_visualization": "symbol_only_if_empty"
+    }
+) # No full dates for birth and death as they wouldn't fit.
 
 BOX_ITEMS = {
     "person": [
@@ -38,7 +48,7 @@ BOX_ITEMS = {
         ("alt_name", _("Alternative name"), _("The first alternative name of the person"), {"lines": 2}),
         ("birth_or_fallback", _("Birth or fallback"), _("Different information of birth or fallback"), {"lines": 1, **EVENT_PARAMS}),
         ("death_or_fallback", _("Death or fallback"), _("Different information of death or fallback"), {"lines": 1, **EVENT_PARAMS}),
-        ("birth_death_or_fallbacks", _("Birth and death or fallbacks"), _("Different information of birth and death or fallbacks"), dict({"lines": 1, **EVENT_PARAMS}, **{"date_only_year": True, "event_type_visualization": "symbol_only_if_empty"})), # No full dates for birth and death as they wouldn't fit.
+        ("birth_death_or_fallbacks", _("Birth and death or fallbacks"), _("Different information of birth and death or fallbacks"), {"lines": 1, **BIRTH_DEATH_PARAMS}),
         ("event", _("Event"), _("Different information of the first event of the specified type"), {"event_type": "Birth", "lines": 1, "index": 0, **EVENT_PARAMS}),
         ("relationship", _("Relationship"), _("Relationship to the specified person"), {"rel_base": "active", "lines": 1}),
         ("attribute", _("Attribute"), _("The value of the attribute of the specified type"), {"attribute_type": "Nickname", "lines": 1}),
@@ -80,7 +90,7 @@ PREDEF_BOXES_DEFS = {
         [
             ("name", {"lines": 2}),
             ("gutter", {"size": 5}),
-            ("birth_death_or_fallbacks", dict({"lines": 1, **EVENT_PARAMS}, **{"date_only_year": True, "event_type_visualization": "symbol_only_if_empty"})),
+            ("birth_death_or_fallbacks", {"lines": 1, **BIRTH_DEATH_PARAMS}),
         ],
         [
             ("marriage_or_fallback", {"lines": 1, **EVENT_PARAMS}),
@@ -147,6 +157,7 @@ BOX_ITEM_PARAMS = {
     "tag_visualization": _("Visualization"),
     "date": _("Display date"),
     "date_only_year": _("only display year"),
+    "date_compact": _("compact format"),
     "place": _("Display place"),
     "description": _("Display description"),
     "tags": _("Display tags"),
@@ -232,10 +243,12 @@ class FamilyTreeViewConfigPageManagerBoxes:
         main_grid.attach(self.content_def_combo, 3, row, 2, 1)
 
         row += 1
-        def_option_box = Gtk.Box()
         label = Gtk.Label(_("Boxes definition name:"))
         label.set_halign(Gtk.Align.START)
         main_grid.attach(label, 1, row, 2, 1)
+        def_option_box = Gtk.ButtonBox()
+        def_option_box.set_layout(Gtk.ButtonBoxStyle.EXPAND)
+        def_option_box.set_homogeneous(False)
         self.boxes_def_name_entry = Gtk.Entry()
         self.boxes_def_name_entry.set_hexpand(True)
         self.boxes_def_name_entry.set_text(self._get_content_def_name())
@@ -251,11 +264,13 @@ class FamilyTreeViewConfigPageManagerBoxes:
         self.boxes_def_name_entry.connect("changed", _cb_boxes_def_name_changed)
         def_option_box.add(self.boxes_def_name_entry)
         duplicate_def_button = Gtk.Button(image=Gtk.Image(icon_name="edit-copy"))
+        duplicate_def_button.set_tooltip_text(_("Duplicate this boxes definition"))
         def _cb_boxes_def_duplicate(button):
             self._duplicate_def(show_message=False)
         duplicate_def_button.connect("clicked", _cb_boxes_def_duplicate)
-        def_option_box.add(duplicate_def_button)
+        def_option_box.pack_start(duplicate_def_button, False, False, 0)
         remove_def_button = Gtk.Button(image=Gtk.Image(icon_name="list-remove"))
+        remove_def_button.set_tooltip_text(_("Remove this boxes definition"))
         remove_def_button.set_sensitive(not self._is_predef_boxes_def())
         def _cb_boxes_def_remove(button):
             key_to_remove = self.ftv._config.get("boxes.familytreeview-boxes-selected-def-key")
@@ -269,7 +284,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
             self.boxes_defs.pop(active_idx)
             self._remove_boxes_def(key_to_remove)
         remove_def_button.connect("clicked", _cb_boxes_def_remove)
-        def_option_box.add(remove_def_button)
+        def_option_box.pack_start(remove_def_button, False, False, 0)
         main_grid.attach(def_option_box, 3, row, 2, 1)
 
         row +=1
@@ -378,29 +393,34 @@ class FamilyTreeViewConfigPageManagerBoxes:
             item_def_buttons_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
             add_item_def_button = Gtk.Button(image=Gtk.Image(icon_name="list-add"))
+            add_item_def_button.set_tooltip_text(_("Add a new box item definition"))
             self.add_item_def_buttons[box_type] = add_item_def_button
             add_item_def_button.connect("clicked", self._cb_add_item_def_button_clicked, box_type)
             item_def_buttons_box.add(add_item_def_button)
 
             duplicate_item_def_button = Gtk.Button(image=Gtk.Image(icon_name="edit-copy"))
+            duplicate_item_def_button.set_tooltip_text(_("Duplicate the selected item definition"))
             self.duplicate_item_def_buttons[box_type] = duplicate_item_def_button
             duplicate_item_def_button.set_sensitive(False)
             duplicate_item_def_button.connect("clicked", self._cb_duplicate_item_def_button_clicked, box_type)
             item_def_buttons_box.add(duplicate_item_def_button)
 
             up_item_def_button = Gtk.Button(image=Gtk.Image(icon_name="go-up-symbolic"))
+            up_item_def_button.set_tooltip_text(_("Move the selected item definition up"))
             self.up_item_def_buttons[box_type] = up_item_def_button
             up_item_def_button.set_sensitive(False)
             up_item_def_button.connect("clicked", self._cb_up_item_def_button_clicked, box_type)
             item_def_buttons_box.add(up_item_def_button)
 
             down_item_def_button = Gtk.Button(image=Gtk.Image(icon_name="go-down-symbolic"))
+            down_item_def_button.set_tooltip_text(_("Move the selected item definition down"))
             self.down_item_def_buttons[box_type] = down_item_def_button
             down_item_def_button.set_sensitive(False)
             down_item_def_button.connect("clicked", self._cb_down_item_def_button_clicked, box_type)
             item_def_buttons_box.add(down_item_def_button)
 
             remove_item_def_button = Gtk.Button(image=Gtk.Image(icon_name="list-remove"))
+            remove_item_def_button.set_tooltip_text(_("Remove the selected item definition"))
             self.remove_item_def_buttons[box_type] = remove_item_def_button
             remove_item_def_button.set_sensitive(False)
             remove_item_def_button.connect("clicked", self._cb_remove_item_def_button_clicked, box_type)
@@ -524,6 +544,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
                 "Select an item definition on the left to modify its parameters."
             ))
             label.set_halign(Gtk.Align.START)
+            label.set_line_wrap(True)
             self.item_def_type_params_boxes[box_type].add(label)
 
             self.duplicate_item_def_buttons[box_type].set_sensitive(False)
@@ -548,6 +569,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
                     break
             if not (
                 item_param == "date_only_year"
+                or item_param == "date_compact"
                 or (
                     # Don't hide tag_visualization if it's a primary
                     # param (of a "tags" item) but hide if it's a
@@ -577,7 +599,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
                         "You can change the place format on the 'Appearance' "
                         "page."
                     )
-            elif item_param == "date_only_year":
+            elif item_param in ["date_only_year", "date_compact"]:
                 check_button = Gtk.CheckButton(param_translation)
                 check_button.set_active(param_value)
                 check_button.connect("toggled", self._cb_param_check_button_toggled, box_type, item_i, item_param)

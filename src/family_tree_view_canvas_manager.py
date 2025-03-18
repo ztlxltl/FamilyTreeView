@@ -35,7 +35,13 @@ if TYPE_CHECKING:
 GooCanvas = import_GooCanvas()
 
 class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
-    def __init__(self, widget_manager: "FamilyTreeViewWidgetManager", *args, **kwargs):
+    def __init__(
+        self,
+        widget_manager: "FamilyTreeViewWidgetManager",
+        *args,
+        cb_background=None,
+        **kwargs
+    ):
         super().__init__(*args, **kwargs)
         self.widget_manager = widget_manager
         self.ftv = self.widget_manager.ftv
@@ -98,14 +104,28 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.reset_boxes()
         self.svg_pixbuf_cache = {}
 
+        # clicks
+        if cb_background is not None:
+            self.canvas.get_root_item().connect("button-press-event", self.click_callback, cb_background)
+
+        # config connect to callbacks
         for key in [
             "interaction.familytreeview-zoom-level-default",
             "interaction.familytreeview-zoom-level-step"
         ]:
             self.ftv._config.connect(key, self.reset_zoom_values)
+
         for config_name in self.ftv._config.get_section_settings("boxes"):
             key = "boxes."+config_name
             self.ftv._config.connect(key, self.reset_boxes)
+
+        def _cb_scroll_mode_changed(configManager, zero, scroll_mode, none):
+            self.scroll_mode = scroll_mode
+        self.ftv._config.connect(
+            "interaction.familytreeview-scroll-mode",
+            _cb_scroll_mode_changed
+        )
+
         self.ftv.uistate.connect("nameformat-changed", self.reset_abbrev_names)
         self.ftv.connect("abbrev-rules-changed", self.reset_abbrev_names)
 
@@ -114,10 +134,15 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         # Connections are added to a group created as first canvas element so connections are below everything else.
         self.connection_group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
         self.canvas_bounds = [0, 0, 0, 0] # left, top, right, bottom
+        self.expander_list = []
 
     def reset_zoom_values(self, *args): # *args needed when used as a callback
         self.default_zoom_level = self.ftv._config.get("interaction.familytreeview-zoom-level-default")
         self.zoom_level_step = self.ftv._config.get("interaction.familytreeview-zoom-level-step")
+
+    def reset_zoom(self):
+        self.reset_zoom_values()
+        self.set_zoom_level(self.default_zoom_level)
 
     def reset_abbrev_names(self):
         self.fitting_abbrev_names = {}
@@ -598,6 +623,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
     def add_expander(self, x, y, ang, click_callback):
         group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
         group.connect("button-press-event", self.click_callback, click_callback)
+        self.expander_list.append(group)
         parent = group
 
         fg_color_found, fg_color = self.canvas.get_style_context().lookup_color('theme_fg_color')
@@ -725,7 +751,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             self.widget_manager.search_widget.hide_search_popover()
         if target is None:
             # background click
-            return self.widget_manager.info_box_manager.close_info_box()
+            self.widget_manager.info_box_manager.close_info_box()
         if other_callback is not None:
             return other_callback(root_item, target, event, *other_args, **other_kwargs)
         return False
@@ -737,3 +763,12 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.canvas_bounds[3] = max(self.canvas_bounds[3], bottom+self.canvas_padding)
 
         self.canvas.set_bounds(*self.canvas_bounds)
+
+    def set_expander_visible(self, visible):
+        if visible:
+            visibility = GooCanvas.CanvasItemVisibility.VISIBLE
+        else:
+            visibility = GooCanvas.CanvasItemVisibility.INVISIBLE
+
+        for expander in self.expander_list:
+            expander.props.visibility = visibility

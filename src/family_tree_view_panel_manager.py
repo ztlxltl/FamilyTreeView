@@ -21,17 +21,16 @@
 
 from gi.repository import Gtk
 
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.display.name import displayer as name_displayer
 
 from family_tree_view_info_widget_manager import FamilyTreeViewInfoWidgetManager
 from family_tree_view_timeline import FamilyTreeViewTimeline
-from family_tree_view_utils import import_GooCanvas
+from family_tree_view_utils import get_gettext, import_GooCanvas
 
 
 GooCanvas = import_GooCanvas()
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeViewPanelManager(FamilyTreeViewInfoWidgetManager):
     def __init__(self, widget_manager):

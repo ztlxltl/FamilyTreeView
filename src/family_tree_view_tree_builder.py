@@ -24,15 +24,15 @@ from typing import TYPE_CHECKING
 
 from gi.repository import GLib, Gtk
 
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.lib.childreftype import ChildRefType
 from gramps.gui.utils import ProgressMeter
 
+from family_tree_view_utils import get_gettext
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeViewWidgetManager
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeViewTreeBuilder():
     """Collects all the information to build the tree and sends it to the canvas."""
@@ -94,6 +94,11 @@ class FamilyTreeViewTreeBuilder():
             self.filtered_person_handles = None
 
     def build_tree(self, root_person_handle, reset=True):
+
+        # TODO This is a workaround that fixes a bug that in some cases
+        # (observed on Windows, cause unknown) causes the measured line
+        # height to be incorrect the first time it is calculated.
+        self.canvas_manager.calculate_dimensions()
 
         # The tree needs to reset if the new tree is not closely related
         # to the previous one, e.g. based on a different person.
@@ -342,7 +347,7 @@ class FamilyTreeViewTreeBuilder():
 
         if not dry_run:
             if person is None:
-                person_box_bounds = self.widget_manager.add_missing_person(x_person, person_generation, alignment)
+                person_box_bounds = self.widget_manager.add_missing_person(x_person, person_generation, alignment, None, None)
             else:
                 person_box_bounds = self.widget_manager.add_person(person_handle, x_person, person_generation, alignment, ahnentafel=ahnentafel)
             person_bounds.update(person_box_bounds)
@@ -499,7 +504,7 @@ class FamilyTreeViewTreeBuilder():
                     spouse_bounds = self.widget_manager.add_person(spouse_handle, x_spouse, person_generation, spouse_alignment)
                 else:
                     # missing person
-                    spouse_bounds = self.widget_manager.add_missing_person(x_spouse, person_generation, spouse_alignment)
+                    spouse_bounds = self.widget_manager.add_missing_person(x_spouse, person_generation, spouse_alignment, "spouse", family_handle)
             else:
                 spouse_bounds = {}
 
@@ -952,14 +957,14 @@ class FamilyTreeViewTreeBuilder():
                         if grandparent_family is not None and self.get_expand(inner_parent_handle, "parents"):
                             # replacement values
                             if (inner_parent_alignment == "l") ^ mother_first: # mother_first: assumption that this will stay the same
-                                x_inner_parent_ = 105
-                                x_grandparent_family_ = 175
+                                x_inner_parent_ = grandparent_families_sep/2 + person_width/2
+                                x_grandparent_family_ = grandparent_families_sep/2 + family_width/2
                             else:
-                                x_inner_parent_ = -105
-                                x_grandparent_family_ = -175
+                                x_inner_parent_ = -grandparent_families_sep/2 - person_width/2
+                                x_grandparent_family_ = -grandparent_families_sep/2 - family_width/2
                             which = "b"
                             grandparent_family_bottom = 0 # replacement
-                            inner_parent_bounds_ = {"st_l": -65, "st_r": 65, "gs_l": -65, "gs_r": 65}
+                            inner_parent_bounds_ = {"st_l": -person_width/2, "st_r": person_width/2, "gs_l": -person_width/2, "gs_r": person_width/2}
                             inner_parent_bounds_ = self.process_siblings(inner_parent_bounds_, x_inner_parent_, inner_parent_handle, parent_generation, inner_parent_alignment, True, grandparent_family, x_grandparent_family_, grandparent_family_bottom, side, which, None)
                             extra_left += inner_parent_bounds_["st_l"] + person_width/2
                             extra_right += inner_parent_bounds_["st_r"] - person_width/2
@@ -1146,18 +1151,18 @@ class FamilyTreeViewTreeBuilder():
         else:
             # this parent is missing
             if not dry_run:
-                this_parent_bounds = self.add_missing_person(this_parent_x, parent_generation, this_parent_alignment)
+                this_parent_bounds = self.add_missing_person(this_parent_x, parent_generation, this_parent_alignment, "parent", parent_family_handle)
             else:
                 this_parent_bounds = {"st_l": -person_width/2, "st_r": person_width/2, "gs_l": -person_width/2, "gs_r": person_width/2}
         return this_parent_bounds
 
-    def add_missing_person(self, x_person, person_generation, alignment, dry_run=False):
+    def add_missing_person(self, x_person, person_generation, alignment, relationship, handle, dry_run=False):
         person_width = self.canvas_manager.person_width
 
         person_bounds = {"st_l": 0, "st_r": 0}
 
         if not dry_run:
-            person_box_bounds = self.widget_manager.add_missing_person(x_person, person_generation, alignment)
+            person_box_bounds = self.widget_manager.add_missing_person(x_person, person_generation, alignment, relationship, handle)
             person_bounds.update(person_box_bounds)
         person_bounds["st_l"] = -person_width/2
         person_bounds["st_r"] = person_width/2
@@ -1211,7 +1216,7 @@ class FamilyTreeViewTreeBuilder():
                     self.expanded.setdefault(handle_, {})[key_] = False
 
             offset = self.canvas_manager.get_center_in_units()
-            self.ftv.close_info_and_rebuild(self, offset=offset)
+            self.ftv.rebuild_tree(self, offset=offset)
 
         if expanded:
             ang = ang_collapsed + 180

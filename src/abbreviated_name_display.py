@@ -23,56 +23,41 @@ import re
 from typing import TYPE_CHECKING
 import unicodedata
 
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.display.name import (
     _CONNECTOR_IN_LIST, _F_FMT, _ORIGINMATRO, _ORIGINPATRO, _PREFIX_IN_LIST,
     _PRIMARY_IN_LIST, _SURNAME_IN_LIST, _TYPE_IN_LIST, PAT_AS_SURN,
     displayer as name_displayer, _make_cmp_key, cleanup_name
 )
 
-from family_tree_view_utils import make_hashable
+from family_tree_view_utils import get_gettext, make_hashable
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 def _raw_full_surname(raw_surn_data_list):
     """method for the 'l' symbol: full surnames"""
     result = []
+    # This is more complex than Gramps' counterpart name.py since we
+    # need to label the primary name parts.
     global PAT_AS_SURN
     nrsur = len(raw_surn_data_list)
     for raw_surn_data in raw_surn_data_list:
-        if raw_surn_data[_PRIMARY_IN_LIST]:
-            #if there are multiple surnames, return the primary. If there
-            #is only one surname, then primary has little meaning, and we
-            #assume a pa/matronymic should not be given as primary as it
-            #normally is defined independently
-            if not PAT_AS_SURN and nrsur == 1 and \
-                    (raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO
-                    or raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO):
-                pass # add surname without "primary-"
-            else:
-                if len(result) > 0:
-                    result += [" "]
-                result += [
-                    ("primary-prefix", raw_surn_data[_PREFIX_IN_LIST]),
-                    " " if raw_surn_data[_PREFIX_IN_LIST] and raw_surn_data[_SURNAME_IN_LIST] else "",
-                    ("primary-surname", raw_surn_data[_SURNAME_IN_LIST]),
-                    " " if raw_surn_data[_SURNAME_IN_LIST] and raw_surn_data[_CONNECTOR_IN_LIST] else "",
-                    ("primary-connector", raw_surn_data[_CONNECTOR_IN_LIST])
-                ]
-                continue # add surname only once
-        if len(result) > 0:
+        if len(result) > 0 and not (
+            "connector" in result[-1][0] and result[-1][1] == "-"
+        ):
             result += [" "]
-        result += [
-            ("prefix", raw_surn_data[_PREFIX_IN_LIST]),
-            " " if raw_surn_data[_PREFIX_IN_LIST] and raw_surn_data[_SURNAME_IN_LIST] else "",
-            ("surname", raw_surn_data[_SURNAME_IN_LIST]),
-            " " if raw_surn_data[_SURNAME_IN_LIST] and raw_surn_data[_CONNECTOR_IN_LIST] else "",
-            ("connector", raw_surn_data[_CONNECTOR_IN_LIST])
-        ]
-    return result
+        mark_as_primary = raw_surn_data[_PRIMARY_IN_LIST] and not (
+            not PAT_AS_SURN
+            and nrsur == 1
+            and (
+                raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO
+                or raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO
+            )
+        )
+        result += __format_raw_surname(raw_surn_data, primary=mark_as_primary)
+    return __strip(result)
 
 def _raw_primary_surname(raw_surn_data_list):
     """method for the 'm' symbol: primary surname"""
@@ -80,35 +65,37 @@ def _raw_primary_surname(raw_surn_data_list):
     nrsur = len(raw_surn_data_list)
     for raw_surn_data in raw_surn_data_list:
         if raw_surn_data[_PRIMARY_IN_LIST]:
-            #if there are multiple surnames, return the primary. If there
-            #is only one surname, then primary has little meaning, and we
-            #assume a pa/matronymic should not be given as primary as it
-            #normally is defined independently
-            if not PAT_AS_SURN and nrsur == 1 and \
-                    (raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO
-                    or raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO):
+            # if there are multiple surnames, return the primary. If there
+            # is only one surname, then primary has little meaning, and we
+            # assume a pa/matronymic should not be given as primary as it
+            # normally is defined independently
+            if (
+                not PAT_AS_SURN
+                and nrsur == 1
+                and (
+                    raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO
+                    or raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO
+                )
+            ):
                 return []
             else:
-                result = [
-                    ("prefix", raw_surn_data[_PREFIX_IN_LIST]),
-                    " " if raw_surn_data[_PREFIX_IN_LIST] and raw_surn_data[_SURNAME_IN_LIST] else "",
-                    ("surname", raw_surn_data[_SURNAME_IN_LIST]),
-                    " " if raw_surn_data[_SURNAME_IN_LIST] and raw_surn_data[_CONNECTOR_IN_LIST] else "",
-                    ("connector", raw_surn_data[_CONNECTOR_IN_LIST])
-                ]
-                return result
+                return __strip(__format_raw_surname(raw_surn_data))
     return []
 
 def _raw_primary_surname_only(raw_surn_data_list):
-    """method to obtain the raw primary surname data, so this returns a string
-    """
+    """method to obtain the raw primary surname data, so this returns a string"""
     global PAT_AS_SURN
     nrsur = len(raw_surn_data_list)
     for raw_surn_data in raw_surn_data_list:
         if raw_surn_data[_PRIMARY_IN_LIST]:
-            if not PAT_AS_SURN and nrsur == 1 and \
-                    (raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO
-                    or raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO):
+            if (
+                not PAT_AS_SURN
+                and nrsur == 1
+                and (
+                    raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO
+                    or raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO
+                )
+            ):
                 return []
             else:
                 return [("primary-surname", raw_surn_data[_SURNAME_IN_LIST])]
@@ -120,9 +107,14 @@ def _raw_primary_prefix_only(raw_surn_data_list):
     nrsur = len(raw_surn_data_list)
     for raw_surn_data in raw_surn_data_list:
         if raw_surn_data[_PRIMARY_IN_LIST]:
-            if not PAT_AS_SURN and nrsur == 1 and \
-                    (raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO
-                    or raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO):
+            if (
+                not PAT_AS_SURN
+                and nrsur == 1
+                and (
+                    raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO
+                    or raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO
+                )
+            ):
                 return []
             else:
                 return [("primary-prefix", raw_surn_data[_PREFIX_IN_LIST])]
@@ -134,9 +126,14 @@ def _raw_primary_conn_only(raw_surn_data_list):
     nrsur = len(raw_surn_data_list)
     for raw_surn_data in raw_surn_data_list:
         if raw_surn_data[_PRIMARY_IN_LIST]:
-            if not PAT_AS_SURN and nrsur == 1 and \
-                    (raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO
-                    or raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO):
+            if (
+                not PAT_AS_SURN
+                and nrsur == 1
+                and (
+                    raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO
+                    or raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO
+                )
+            ):
                 return []
             else:
                 return [("primary-connector", raw_surn_data[_CONNECTOR_IN_LIST])]
@@ -145,122 +142,124 @@ def _raw_primary_conn_only(raw_surn_data_list):
 def _raw_patro_surname(raw_surn_data_list):
     """method for the 'y' symbol: patronymic surname"""
     for raw_surn_data in raw_surn_data_list:
-        if (raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO or
-            raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO):
-            result = [
-                    ("prefix", raw_surn_data[_PREFIX_IN_LIST]),
-                    " " if raw_surn_data[_PREFIX_IN_LIST] and raw_surn_data[_SURNAME_IN_LIST] else "",
-                    ("surname", raw_surn_data[_SURNAME_IN_LIST]),
-                    " " if raw_surn_data[_SURNAME_IN_LIST] and raw_surn_data[_CONNECTOR_IN_LIST] else "",
-                    ("connector", raw_surn_data[_CONNECTOR_IN_LIST])
-                ]
-            return result
+        if (
+            raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO
+            or raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO
+        ):
+            return __strip(__format_raw_surname(raw_surn_data))
     return []
 
 def _raw_patro_surname_only(raw_surn_data_list):
     """method for the '1y' symbol: patronymic surname only"""
     for raw_surn_data in raw_surn_data_list:
-        if (raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO or
-            raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO):
+        if (
+            raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO
+            or raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO
+        ):
             result = [("surname", raw_surn_data[_SURNAME_IN_LIST])]
-            return result
+            return __split_join(result)
     return []
 
 def _raw_patro_prefix_only(raw_surn_data_list):
     """method for the '0y' symbol: patronymic prefix only"""
     for raw_surn_data in raw_surn_data_list:
-        if (raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO or
-            raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO):
+        if (
+            raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO
+            or raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO
+        ):
             result = [("prefix", raw_surn_data[_PREFIX_IN_LIST])]
-            return result
+            return __split_join(result)
     return []
 
 def _raw_patro_conn_only(raw_surn_data_list):
     """method for the '2y' symbol: patronymic conn only"""
     for raw_surn_data in raw_surn_data_list:
-        if (raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO or
-            raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO):
+        if (
+            raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO
+            or raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO
+        ):
             result = [("connector", raw_surn_data[_CONNECTOR_IN_LIST])]
-            return result
+            return __split_join(result)
     return []
 
 def _raw_nonpatro_surname(raw_surn_data_list):
     """method for the 'o' symbol: full surnames without pa/matronymic or
-       primary
+    primary
     """
     result = []
     for raw_surn_data in raw_surn_data_list:
-        if ((not raw_surn_data[_PRIMARY_IN_LIST]) and
-            raw_surn_data[_TYPE_IN_LIST][0] != _ORIGINPATRO and
-            raw_surn_data[_TYPE_IN_LIST][0] != _ORIGINMATRO):
-            if len(result) > 0:
-                result += [" "]
-            result += [
-                ("prefix", raw_surn_data[_PREFIX_IN_LIST]),
-                " " if raw_surn_data[_PREFIX_IN_LIST] and raw_surn_data[_SURNAME_IN_LIST] else "",
-                ("surname", raw_surn_data[_SURNAME_IN_LIST]),
-                " " if raw_surn_data[_SURNAME_IN_LIST] and raw_surn_data[_CONNECTOR_IN_LIST] else "",
-                ("connector", raw_surn_data[_CONNECTOR_IN_LIST])
-            ]
-    return result
+        if (
+            (not raw_surn_data[_PRIMARY_IN_LIST])
+            and raw_surn_data[_TYPE_IN_LIST][0] != _ORIGINPATRO
+            and raw_surn_data[_TYPE_IN_LIST][0] != _ORIGINMATRO
+        ):
+            result += __format_raw_surname(raw_surn_data)
+    return __strip(result)
 
 def _raw_nonprimary_surname(raw_surn_data_list):
     """method for the 'r' symbol: nonprimary surnames"""
     result = []
     for raw_surn_data in raw_surn_data_list:
         if not raw_surn_data[_PRIMARY_IN_LIST]:
-            if len(result) > 0:
-                result += [" "]
-            result += [
-                ("prefix", raw_surn_data[_PREFIX_IN_LIST]),
-                " " if raw_surn_data[_PREFIX_IN_LIST] and raw_surn_data[_SURNAME_IN_LIST] else "",
-                ("surname", raw_surn_data[_SURNAME_IN_LIST]),
-                " " if raw_surn_data[_SURNAME_IN_LIST] and raw_surn_data[_CONNECTOR_IN_LIST] else "",
-                ("connector", raw_surn_data[_CONNECTOR_IN_LIST])
-            ]
-    return result
+            result += __format_raw_surname(raw_surn_data)
+    return __strip(result)
 
 def _raw_prefix_surname(raw_surn_data_list):
     """method for the 'p' symbol: all prefixes"""
     result = []
-    global PAT_AS_SURN
-    nrsur = len(raw_surn_data_list)
     for raw_surn_data in raw_surn_data_list:
-        if raw_surn_data[_PRIMARY_IN_LIST]:
-            if not PAT_AS_SURN and nrsur == 1 and \
-                    (raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO
-                    or raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO):
-                pass
-            else:
-                if len(result) > 0:
-                    result.append(" ")
-                result.append(("primary-prefix", raw_surn_data[_PREFIX_IN_LIST]))
-                continue
-        if len(result) > 0:
-            result.append(" ")
-        result.append(("prefix", raw_surn_data[_PREFIX_IN_LIST]))
-    return result
+        result += [("primary-prefix", raw_surn_data[_PREFIX_IN_LIST]), " "]
+    return __strip(__split_join(result))
 
 def _raw_single_surname(raw_surn_data_list):
     """method for the 'q' symbol: surnames without prefix and connectors"""
     result = []
-    global PAT_AS_SURN
-    nrsur = len(raw_surn_data_list)
     for raw_surn_data in raw_surn_data_list:
-        if raw_surn_data[_PRIMARY_IN_LIST]:
-            if not PAT_AS_SURN and nrsur == 1 and \
-                    (raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINPATRO
-                    or raw_surn_data[_TYPE_IN_LIST][0] == _ORIGINMATRO):
-                pass
-            else:
-                if len(result) > 0:
-                    result.append(" ")
-                result.append(("primary-surname", raw_surn_data[_SURNAME_IN_LIST]))
-                continue
-        if len(result) > 0:
-            result.append(" ")
-        result.append(("surname", raw_surn_data[_SURNAME_IN_LIST]))
+        result += [("primary-surname", raw_surn_data[_SURNAME_IN_LIST]), " "]
+    return __strip(__split_join(result))
+
+def __format_raw_surname(raw_surn_data, primary=False):
+    """
+    Return a formatted string representing one surname part.
+
+    If the connector is a hyphen, don't pad it with spaces.
+    """
+    if primary:
+        pre = "primary-"
+    else:
+        pre = ""
+    result = [(pre+"prefix", raw_surn_data[_PREFIX_IN_LIST])]
+    if raw_surn_data[_PREFIX_IN_LIST] and raw_surn_data[_SURNAME_IN_LIST]:
+        result += [" "]
+    result += [(pre+"surname", raw_surn_data[_SURNAME_IN_LIST])]
+    if raw_surn_data[_SURNAME_IN_LIST] and raw_surn_data[_CONNECTOR_IN_LIST] != "-":
+        result += [" "]
+    result += [(pre+"connector", raw_surn_data[_CONNECTOR_IN_LIST])]
+    if raw_surn_data[_CONNECTOR_IN_LIST] != "-":
+        result += [" "]
     return result
+
+def __strip(x):
+    while (
+        len(x) > 0 and (
+            (isinstance(x[0], str) and x[0].strip() == "")
+            or (isinstance(x[0], tuple) and x[0][1].strip() == "")
+        )
+    ):
+        x.pop(0)
+    while (
+        len(x) > 0 and (
+            (isinstance(x[-1], str) and x[-1].strip() == "")
+            or (isinstance(x[-1], tuple) and x[-1][1].strip() == "")
+        )
+    ):
+        x.pop()
+    return x
+
+def __split_join(x):
+    # TODO equivalent of " ".join(x.split())
+    # (duplicate space removal)
+    return x
 
 
 class AbbreviatedNameDisplay():
@@ -437,26 +436,79 @@ class AbbreviatedNameDisplay():
 
     def _get_name_parts(self, name, num=None):
         format_str = self._get_format_str(name, num=num)
+
         d = {
-            "t": ("('title', title)","title", _("Person|title")),
-            "f": ("('given', first, first, call)","given", _("given")), # first two times so one can be abbreviated and second can be checked for call afterwards
+            "t": ("('title', title)","title", _("title", "Person")),
+            "f": ("('given', first, first, call)","given", _("given")),# first two items so one can be abbreviated and second can be checked for call afterwards
             "l": ("_raw_full_surname(raw_surname_list)", "surname", _("surname")),
             "s": ("('suffix', suffix)", "suffix", _("suffix")),
-            "c": ("('call', call)", "call", _("Name|call")),
-            "x": ("((('nick', nick) if nick else False) or (('call', call) if call else False) or ('given0', first.split(' ')[0]))", "common", _("Name|common")),
-            "i": ("('initials', ''.join([word[0] +'.' for word in ('. ' + first).split()][1:]))", "initials", _("initials")),
-            "m": ("_raw_primary_surname(raw_surname_list)", "primary", _("Name|primary")),
-            "0m":("_raw_primary_prefix_only(raw_surname_list)", "primary[pre]", _("primary[pre]")),
-            "1m":("_raw_primary_surname_only(raw_surname_list)", "primary[sur]",_("primary[sur]")),
-            "2m":("_raw_primary_conn_only(raw_surname_list)", "primary[con]", _("primary[con]")),
-            "y": ("_raw_patro_surname(raw_surname_list)", "patronymic", _("patronymic")),
-            "0y":("_raw_patro_prefix_only(raw_surname_list)", "patronymic[pre]", _("patronymic[pre]")),
-            "1y":("_raw_patro_surname_only(raw_surname_list)", "patronymic[sur]", _("patronymic[sur]")),
-            "2y":("_raw_patro_conn_only(raw_surname_list)", "patronymic[con]", _("patronymic[con]")),
-            "o": ("_raw_nonpatro_surname(raw_surname_list)", "notpatronymic", _("notpatronymic")),
-            "r": ("_raw_nonprimary_surname(raw_surname_list)", "rest", _("Remaining names|rest")),
+            "c": ("('call', call)", "call", _("call", "Name")),
+            "x": (
+                "((('nick', nick) if nick else False) or (('call', call) if call else False) or ('given0', first.split(' ')[0]))",
+                "common",
+                _("common", "Name"),
+            ),
+            "i": (
+                "('initials',''.join([word[0] +'.' for word in ('. ' + first).split()][1:]))",
+                "initials",
+                _("initials"),
+            ),
+            "m": (
+                "_raw_primary_surname(raw_surname_list)",
+                "primary",
+                _("primary", "Name"),
+            ),
+            "0m": (
+                "_raw_primary_prefix_only(raw_surname_list)",
+                "primary[pre]",
+                _("primary[pre]"),
+            ),
+            "1m": (
+                "_raw_primary_surname_only(raw_surname_list)",
+                "primary[sur]",
+                _("primary[sur]"),
+            ),
+            "2m": (
+                "_raw_primary_conn_only(raw_surname_list)",
+                "primary[con]",
+                _("primary[con]"),
+            ),
+            "y": (
+                "_raw_patro_surname(raw_surname_list)",
+                "patronymic",
+                _("patronymic"),
+            ),
+            "0y": (
+                "_raw_patro_prefix_only(raw_surname_list)",
+                "patronymic[pre]",
+                _("patronymic[pre]"),
+            ),
+            "1y": (
+                "_raw_patro_surname_only(raw_surname_list)",
+                "patronymic[sur]",
+                _("patronymic[sur]"),
+            ),
+            "2y": (
+                "_raw_patro_conn_only(raw_surname_list)",
+                "patronymic[con]",
+                _("patronymic[con]"),
+            ),
+            "o": (
+                "_raw_nonpatro_surname(raw_surname_list)",
+                "notpatronymic",
+                _("notpatronymic"),
+            ),
+            "r": (
+                "_raw_nonprimary_surname(raw_surname_list)",
+                "rest",
+                _("rest", "Remaining names"),
+            ),
             "p": ("_raw_prefix_surname(raw_surname_list)", "prefix", _("prefix")),
-            "q": ("_raw_single_surname(raw_surname_list)", "rawsurnames", _("rawsurnames")),
+            "q": (
+                "_raw_single_surname(raw_surname_list)",
+                "rawsurnames",
+                _("rawsurnames"),
+            ),
             "n": ("('nick', nick)", "nickname", _("nickname")),
             "g": ("('famnick', famnick)", "familynick", _("familynick")),
         }
@@ -509,43 +561,54 @@ class AbbreviatedNameDisplay():
     def _make_name_parts(self, format_str, d):
         """adapted from _make_fn"""
 
-        if (len(format_str) > 2 and
-            format_str[0] == format_str[-1] == '"'):
+        if len(format_str) > 2 and format_str[0] == format_str[-1] == '"':
             pass
         else:
             d_keys = [(code, _tuple[2]) for code, _tuple in d.items()]
-            d_keys.sort(key=_make_cmp_key, reverse=True) # reverse on length and by ikeyword
-            for (code, ikeyword) in d_keys:
+            d_keys.sort(
+                key=_make_cmp_key, reverse=True
+            )  # reverse on length and by ikeyword
+            for code, ikeyword in d_keys:
                 exp, keyword, ikeyword = d[code]
-                format_str = format_str.replace(ikeyword, "%"+ code)
-                format_str = format_str.replace(ikeyword.title(), "%"+ code)
-                format_str = format_str.replace(ikeyword.upper(), "%"+ code.upper())
-
-        if (len(format_str) > 2 and
-            format_str[0] == format_str[-1] == '"'):
+                format_str = format_str.replace(ikeyword, "%" + code)
+                format_str = format_str.replace(ikeyword.title(), "%" + code)
+                format_str = format_str.replace(ikeyword.upper(), "%" + code.upper())
+        # Next, go through and do key-word replacement.
+        # Just replace keywords with
+        # %codes (ie, replace "firstname" with "%f", and
+        # "FIRSTNAME" for %F)
+        if len(format_str) > 2 and format_str[0] == format_str[-1] == '"':
             pass
         else:
             d_keys = [(code, _tuple[1]) for code, _tuple in d.items()]
-            d_keys.sort(key=_make_cmp_key, reverse=True)
-            for (code, keyword) in d_keys:
+            d_keys.sort(
+                key=_make_cmp_key, reverse=True
+            )  # reverse sort on length and by keyword
+            # if in double quotes, just use % codes
+            for code, keyword in d_keys:
                 exp, keyword, ikeyword = d[code]
-                format_str = format_str.replace(keyword, "%"+ code)
-                format_str = format_str.replace(keyword.title(), "%"+ code)
-                format_str = format_str.replace(keyword.upper(), "%"+ code.upper())
+                format_str = format_str.replace(keyword, "%" + code)
+                format_str = format_str.replace(keyword.title(), "%" + code)
+                format_str = format_str.replace(keyword.upper(), "%" + code.upper())
+        # Get lower and upper versions of codes:
+        # Next, list out the matching patterns:
+        # If it starts with "!" however, treat the punctuation verbatim:
         codes = list(d.keys()) + [c.upper() for c in d]
         if len(format_str) > 0 and format_str[0] == "!":
-            patterns = ["%(" + ("|".join(codes)) + ")",]
+            patterns = [
+                "%(" + ("|".join(codes)) + ")",  # %s
+            ]
             format_str = format_str[1:]
         else:
             patterns = [
-                ",\\W*\"%(" + ("|".join(codes)) + ")\"",    # ,\W*"%s"
+                ',\\W*"%(' + ("|".join(codes)) + ')"',  # ,\W*"%s"
                 ",\\W*\\(%(" + ("|".join(codes)) + ")\\)",  # ,\W*(%s)
-                ",\\W*%(" + ("|".join(codes)) + ")",        # ,\W*%s
-                "\"%(" + ("|".join(codes)) + ")\"",         # "%s"
-                "_%(" + ("|".join(codes)) + ")_",           # _%s_
-                "\\(%(" + ("|".join(codes)) + ")\\)",       # (%s)
-                "%(" + ("|".join(codes)) + ")",             # %s
-                ]
+                ",\\W*%(" + ("|".join(codes)) + ")",  # ,\W*%s
+                '"%(' + ("|".join(codes)) + ')"',  # "%s"
+                "_%(" + ("|".join(codes)) + ")_",  # _%s_
+                "\\(%(" + ("|".join(codes)) + ")\\)",  # (%s)
+                "%(" + ("|".join(codes)) + ")",  # %s
+            ]
 
         pat = re.compile("|".join(patterns))
         res = []
@@ -593,7 +656,11 @@ class AbbreviatedNameDisplay():
                 style_tag = "i"
             elif all_caps_style == 5:
                 style_tag = "u"
-            style_fcn = lambda names, **kwargs: [f"<{style_tag}>"+name+f"</{style_tag}>" for name in names]
+            style_fcn = lambda names, **kwargs: [
+                f"<{style_tag}>"+name+f"</{style_tag}>"
+                for name in names
+                if len(name) > 0
+            ]
         name_str = ""
         for name_part in display_name_parts:
             if isinstance(name_part, str):
@@ -646,6 +713,13 @@ class AbbreviatedNameDisplay():
                     continue
             else:
                 name_part_type_opts = ""
+            if (
+                "connector" in name_part_type
+                and name_parts[i][2][ii][1] == "-"
+                and action == "remove"
+            ):
+                name_parts[i][2][ii] = " "
+                return True
             is_given = name_part_type == "given" # special handling for 'given'
             spsep_parts = name_parts[i][2][ii][1].split()
             for j in reversed_(range(len(spsep_parts))):

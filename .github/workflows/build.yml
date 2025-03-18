@@ -48,7 +48,9 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install gramps[GUI,i18n]==5.2.3
+          # Pin PyGObject version because newer versions require girepository-2.0 which is not available on some distributions (e.g. Ubuntu 24.04.2).
+          pip install PyGObject==3.50.0
+          pip install gramps[GUI,i18n]==5.2.4
       - name: Get make.py
         run: wget https://raw.githubusercontent.com/gramps-project/addons-source/refs/heads/maintenance/gramps52/make.py
       - name: Build Addons
@@ -62,13 +64,20 @@ jobs:
       - name: Push new build version
         run: |
           cd FamilyTreeView
-          # Move files back to original position.
-          mv *.gpr.py src/
+
+          # Configure Git
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
-          # Only add changes to the .gpr.py files (only build version).
+
+          # Only add changes made by the build: 
+          # 1) Bumped addon verions in .gpr.py files
+          #    (Move files back to original position.)
+          mv *.gpr.py src/
           git add '*.gpr.py'
-          git commit -m "Bump addon version after automated build"
+          # 2) Updated gettext template file
+          git add po/template.pot
+
+          git commit -m "Update files after automated build"
           git push --force origin main:main
       - name: Remove all files (output is in ../addons)
         run: rm -rf -- .[!.]* *
