@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-16 11:14+0000\n"
+"POT-Creation-Date: 2025-03-17 21:20+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -151,7 +151,7 @@ msgstr ""
 
 #: FamilyTreeView/family_tree_view.gpr.py:45
 #: FamilyTreeView/family_tree_view.py:191
-#: FamilyTreeView/family_tree_view_tree_builder.py:153
+#: FamilyTreeView/family_tree_view_tree_builder.py:158
 msgid "FamilyTreeView"
 msgstr ""
 
@@ -1314,11 +1314,11 @@ msgid ""
 "the filter rules. No filter is applied."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_tree_builder.py:119
+#: FamilyTreeView/family_tree_view_tree_builder.py:124
 msgid "Building tree..."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_tree_builder.py:159
+#: FamilyTreeView/family_tree_view_tree_builder.py:164
 msgid ""
 "<b>Failed to build the tree.</b>\n"
 "An error occurred while building the tree visualization.\n"
@@ -1328,24 +1328,24 @@ msgid ""
 "\n"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_tree_builder.py:363
-#: FamilyTreeView/family_tree_view_tree_builder.py:630
+#: FamilyTreeView/family_tree_view_tree_builder.py:368
+#: FamilyTreeView/family_tree_view_tree_builder.py:635
 msgid "Building families and descendants..."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_tree_builder.py:375
+#: FamilyTreeView/family_tree_view_tree_builder.py:380
 msgid "Preparing to build ancestors..."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_tree_builder.py:387
+#: FamilyTreeView/family_tree_view_tree_builder.py:392
 msgid "Building ancestors..."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_tree_builder.py:583
+#: FamilyTreeView/family_tree_view_tree_builder.py:588
 msgid "Preparing to build descendants..."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_tree_builder.py:607
+#: FamilyTreeView/family_tree_view_tree_builder.py:612
 msgid "Building descendants..."
 msgstr ""
 
