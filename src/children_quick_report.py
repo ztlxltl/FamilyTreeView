@@ -20,11 +20,12 @@
 
 
 from gramps.gen.simple import SimpleAccess, SimpleDoc
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gui.plug.quick import QuickTable
 
+from family_tree_view_utils import get_gettext
 
-_ = GRAMPS_LOCALE.translation.gettext
+
+_ = get_gettext()
 
 def run(database, document, person):
     """

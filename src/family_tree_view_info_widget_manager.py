@@ -21,22 +21,24 @@
 
 from typing import TYPE_CHECKING
 
-from gi.repository import Gdk, GdkPixbuf, Gtk
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.datehandler import get_date
 from gramps.gen.display.name import displayer as name_displayer
 from gramps.gen.lib import Person
 from gramps.gen.utils.alive import probably_alive
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback, get_divorce_or_fallback
+from gramps.gen.utils.file import media_path_full
+from gramps.gen.utils.thumbnails import get_thumbnail_image
 from gramps.gui.utils import color_graph_box
+from gramps.gui.widgets import Photo
 
-from family_tree_view_utils import get_contrast_color
+from family_tree_view_utils import get_contrast_color, get_gettext
 if TYPE_CHECKING:
     from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeViewInfoWidgetManager:
     def __init__(self, widget_manager: "FamilyTreeViewWidgetManager"):
@@ -391,6 +393,7 @@ class FamilyTreeViewInfoWidgetManager:
     def create_tags_widget(self, obj):
         tags_flow = Gtk.FlowBox()
         tags_flow.set_selection_mode(Gtk.SelectionMode.NONE)
+        tags_flow.set_max_children_per_line(GLib.MAXUINT8) # no limit, larger is slow
         tag_handle_list = obj.get_tag_list()
         for tag_handle in tag_handle_list:
             tag = self.ftv.dbstate.db.get_tag_from_handle(tag_handle)
@@ -421,6 +424,25 @@ class FamilyTreeViewInfoWidgetManager:
 
             tags_flow.add(tag_widget)
         return tags_flow
+
+    def create_gallery(self, obj):
+        gallery_flow_box = Gtk.FlowBox()
+        gallery_flow_box.set_selection_mode(Gtk.SelectionMode.NONE)
+        gallery_flow_box.set_max_children_per_line(GLib.MAXUINT8) # no limit, larger is slow
+        media_list = obj.get_media_list()
+        for media_ref in media_list:
+            media_handle = media_ref.get_reference_handle()
+            media = self.ftv.dbstate.db.get_media_from_handle(media_handle)
+            path = media_path_full(self.ftv.dbstate.db, media.get_path())
+            photo = Photo()
+            pixbuf = get_thumbnail_image(
+                path,
+                media.get_mime_type(),
+                media_ref.get_rectangle()
+            )
+            photo.set_pixbuf(path, pixbuf)
+            gallery_flow_box.add(photo)
+        return gallery_flow_box
 
     def create_attributes(self, obj):
         grid = Gtk.Grid()
