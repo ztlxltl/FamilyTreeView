@@ -19,8 +19,12 @@
 #
 
 
+import os
+
 from gi import require_version
 from gi.repository import Pango
+
+from gramps.gen.const import GRAMPS_LOCALE
 
 
 def import_GooCanvas():
@@ -39,6 +43,28 @@ def import_GooCanvas():
         raise Exception("GooCanvas 2 or 3 (http://live.gnome.org/GooCanvas) is required for this view to work.")
     return GooCanvas
 
+def get_gettext(return_ngettext=False, return_sgettext=False):
+    file = os.path.abspath(__file__)
+    dir_name = os.path.basename(os.path.dirname(file))
+    if dir_name == "src":
+        # Python files in subdirectory (e.g. manual installation), use
+        # parent directory.
+        file = os.path.dirname(file)
+
+    try:
+        translation = GRAMPS_LOCALE.get_addon_translator(file)
+    except ValueError:
+        translation = GRAMPS_LOCALE.translation
+
+    if not return_ngettext and not return_sgettext:
+        return translation.gettext
+    elif return_ngettext and not return_sgettext:
+        return translation.gettext, translation.ngettext
+    elif not return_ngettext and return_sgettext:
+        return translation.gettext, translation.sgettext
+    else:
+        return translation.gettext, translation.ngettext, translation.sgettext
+
 def get_contrast_color(color):
     """
     Choose contrast text color (white or black) for provided background.
@@ -50,12 +76,42 @@ def get_contrast_color(color):
         return "white"
     return "black"
 
+def get_event_from_person(db, person, event_type_name, idx=0):
+    events = []
+    for event_ref in person.get_event_ref_list():
+        if event_ref.get_role().is_primary():
+            event = db.get_event_from_handle(event_ref.ref)
+            if event.get_type().is_type(event_type_name):
+                if idx == 0:
+                    return event
+                else:
+                    events.append(event)
+    try:
+        return events[idx]
+    except IndexError:
+        return None
+
+def get_event_from_family(db, family, event_type_name, idx=0):
+    events = []
+    for event_ref in family.get_event_ref_list():
+        if event_ref.get_role().is_family():
+            event = db.get_event_from_handle(event_ref.ref)
+            if event.get_type().is_type(event_type_name):
+                if idx == 0:
+                    return event
+                else:
+                    events.append(event)
+    try:
+        return events[idx]
+    except IndexError:
+        return None
+
 def get_label_line_height(label):
     label_layout = label.get_layout()
     line = label_layout.get_line(0)
-    ink_extend_rect, logical_extend_rect = line.get_extents()
-    Pango.extents_to_pixels(logical_extend_rect)
-    return logical_extend_rect.height
+    ink_extent_rect, logical_extent_rect = line.get_extents()
+    Pango.extents_to_pixels(logical_extent_rect)
+    return logical_extent_rect.height
 
 def get_start_stop_ymd(event, calendar):
     start_ymd = event.date.to_calendar(calendar).get_ymd()

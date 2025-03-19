@@ -25,18 +25,18 @@ from sqlite3 import InterfaceError
 import traceback
 
 import cairo
-from gi.repository import GdkPixbuf, GLib, Gtk
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from gramps.gen.config import config
-from gramps.gen.const import GRAMPS_LOCALE
+from gramps.gen.const import CUSTOM_FILTERS
 from gramps.gen.display.place import displayer as place_displayer
-from gramps.gen.errors import HandleError
+from gramps.gen.errors import HandleError, WindowActiveError
 from gramps.gen.lib import EventType
 from gramps.gen.utils.callback import Callback
 from gramps.gen.utils.file import find_file, media_path_full
 from gramps.gen.utils.symbols import Symbols
 from gramps.gen.utils.thumbnails import get_thumbnail_path
-from gramps.gui.editors import EditFamily, EditPerson
+from gramps.gui.editors import EditFamily, EditPerson, FilterEditor
 from gramps.gui.pluginmanager import GuiPluginManager
 from gramps.gui.views.bookmarks import PersonBookmarks
 from gramps.gui.views.navigationview import NavigationView
@@ -46,13 +46,25 @@ from abbreviated_name_display import AbbreviatedNameDisplay
 from family_tree_view_badge_manager import FamilyTreeViewBadgeManager
 from family_tree_view_config_provider import FamilyTreeViewConfigProvider
 from family_tree_view_icons import get_family_avatar_svg_data, get_person_avatar_svg_data
+from family_tree_view_utils import get_gettext
 from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeView(NavigationView, Callback):
     ADDITIONAL_UI = [
+        # "Family Trees" menu: 
+        # Export as SVG is also added here since list views have their
+        # export here.
+        """
+        <placeholder id="LocalExport">
+            <item>
+                <attribute name="action">win.ExportSvgView</attribute>
+                <attribute name="label" translatable="yes">Export view as SVG...</attribute>
+            </item>
+        </placeholder>
+        """,
         # "Edit" menu:
         """
         <section id="CommonEdit" groups="RW">
@@ -65,6 +77,14 @@ class FamilyTreeView(NavigationView, Callback):
                 <attribute name="label" translatable="yes">Export as SVG...</attribute>
             </item>
         </section>
+        """,
+        """
+        <placeholder id="otheredit">
+            <item>
+                <attribute name="action">win.FilterEdit</attribute>
+                <attribute name="label" translatable="yes">Person Filter Editor</attribute>
+            </item>
+        </placeholder>
         """,
         # "Go" menu:
         """
@@ -144,7 +164,7 @@ class FamilyTreeView(NavigationView, Callback):
             </child>
             <child groups="RO">
                 <object class="GtkToolButton">
-                    <property name="icon-name">document-export</property>
+                    <property name="icon-name">document-save</property>
                     <property name="action-name">win.ExportSvgView</property>
                     <property name="tooltip_text" translatable="yes">Export the tree as SVG</property>
                     <property name="label" translatable="yes">Export as SVG...</property>
@@ -175,9 +195,12 @@ class FamilyTreeView(NavigationView, Callback):
         self.uistate = uistate
         self.nav_group = nav_group
         self.dbstate.connect("database-changed", self._cb_db_changed)
-        self.uistate.connect("nameformat-changed", self.close_info_and_rebuild)
+        self.dbstate.connect("no-database", self._cb_db_closed)
+        self.uistate.connect("nameformat-changed", self.rebuild_tree)
 
         self.additional_uis.append(self.ADDITIONAL_UI)
+
+        self.generic_filter = None
 
         self.symbols = Symbols()
         self.widget_manager = FamilyTreeViewWidgetManager(self)
@@ -197,19 +220,23 @@ class FamilyTreeView(NavigationView, Callback):
             if config.is_set(key):
                 # Wait for idle as the theme update takes a bit.
                 # The tree has to rebuild after the theme is applied.
-                config.connect(key, lambda *args: GLib.idle_add(self.close_info_and_rebuild))
+                if key == "preferences.font":
+                    # If the font changes (font includes the font size),
+                    # also reset the boxes (line height, best name
+                    # abbreviations).
+                    config.connect(key, lambda *args: GLib.idle_add(self.widget_manager.canvas_manager.reset_boxes))
+                config.connect(key, lambda *args: GLib.idle_add(self._cb_global_appearance_config_changed))
 
         # There doesn't seem to be a signal for updating colors.
         # TODO This is not an ideal solution.
         for config_name in config.get_section_settings("colors"):
-            config.connect("colors." + config_name, self.close_info_and_rebuild)
-
-        self.generic_filter = None
+            config.connect("colors." + config_name, self._cb_global_appearance_config_changed)
 
         self.addons_registered_badges = False
 
         self.print_settings = None
         self.print_margin = 20
+        self.export_padding = 50
 
     def navigation_type(self):
         return "Person"
@@ -243,24 +270,56 @@ class FamilyTreeView(NavigationView, Callback):
     def define_actions(self):
         super().define_actions()
         self._add_action("PrintView", self.print_view, "<PRIMARY><SHIFT>P")
-        self._add_action("ExportSvgView", self.export_svg_view,)
+        self._add_action("ExportSvgView", self.export_svg_view)
+        self._add_action("FilterEdit", self.open_filter_editor)
 
     def config_connect(self):
         self.config_provider.config_connect(self._config, self.cb_update_config)
 
     def cb_update_config(self, client, connection_id, entry, data):
 
-        # Required to apply changed number of generations to show.
-        self.widget_manager.tree_builder.reset()
+        # Required to apply changed box size or number of lines for abbreviated names.
+        self.widget_manager.canvas_manager.reset_boxes()
 
-        self.close_info_and_rebuild()
+        # reset: Required to apply changed number of generations to show.
+        self.rebuild_tree(reset=True)
 
     def _get_configure_page_funcs(self):
         return self.config_provider.get_configure_page_funcs()
 
     def _cb_db_changed(self, db):
+        # When changing the db, the tree could rebuild tree times:
+        # - goto_handle() called by NavigationView.goto_active() on
+        #   receiving the active-changed signal (emitted while clearing
+        #   the history after database-changed is emitted by
+        #   CLIManager._post_load_newdb_nongui())
+        # - database-changed signal
+        # - goto_handle() called by NavigationView.goto_active() called
+        #   indirectly by ViewManager._post_load_newdb_gui()
+        # The call to goto_handle() due to the active-changed signal
+        # caused by a db change is identified and ignored. The
+        # database-changed signal is not used to rebuild the tree, only
+        # to update callbacks by a base class. Only the call to
+        # goto_handle() caused by "changing" the active view is used to
+        # rebuild the tree.
+
+        # If the database is closed, this signal is also emitted. We use
+        # the no-database signal to handle this case.
+
         self._change_db(db)
-        self.close_info_and_rebuild()
+
+    def _cb_db_closed(self):
+        # Clear the tree.
+
+        # When opening a database, DbLoader.read_file() indirectly emits
+        # the no-database signal twice, once when closing the previous
+        # database and once just before using the next database in
+        # DbState.change_database(). We don't have to necessarily clear
+        # the visualization in those cases, so we don't identify them as
+        # clearing is fast.
+
+        self.widget_manager.reset_tree()
+        self.widget_manager.canvas_manager.move_to_center()
 
     def build_widget(self):
         # Widget is built during __init__ and only returned here.
@@ -281,7 +340,7 @@ class FamilyTreeView(NavigationView, Callback):
         # - empty db and other similar cases
         # - sidebar filter is applied
 
-        if self.check_and_handle_empty_db():
+        if self.check_and_handle_special_db_cases():
             return
 
         rebuild_now = True
@@ -306,12 +365,30 @@ class FamilyTreeView(NavigationView, Callback):
 
         # Maybe there are more cases which can be identified...
 
+        # The filter is applied each time, since changes to the database
+        # that affect the filter result must be taken into account.\
+        # TODO Maybe keep track if there were db updates and only run
+        # filter if there were. Note that filter changes also need to be
+        # tracked. hash(self.generic_filter) doesn't change if rules are
+        # being added, but it changes every time the filter button is
+        # clicked since a new GenericFilter object is instantiated.
+        self.widget_manager.tree_builder.reset_filtered()
+
         if rebuild_now:
             self.rebuild_tree()
 
     def goto_handle(self, handle):
         # See also self.build_tree().
 
+        # See self._cb_db_changed() for context.
+        stack = inspect.stack()
+        if ("_post_load_newdb_nongui", "grampscli.py") in [
+            (frame.function, os.path.basename(frame.filename))
+            for frame in stack
+        ]:
+            return
+
+        goto_handle_was_called = False
         if handle:
             try:
                 person = self.get_person_from_handle(handle)
@@ -319,11 +396,39 @@ class FamilyTreeView(NavigationView, Callback):
                 # not a person
                 pass
             else:
-                if person is not None:
-                    # a person
+                # By setting the the active person, goto_handle will be
+                # called again if it's a different person.
+                if person is not None and handle != self.get_active():
+                    # It's a person and not the active person.
                     self.change_active(handle)
-        self.rebuild_tree()
-        self.uistate.modify_statusbar(self.dbstate)
+                    goto_handle_was_called = True
+        if not goto_handle_was_called:
+            self.rebuild_tree()
+            self.uistate.modify_statusbar(self.dbstate)
+
+    def set_active(self):
+        NavigationView.set_active(self)
+        self._set_filter_status()
+
+    def _set_filter_status(self):
+        try:
+            self.widget_manager
+        except AttributeError:
+            # initializing
+            self.uistate.status.clear_filter()
+            return
+
+        text = self.uistate.viewmanager.active_page.get_title()
+        text += (": %d/%d" % (
+            self.widget_manager.num_persons_added,
+            self.dbstate.db.get_number_of_people(),
+        ))
+        if self.widget_manager.tree_builder.filtered_person_handles is not None:
+            text += (" (Filter: %d/%d)" % (
+                self.widget_manager.num_persons_matching_filter_added,
+                len(self.widget_manager.tree_builder.filtered_person_handles),
+            ))
+        self.uistate.status.set_filter(text)
 
     def _connect_db_signals(self):
         self.callman.add_db_signal("person-update", self._object_updated)
@@ -331,15 +436,22 @@ class FamilyTreeView(NavigationView, Callback):
         self.callman.add_db_signal("event-update", self._object_updated)
 
     def _object_updated(self, handle):
-        offset = self.widget_manager.canvas_manager.get_center_in_units()
-        self.close_info_and_rebuild(offset=offset)
+        if self.active:
+            # The view will be updated when it is activated
+            # (NavigationView.set_active() causes build_tree and
+            # goto_handle to be called).
+            offset = self.widget_manager.canvas_manager.get_center_in_units()
+            self.rebuild_tree(offset=offset)
 
-    def close_info_and_rebuild(self, *_, offset=None): # *_ required when used as callback
-        self.widget_manager.info_box_manager.close_info_box()
-        self.widget_manager.close_panel()
-        self.rebuild_tree(offset=offset)
+    def _cb_global_appearance_config_changed(self, *args):
+        if self.active:
+            # The view will be updated when it is activated
+            # (NavigationView.set_active() causes build_tree and
+            # goto_handle to be called).
+            offset = self.widget_manager.canvas_manager.get_center_in_units()
+            self.rebuild_tree(offset=offset)
 
-    def rebuild_tree(self, offset=None):
+    def rebuild_tree(self, *_, offset=None, reset=False): # *_ required when used as callback
         self.uistate.set_busy_cursor(True)
 
         self.widget_manager.reset_tree()
@@ -354,21 +466,41 @@ class FamilyTreeView(NavigationView, Callback):
                 root_person_handle = root_person_handle[0]
 
             if root_person_handle is not None and len(root_person_handle) > 0: # handle can be empty string
-                if offset is None:
-                    # If there is no offset, the new tree is not closely related to the previous one.
-                    self.widget_manager.tree_builder.reset()
-                self.widget_manager.tree_builder.prepare_redraw()
-                self.widget_manager.tree_builder.process_person(root_person_handle, 0, 0, ahnentafel=1)
-                if offset is None:
-                    self.widget_manager.canvas_manager.move_to_center()
-                else:
-                    self.widget_manager.canvas_manager.move_to_center(*offset)
+                # If there is no offset, the new tree is not closely
+                # related to the previous one.
+                reset = reset or offset is None
+                self._rebuild_tree(root_person_handle, offset, reset=reset)
         self.uistate.set_busy_cursor(False)
+
+    def _rebuild_tree(self, root_person_handle, offset=None, reset=False):
+
+        # Hide the widget temporarily to avoid flickering. See code of
+        # widget manager for more info. 
+        # If the widget is not in a window, it's not visible yet and we
+        # don't need to hide it.
+        widget = self.widget_manager.main_container_paned
+        window = widget.get_window()
+        if window is not None and window.is_viewable():
+            alloc = widget.get_allocation()
+            pixbuf = Gdk.pixbuf_get_from_window(window, alloc.x, alloc.y, alloc.width, alloc.height)
+            self.widget_manager.replacement_image.set_from_pixbuf(pixbuf)
+            self.widget_manager.main_container_stack.set_visible_child_name("image")
+
+        self.widget_manager.tree_builder.build_tree(root_person_handle, reset=reset)
+
+        if offset is None:
+            self.widget_manager.canvas_manager.move_to_center()
+        else:
+            self.widget_manager.canvas_manager.move_to_center(*offset)
+
+        if window is not None:
+            self.widget_manager.main_container_stack.set_visible_child_name("actual")
 
     def check_and_handle_special_db_cases(self):
         """Returns True if special cases were handled (no tree should be built)."""
         if not self.dbstate.db.is_open():
-            # no db loaded
+            # No database is loaded.
+            self.widget_manager.reset_tree()
             if len(CLIDbManager(self.dbstate).current_names) == 0: # TODO This condition has not been tested yet!
                 # no db to load
                 # TODO Show some replacement text, e.g. 
@@ -381,8 +513,14 @@ class FamilyTreeView(NavigationView, Callback):
                 # "No database loaded. Load, create or import one."
                 # (where import creates one first).
                 pass
+            self.widget_manager.canvas_manager.move_to_center()
             return True
-        if self.check_and_handle_empty_db():
+        if self.dbstate.db.get_number_of_people() == 0:
+            # There are no people in the database. show a missing
+            # person.
+            self.widget_manager.reset_tree()
+            self.widget_manager.add_missing_person(0, 0, "c", "root", None)
+            self.widget_manager.canvas_manager.move_to_center()
             return True
 
         # A db with people is loaded.
@@ -399,14 +537,6 @@ class FamilyTreeView(NavigationView, Callback):
         elif no_home and not no_active:
             self.set_home_person(self.get_active())
         # If both are set, everything is alright.
-        return False
-
-    def check_and_handle_empty_db(self):
-        if self.dbstate.db.get_number_of_people() == 0:
-            # db has no people
-            # show missing person
-            self.widget_manager.add_missing_person(0, 0, "c")
-            return True
         return False
 
     def get_image_spec(self, obj, obj_type):
@@ -452,7 +582,7 @@ class FamilyTreeView(NavigationView, Callback):
 
         return ("svg_data_callback", data_callback)
 
-    def get_full_place_name(self, place_handle):
+    def get_place_name_without_limit(self, place_handle):
         """gramps.gen.utils.libformatting.get_place_name without character limit"""
         if place_handle:
             place = self.dbstate.db.get_place_from_handle(place_handle)
@@ -460,9 +590,9 @@ class FamilyTreeView(NavigationView, Callback):
                 place_name = place_displayer.display(self.dbstate.db, place)
                 return place_name
 
-    def get_full_place_name_from_event(self, event):
+    def get_place_name_from_event(self, event, fmt=-1): # -1 is default
         if event:
-            place_name = place_displayer.display_event(self.dbstate.db, event)
+            place_name = place_displayer.display_event(self.dbstate.db, event, fmt=fmt)
             return place_name
 
     def set_home_person(self, person_handle, also_set_active=False):
@@ -499,7 +629,7 @@ class FamilyTreeView(NavigationView, Callback):
         except HandleError:
             return None
 
-    def get_active_family(self):
+    def get_active_family_handle(self):
         nav_group = 0 # TODO not sure about this
         hobj = self.uistate.get_history("Family", nav_group)
         return hobj.present()
@@ -533,10 +663,28 @@ class FamilyTreeView(NavigationView, Callback):
             return self.symbols.get_symbol_fallback(symbol)
 
     def change_active_family(self, handle):
+        self.change_active_obj(handle, "Family")
+
+    def change_active_obj(self, handle, obj_class):
         nav_group = 0 # TODO not sure about this
-        hobj = self.uistate.get_history("Family", nav_group)
+        hobj = self.uistate.get_history(obj_class, nav_group)
         if handle and not hobj.lock and not (handle == hobj.present()):
             hobj.push(handle)
+
+    def open_uri(self, uri):
+        if not uri.startswith("gramps://"):
+            return Gtk.show_uri_on_window(uri)
+        obj_class, prop, value = uri[9:].split("/", 2)
+        if prop != "handle":
+            # TODO gramps_id
+            return False
+
+        if obj_class == "Person":
+            self.change_active(value)
+        else:
+            self.change_active_obj(value, obj_class)
+
+        return True
 
     # editing windows
 
@@ -549,6 +697,23 @@ class FamilyTreeView(NavigationView, Callback):
         family = self.dbstate.db.get_family_from_handle(family_handle)
         if family is not None:
             EditFamily(self.dbstate, self.uistate, [], family)
+
+    def open_filter_editor(self, *args):
+        try:
+            FilterEditor("Person", CUSTOM_FILTERS, self.dbstate, self.uistate)
+        except WindowActiveError:
+            pass
+
+    def add_new_parent_to_family(self, family_handle, is_father):
+        family = self.get_family_from_handle(family_handle)
+        if family is None:
+            return
+
+        edit_family = EditFamily(self.dbstate, self.uistate, [], family)
+        if is_father:
+            edit_family.add_father_clicked(None)
+        else:
+            edit_family.add_mother_clicked(None)
 
     # printing
 
@@ -567,8 +732,8 @@ class FamilyTreeView(NavigationView, Callback):
         page_setup.set_bottom_margin(self.print_margin, Gtk.Unit.POINTS)
         canvas_bounds = self.widget_manager.canvas_manager.canvas_bounds
         padding = self.widget_manager.canvas_manager.canvas_padding
-        tree_width = canvas_bounds[2] - canvas_bounds[0] - 2*padding
-        tree_height = canvas_bounds[3] - canvas_bounds[1] - 2*padding
+        tree_width = canvas_bounds[2] - canvas_bounds[0] - 2*padding + 2*self.export_padding
+        tree_height = canvas_bounds[3] - canvas_bounds[1] - 2*padding + 2*self.export_padding
         if self._config.get("interaction.familytreeview-printing-scale-to-page"):
             # TODO How to get the page size used by Windows' print to PDF?
             # Use the smallest dimension of Letter and A4.
@@ -605,9 +770,11 @@ class FamilyTreeView(NavigationView, Callback):
         extra_scale = cr.get_matrix().x0 / self.print_margin
         cr.scale(extra_scale, extra_scale)
 
-        cr.translate(-canvas_bounds[0]-padding, -canvas_bounds[1]-padding)
-        bounds = None # entire canvas
-        self.widget_manager.canvas_manager.canvas.render(cr, bounds, 0.0)
+        cr.translate(
+            -canvas_bounds[0]-padding+self.export_padding,
+            -canvas_bounds[1]-padding+self.export_padding
+        )
+        self.render_canvas_to_context(cr)
 
     def export_svg_view(self, *args):
 
@@ -661,13 +828,15 @@ class FamilyTreeView(NavigationView, Callback):
         # actual export
         canvas_bounds = self.widget_manager.canvas_manager.canvas_bounds
         padding = self.widget_manager.canvas_manager.canvas_padding
-        width = canvas_bounds[2]-canvas_bounds[0]-2*padding
-        height = canvas_bounds[3]-canvas_bounds[1]-2*padding
+        width = canvas_bounds[2]-canvas_bounds[0]-2*padding+2*self.export_padding
+        height = canvas_bounds[3]-canvas_bounds[1]-2*padding+2*self.export_padding
         with cairo.SVGSurface(file_name, width, height) as surface:
             context = cairo.Context(surface)
-            context.translate(-canvas_bounds[0]-padding, -canvas_bounds[1]-padding)
-            bounds = None
-            self.widget_manager.canvas_manager.canvas.render(context, bounds, 0.0)
+            context.translate(
+                -canvas_bounds[0]-padding+self.export_padding,
+                -canvas_bounds[1]-padding+self.export_padding
+            )
+            self.render_canvas_to_context(context)
             surface.finish()
 
         # message: completed
@@ -683,3 +852,13 @@ class FamilyTreeView(NavigationView, Callback):
         )
         dialog.run()
         dialog.destroy()
+
+    def render_canvas_to_context(self, context, bounds=None):
+        hide_expanders = self._config.get("interaction.familytreeview-printing-export-hide-expanders")
+        if hide_expanders:
+            self.widget_manager.canvas_manager.set_expander_visible(False)
+        try:
+            self.widget_manager.canvas_manager.canvas.render(context, bounds, 0.0)
+        finally:
+            if hide_expanders:
+                self.widget_manager.canvas_manager.set_expander_visible(True)

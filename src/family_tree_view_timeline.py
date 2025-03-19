@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING
 from gi.repository import GLib, Gtk, Pango
 
 from gramps.gen.config import config
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.datehandler import get_date
 from gramps.gen.display.name import displayer as name_displayer
 from gramps.gen.lib.date import Date
@@ -35,14 +34,14 @@ from gramps.gen.lib.person import Person
 from gramps.gui.utils import rgb_to_hex
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback, get_divorce_or_fallback
 
-from family_tree_view_utils import calculate_min_max_age_at_event, get_label_line_height, import_GooCanvas
+from family_tree_view_utils import calculate_min_max_age_at_event, get_gettext, get_label_line_height, import_GooCanvas
 if TYPE_CHECKING:
     from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
 
 GooCanvas = import_GooCanvas()
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 DAYS_PER_YEAR = 365.2425 # on average in Gregorian calendar
 DAYS_PER_MONTH = DAYS_PER_YEAR / 12; # on average
@@ -317,6 +316,7 @@ class FamilyTreeViewTimeline:
                 description = ""
             if len(description) > 0:
                 description = " " + description
+            description = description.escape('utf-8')
             description = GLib.markup_escape_text(description, len(description))
 
             event_age_str = ""
@@ -333,16 +333,20 @@ class FamilyTreeViewTimeline:
                 else:
                     age_str = (event.date - self.start_event.date).format(precision=age_precision)
                     event_age_str = f"({age_str}) "
+            event_age_str = event_age_str.escape('utf-8')
             event_age_str = GLib.markup_escape_text(event_age_str, len(event_age_str))
             event_type = _(str(event.type))
+            event_type = event_type.escape('utf-8')
             event_type = GLib.markup_escape_text(event_type, len(event_type))
             event_date_str = get_date(event)
+            event_date_str = event_date_str.escape('utf-8')
             event_date_str = GLib.markup_escape_text(event_date_str, len(event_date_str))
-            event_place_str = self.ftv.get_full_place_name_from_event(event)
+            event_place_str = self.ftv.get_place_name_from_event(event)
             if event_place_str is None: # no place
                 event_place_str = ""
             else:
                 event_place_str = ",\n" + event_place_str
+            event_place_str = event_place_str.escape('utf-8')
             event_place_str = GLib.markup_escape_text(event_place_str, len(event_place_str))
 
             if rel_type is None: # primary event
@@ -374,10 +378,14 @@ class FamilyTreeViewTimeline:
                         relationship_type = "wife"
                     elif rel[-1].get_gender() == Person.MALE:
                         relationship_type = "husband"
-                relationship_type = .GLib.markup_escape_text(relationship_type, len(relationship_type))
+                relationship_type = relationship_type.escape('utf-8')
+                relationship_type = GLib.markup_escape_text(relationship_type, len(relationship_type))
                 if isinstance(rel[-1], Person):
                     relative_name = name_displayer.display_name(rel[-1].get_primary_name())
+                    relative_name = relative_name.escape('utf-8')
                     relative_name = GLib.markup_escape_text(relative_name, len(relative_name))
+                    uri = f"gramps://Person/handle/{rel[-1].handle}"
+                    relative_name += f" <a href=\"{uri}\" title=\"Set {relative_name} as active person\">\u2794</a>" # rightwards arrow
                     markup = f"{event_age_str}{event_type} of {relationship_type} <b>{relative_name}</b>{description}:\n{event_date_str}{event_place_str}"
                 else:
                     markup = f"{event_age_str}{event_type} of <b>{relationship_type}</b>{description}:\n{event_date_str}{event_place_str}"
@@ -393,6 +401,9 @@ class FamilyTreeViewTimeline:
                     - (self.event_margin + self.event_padding)
                     - get_label_line_height(event_label)/2
                 )
+            event_label.connect("activate-link", lambda label, uri:
+                self.ftv.open_uri(uri)
+            )
             event_labels.append(event_label)
             timeline_label_container.add(event_label)
 
@@ -531,12 +542,12 @@ class FamilyTreeViewTimeline:
                 fill_color=fg_color,
             )
             if i_tick == 0:
-                ink_extend_rect, logical_extend_rect =  tick_label.get_natural_extents()
-                Pango.extents_to_pixels(logical_extend_rect)
+                ink_extent_rect, logical_extent_rect =  tick_label.get_natural_extents()
+                Pango.extents_to_pixels(logical_extent_rect)
                 GooCanvas.CanvasText(
                     parent=root_item,
-                    x=x_tick - logical_extend_rect.width, # left align to tick_label
-                    y=self.timeline_top_margin - logical_extend_rect.height/2, # line above (in case there is a 0 at the first event)
+                    x=x_tick - logical_extent_rect.width, # left align to tick_label
+                    y=self.timeline_top_margin - logical_extent_rect.height/2, # line above (in case there is a 0 at the first event)
                     text=tick_unit_name,
                     alignment=Pango.Alignment.LEFT,
                     anchor=GooCanvas.CanvasAnchorType.SOUTH_WEST,
@@ -567,8 +578,8 @@ class FamilyTreeViewTimeline:
                 )
 
             label_allocation = event_label.get_allocation()
-            logical_extend_rect = get_label_line_height(event_label)
-            first_line_height = logical_extend_rect
+            logical_extent_rect = get_label_line_height(event_label)
+            first_line_height = logical_extent_rect
             first_line_center = label_allocation.y - canvas_allocation.y + self.event_margin + self.event_padding + first_line_height/2
 
             GooCanvas.CanvasEllipse(

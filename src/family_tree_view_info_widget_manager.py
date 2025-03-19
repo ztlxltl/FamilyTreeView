@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING
 
 from gi.repository import Gdk, GdkPixbuf, Gtk
 
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.datehandler import get_date
 from gramps.gen.display.name import displayer as name_displayer
 from gramps.gen.lib import Person
@@ -31,12 +30,12 @@ from gramps.gen.utils.alive import probably_alive
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback, get_divorce_or_fallback
 from gramps.gui.utils import color_graph_box
 
-from family_tree_view_utils import get_contrast_color
+from family_tree_view_utils import get_contrast_color, get_gettext
 if TYPE_CHECKING:
     from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeViewInfoWidgetManager:
     def __init__(self, widget_manager: "FamilyTreeViewWidgetManager"):
@@ -74,6 +73,23 @@ class FamilyTreeViewInfoWidgetManager:
         label.set_line_wrap(True)
         label.set_xalign(0) # left align
         label.set_yalign(0) # top align
+        return label
+
+    def create_person_name_label_for_grid(self, person):
+        uri = f"gramps://Person/handle/{person.handle}"
+        name = name_displayer.display_name(person.get_primary_name())
+        label = self.create_label_for_grid(markup=
+            name
+            + f" <a href=\"{uri}\" title=\"Set {name} as active person\">\u2794</a>" # rightwards arrow
+        )
+        # TODO Increase font size of arrow without changing line height.
+        # Tried to increase the size of the error with
+        # <big><big><big><span line_height=\"{1/1.2**3}\">...</span></big></big></big>
+        # but the line height wasn't correct, even though <big> scales
+        # by 1.2.
+        label.connect("activate-link", lambda label, uri:
+            self.ftv.open_uri(uri)
+        )
         return label
 
     def create_birth_death_label_for_grid(self, person):
@@ -172,7 +188,7 @@ class FamilyTreeViewInfoWidgetManager:
             event_type_label = self.create_label_for_grid(markup=f"<b>{_(str(event.type))}</b>")
             grid.attach(event_type_label, 0, i_row, 1, 1)
 
-            place_name = self.ftv.get_full_place_name_from_event(event)
+            place_name = self.ftv.get_place_name_from_event(event)
             if place_name is not None:
                 event_data_label = self.create_label_for_grid(f"{get_date(event)}\n{place_name}")
                 grid.attach(event_data_label, 1, i_row, 1, 1)
@@ -214,7 +230,7 @@ class FamilyTreeViewInfoWidgetManager:
                 grid.attach(parent_type_label, 0, i_row, 1, 1)
 
                 if parent is not None:
-                    parent_name_label = self.create_label_for_grid(name_displayer.display_name(parent.get_primary_name()))
+                    parent_name_label = self.create_person_name_label_for_grid(parent)
                     grid.attach(parent_name_label, 1, i_row, 1, 1)
 
                     parent_dates_label = self.create_birth_death_label_for_grid(parent)
@@ -249,7 +265,7 @@ class FamilyTreeViewInfoWidgetManager:
             grid.attach(parent_type_label, 0, i_row, 1, 1)
 
             if parent is not None:
-                parent_name_label = self.create_label_for_grid(name_displayer.display_name(parent.get_primary_name()))
+                parent_name_label = self.create_person_name_label_for_grid(parent)
                 grid.attach(parent_name_label, 1, i_row, 1, 1)
 
                 parent_dates_label = self.create_birth_death_label_for_grid(parent)
@@ -285,7 +301,7 @@ class FamilyTreeViewInfoWidgetManager:
             child_type_label = self.create_label_for_grid(s)
             grid.attach(child_type_label, 0, i_row, 1, 1)
 
-            child_name_label = self.create_label_for_grid(name_displayer.display_name(child.get_primary_name()))
+            child_name_label = self.create_person_name_label_for_grid(child)
             grid.attach(child_name_label, 1, i_row, 1, 1)
 
             child_dates_label = self.create_birth_death_label_for_grid(child)
@@ -301,8 +317,8 @@ class FamilyTreeViewInfoWidgetManager:
         edit_button.connect("clicked", lambda *_: self.ftv.edit_person(person_handle))
         buttons.pack_start(edit_button, False, False, 0)
 
-        set_home_button = self.create_button("Set home", icon="go-home")
         home_person = self.ftv.dbstate.db.get_default_person()
+        set_home_button = self.create_button("Set home", icon="go-home")
         if home_person is not None:
             set_home_button.set_sensitive(home_person.handle!=person_handle)
         set_home_button.connect("clicked", lambda *_: self.ftv.set_home_person(person_handle, also_set_active=False))
@@ -334,7 +350,7 @@ class FamilyTreeViewInfoWidgetManager:
 
         if self.ftv._config.get("interaction.familytreeview-family-info-box-set-active-button"):
             set_active_button = self.create_button("Set active", char="\u2794") # rightwards arrow
-            set_active_button.set_sensitive(self.ftv.get_active_family() != family_handle)
+            set_active_button.set_sensitive(self.ftv.get_active_family_handle() != family_handle)
             set_active_button.connect("clicked", lambda *_: self.ftv.set_active_family(family_handle))
             buttons.pack_start(set_active_button, False, False, 0)
 
