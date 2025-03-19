@@ -194,9 +194,6 @@ class FamilyTreeView(NavigationView, Callback):
         self.dbstate = dbstate
         self.uistate = uistate
         self.nav_group = nav_group
-        self.dbstate.connect("database-changed", self._cb_db_changed)
-        self.dbstate.connect("no-database", self._cb_db_closed)
-        self.uistate.connect("nameformat-changed", self.rebuild_tree)
 
         self.additional_uis.append(self.ADDITIONAL_UI)
 
@@ -231,6 +228,12 @@ class FamilyTreeView(NavigationView, Callback):
         # TODO This is not an ideal solution.
         for config_name in config.get_section_settings("colors"):
             config.connect("colors." + config_name, self._cb_global_appearance_config_changed)
+
+        # Register callbacks after initializing other managers to
+        # rebuild the tree after specific resets.
+        self.dbstate.connect("database-changed", self._cb_db_changed)
+        self.dbstate.connect("no-database", self._cb_db_closed)
+        self.uistate.connect("nameformat-changed", self.rebuild_tree)
 
         self.addons_registered_badges = False
 
