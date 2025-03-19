@@ -383,13 +383,18 @@ class FamilyTreeViewTimeline:
                     relative_name += f" <a href=\"{uri}\" title=\"Set {relative_name} as active person\">\u2794</a>" # rightwards arrow
                     markup = f"{event_age_str}{event_type} of {relationship_type} <b>{relative_name}</b>{description}:\n{event_date_str}{event_place_str}"
                 else: # Family
-                    spouse_name = "Unknown"
+                    missing_spouse_name = _("[missing spouse]")
+                    spouse_name = missing_spouse_name # default if only one spouse in the family
                     for spouse_handle in [rel[-1].get_father_handle(), rel[-1].get_mother_handle()]:
                         if spouse_handle is not None and spouse_handle != self.obj.get_handle():
                             spouse = self.ftv.get_person_from_handle(spouse_handle)
                             spouse_name = name_displayer.display_name(spouse.get_primary_name())
                             break
+                    spouse_name = spouse_name.encode('utf-8')
                     spouse_name = GLib.markup_escape_text(spouse_name, len(spouse_name))
+                    if spouse_name != missing_spouse_name: # missing spouse has no handle to link
+                        uri = f"gramps://Person/handle/{spouse.handle}"
+                        spouse_name += f" <a href=\"{uri}\" title=\"Set {spouse_name} as active person\">\u2794</a>" # rightwards arrow
                     markup = f"{event_age_str}{event_type} with <b>{spouse_name}</b>{description}:\n{event_date_str}{event_place_str}"
                 class_name = "ftv-timeline-event-relatives"
             event_label = Gtk.Label()
