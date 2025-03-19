@@ -103,6 +103,7 @@ def names_page(ftv: "FamilyTreeView", configdialog):
     row += 1
     def _cb_name_format_combo_changed(combo, constant):
         ftv._config.set(constant, name_format_options[combo.get_active()][0])
+        ftv.emit("abbrev-rules-changed")
         _fill_preview_model(ftv, preview_model)
     name_format_combo = configdialog.add_combo(
         grid,
@@ -127,7 +128,8 @@ def names_page(ftv: "FamilyTreeView", configdialog):
         _("Use always this name format in the tree (never name-specific \"Display as:\" name format)"),
         row,
         "names.familytreeview-abbrev-name-format-always",
-        stop=4
+        stop=4,
+        extra_callback=lambda *args: ftv.emit("abbrev-rules-changed"),
     )
 
     row += 1
@@ -142,6 +144,7 @@ def names_page(ftv: "FamilyTreeView", configdialog):
     ]
     def _cb_all_caps_combo_changed(combo, constant):
         ftv._config.set(constant, combo.get_active())
+        ftv.emit("abbrev-rules-changed")
         _fill_preview_model(ftv, preview_model)
     all_caps_combo = configdialog.add_combo(
         grid,
