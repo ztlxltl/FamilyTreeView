@@ -28,7 +28,7 @@ import cairo
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from gramps.gen.config import config
-from gramps.gen.const import CUSTOM_FILTERS, GRAMPS_LOCALE
+from gramps.gen.const import CUSTOM_FILTERS
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.errors import HandleError, WindowActiveError
 from gramps.gen.lib import EventType
@@ -46,10 +46,11 @@ from abbreviated_name_display import AbbreviatedNameDisplay
 from family_tree_view_badge_manager import FamilyTreeViewBadgeManager
 from family_tree_view_config_provider import FamilyTreeViewConfigProvider
 from family_tree_view_icons import get_family_avatar_svg_data, get_person_avatar_svg_data
+from family_tree_view_utils import get_gettext
 from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeView(NavigationView, Callback):
     ADDITIONAL_UI = [
@@ -235,6 +236,7 @@ class FamilyTreeView(NavigationView, Callback):
 
         self.print_settings = None
         self.print_margin = 20
+        self.export_padding = 50
 
     def navigation_type(self):
         return "Person"
@@ -730,8 +732,8 @@ class FamilyTreeView(NavigationView, Callback):
         page_setup.set_bottom_margin(self.print_margin, Gtk.Unit.POINTS)
         canvas_bounds = self.widget_manager.canvas_manager.canvas_bounds
         padding = self.widget_manager.canvas_manager.canvas_padding
-        tree_width = canvas_bounds[2] - canvas_bounds[0] - 2*padding
-        tree_height = canvas_bounds[3] - canvas_bounds[1] - 2*padding
+        tree_width = canvas_bounds[2] - canvas_bounds[0] - 2*padding + 2*self.export_padding
+        tree_height = canvas_bounds[3] - canvas_bounds[1] - 2*padding + 2*self.export_padding
         if self._config.get("interaction.familytreeview-printing-scale-to-page"):
             # TODO How to get the page size used by Windows' print to PDF?
             # Use the smallest dimension of Letter and A4.
@@ -768,9 +770,11 @@ class FamilyTreeView(NavigationView, Callback):
         extra_scale = cr.get_matrix().x0 / self.print_margin
         cr.scale(extra_scale, extra_scale)
 
-        cr.translate(-canvas_bounds[0]-padding, -canvas_bounds[1]-padding)
-        bounds = None # entire canvas
-        self.widget_manager.canvas_manager.canvas.render(cr, bounds, 0.0)
+        cr.translate(
+            -canvas_bounds[0]-padding+self.export_padding,
+            -canvas_bounds[1]-padding+self.export_padding
+        )
+        self.render_canvas_to_context(cr)
 
     def export_svg_view(self, *args):
 
@@ -824,13 +828,15 @@ class FamilyTreeView(NavigationView, Callback):
         # actual export
         canvas_bounds = self.widget_manager.canvas_manager.canvas_bounds
         padding = self.widget_manager.canvas_manager.canvas_padding
-        width = canvas_bounds[2]-canvas_bounds[0]-2*padding
-        height = canvas_bounds[3]-canvas_bounds[1]-2*padding
+        width = canvas_bounds[2]-canvas_bounds[0]-2*padding+2*self.export_padding
+        height = canvas_bounds[3]-canvas_bounds[1]-2*padding+2*self.export_padding
         with cairo.SVGSurface(file_name, width, height) as surface:
             context = cairo.Context(surface)
-            context.translate(-canvas_bounds[0]-padding, -canvas_bounds[1]-padding)
-            bounds = None
-            self.widget_manager.canvas_manager.canvas.render(context, bounds, 0.0)
+            context.translate(
+                -canvas_bounds[0]-padding+self.export_padding,
+                -canvas_bounds[1]-padding+self.export_padding
+            )
+            self.render_canvas_to_context(context)
             surface.finish()
 
         # message: completed
@@ -846,3 +852,13 @@ class FamilyTreeView(NavigationView, Callback):
         )
         dialog.run()
         dialog.destroy()
+
+    def render_canvas_to_context(self, context, bounds=None):
+        hide_expanders = self._config.get("interaction.familytreeview-printing-export-hide-expanders")
+        if hide_expanders:
+            self.widget_manager.canvas_manager.set_expander_visible(False)
+        try:
+            self.widget_manager.canvas_manager.canvas.render(context, bounds, 0.0)
+        finally:
+            if hide_expanders:
+                self.widget_manager.canvas_manager.set_expander_visible(True)

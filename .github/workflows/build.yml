@@ -64,13 +64,20 @@ jobs:
       - name: Push new build version
         run: |
           cd FamilyTreeView
-          # Move files back to original position.
-          mv *.gpr.py src/
+
+          # Configure Git
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
-          # Only add changes to the .gpr.py files (only build version).
+
+          # Only add changes made by the build: 
+          # 1) Bumped addon verions in .gpr.py files
+          #    (Move files back to original position.)
+          mv *.gpr.py src/
           git add '*.gpr.py'
-          git commit -m "Bump addon version after automated build"
+          # 2) Updated gettext template file
+          git add po/template.pot
+
+          git commit -m "Update files after automated build"
           git push --force origin main:main
       - name: Remove all files (output is in ../addons)
         run: rm -rf -- .[!.]* *

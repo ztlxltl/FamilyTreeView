@@ -25,17 +25,18 @@ from typing import TYPE_CHECKING
 from gi.repository import Gtk
 
 from gramps.gen.config import config
-from gramps.gen.const import GRAMPS_LOCALE, SIZE_LARGE, SIZE_NORMAL, USER_HOME
+from gramps.gen.const import SIZE_LARGE, SIZE_NORMAL, USER_HOME
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.lib.eventtype import EventType
 
 from family_tree_view_config_page_manager_boxes import BOX_ITEMS, PREDEF_BOXES_DEFS, FamilyTreeViewConfigPageManagerBoxes
 from family_tree_view_config_provider_names import names_page, DEFAULT_ABBREV_RULES
+from family_tree_view_utils import get_gettext
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeViewConfigProvider:
     def __init__(self, ftv: "FamilyTreeView"):
@@ -55,6 +56,7 @@ class FamilyTreeViewConfigProvider:
             ("appearance.familytreeview-num-descendant-generations-default", 2),
             ("appearance.familytreeview-connections-line-width", 2.0),
             ("appearance.familytreeview-box-line-width", 2.0),
+            ("appearance.familytreeview-highlight-home-person", True),
             ("appearance.familytreeview-highlight-root-person", True),
             ("appearance.familytreeview-show-deceased-ribbon", True),
             ("appearance.familytreeview-filter-person-gray-out", True),
@@ -97,6 +99,7 @@ class FamilyTreeViewConfigProvider:
             ("interaction.familytreeview-zoom-level-step", 0.15),
             ("interaction.familytreeview-family-info-box-set-active-button", False),
             ("interaction.familytreeview-printing-scale-to-page", False),
+            ("interaction.familytreeview-printing-export-hide-expanders", True),
 
             ("boxes.familytreeview-boxes-custom-defs", {}),
             ("boxes.familytreeview-boxes-selected-def-key", "regular"),
@@ -175,51 +178,93 @@ class FamilyTreeViewConfigProvider:
             _config.set(key, default_value)
         else:
             changed = False
-            for k, v in content_def_config.items():
+            for k, v in list(content_def_config.items()):
                 if not isinstance(k, str):
                     content_def_config[str(k)] = content_def_config.pop(k)
                     k = str(k)
                     changed = True
 
-                v_changed = False
                 if len(v) != 4:
                     del content_def_config[k]
                     changed = True
-                elif not isinstance(v[0], str):
+                    continue
+
+                v = list(v)
+                v_changed = False
+                if not isinstance(v[0], str):
                     v[0] = str(v[0])
-                elif not isinstance(v[1], int):
+                    v_changed = True
+                if not isinstance(v[1], int):
                     try:
                         v[1] = int(v[1])
                     except ValueError:
-                        v[1] = PREDEF_BOXES_DEFS["regular"][1]
+                        v[1] = deepcopy(PREDEF_BOXES_DEFS["regular"][1])
                     v_changed = True
-                else:
-                    for i, box_type in [(2, "person"), (3, "family")]:
-                        if not isinstance(v[i], list):
-                            v[i] = PREDEF_BOXES_DEFS["regular"][i]
+                for i, box_type in [(2, "person"), (3, "family")]:
+                    if not isinstance(v[i], list):
+                        v[i] = deepcopy(PREDEF_BOXES_DEFS["regular"][i])
+                        v_changed = True
+                        continue
+
+                    # Delete all unknown items and fix or delete
+                    # corrupted items.
+                    js_to_delete = []
+                    for j in range(len(v[i])): # loop over items
+                        # corrupted or unknown item type
+                        if (
+                            not isinstance(v[i][j][0], str)
+                            or v[i][j][0] not in [item[0] for item in BOX_ITEMS[box_type]]
+                        ):
+                            js_to_delete.append(j)
+                            continue
+
+                        idx = [item[0] for item in BOX_ITEMS[box_type]].index(v[i][j][0])
+                        dflt_params = deepcopy(BOX_ITEMS[box_type][idx][3])
+
+                        # no dict with params
+                        if not isinstance(v[i][j][1], dict):
+                            # direct assignment to tuple: convert to
+                            # list
+                            v[i][j] = list(v[i][j])
+                            v[i][j][1] = dflt_params
+                            v[i][j] = tuple(v[i][j])
                             v_changed = True
-                        else:
-                            js_to_delete = []
-                            for j in range(len(v[i])):
-                                if (
-                                    not isinstance(v[i][j][0], str)
-                                    or v[i][j][0] not in [item[0] for item in BOX_ITEMS[box_type]]
-                                    or not isinstance(v[i][j][1], dict)
-                                ):
-                                    js_to_delete.append(j)
-                                else:
-                                    idx = [item[0] for item in BOX_ITEMS[box_type]].index(v[i][j][0])
-                                    for k_, v_ in v[i][j][1].items():
-                                        if k_ not in BOX_ITEMS[box_type][idx][3].keys():
-                                            js_to_delete.append(j)
-                                        elif type(v_) != type(BOX_ITEMS[box_type][idx][3][k_]):
-                                            js_to_delete.append(j)
-                            for j in reversed(js_to_delete):
-                                v[i].pop(j)
+                            continue
+
+                        # unknown, corrupted params
+                        for k_, v_ in list(v[i][j][1].items()):
+                            if k_ not in dflt_params.keys():
+                                del v[i][j][1][k_]
+                                v_changed = True
+                            elif type(v_) != type(dflt_params[k_]):
+                                v[i][j][1][k_] = dflt_params[k_]
                                 v_changed = True
 
+                        # missing params
+                        for k_ in dflt_params.keys():
+                            if k_ not in v[i][j][1].keys():
+                                v[i][j][1][k_] = dflt_params[k_]
+                                v_changed = True
+
+                        # ensure item param order, important for order
+                        # in UI
+                        if list(v[i][j][1].keys()) != list(dflt_params.keys()):
+                            # direct assignment to tuple: convert to
+                            # list
+                            v[i][j] = list(v[i][j])
+                            v[i][j][1] = {
+                                k: v[i][j][1][k]
+                                for k in dflt_params.keys()
+                            }
+                            v[i][j] = tuple(v[i][j])
+                            v_changed = True
+
+                    for j in reversed(js_to_delete):
+                        v[i].pop(j)
+                        v_changed = True
+
                 if v_changed:
-                    content_def_config[k] = v
+                    content_def_config[k] = tuple(v)
                     changed = True
             if changed:
                 _config.set(key, content_def_config)
@@ -344,6 +389,15 @@ class FamilyTreeViewConfigProvider:
         )
         box_line_width_spinner.set_digits(1)
         box_line_width_spinner.get_adjustment().set_step_increment(0.1)
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _("Highlight the home person according to the active Gramps color scheme"),
+            row,
+            "appearance.familytreeview-highlight-home-person",
+            stop=3 # same width as spinners and combos
+        )
 
         row += 1
         configdialog.add_checkbox(
@@ -840,6 +894,16 @@ class FamilyTreeViewConfigProvider:
             stop=3 # same width as spinners and combos
         )
 
+        # TODO Maybe move printing options to appearance?
+        row += 1
+        configdialog.add_text(
+            grid,
+            _(
+                "Printing and exporting:"
+            ),
+            row,
+        )
+
         row += 1
         configdialog.add_checkbox(
             grid,
@@ -850,6 +914,17 @@ class FamilyTreeViewConfigProvider:
             ),
             row,
             "interaction.familytreeview-printing-scale-to-page",
+            stop=3 # same width as spinners and combos
+        )
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _(
+                "Hide expanders in prints and exports."
+            ),
+            row,
+            "interaction.familytreeview-printing-export-hide-expanders",
             stop=3 # same width as spinners and combos
         )
 
