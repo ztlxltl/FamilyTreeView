@@ -127,6 +127,14 @@ class FamilyTreeViewPanelManager(FamilyTreeViewInfoWidgetManager):
 
         self.panel_content.add(Gtk.Separator())
 
+        gallery_expander = Gtk.Expander(label=_("Gallery"))
+        gallery_expander.set_expanded(True)
+        gallery_section = self.create_gallery(person)
+        gallery_expander.add(gallery_section)
+        self.panel_content.add(gallery_expander)
+
+        self.panel_content.add(Gtk.Separator())
+
         attributes_expander = Gtk.Expander(label=_("Attributes"))
         attributes_expander.set_expanded(True)
         attributes_section = self.create_attributes(person)

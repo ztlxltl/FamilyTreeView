@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-17 21:20+0000\n"
+"POT-Creation-Date: 2025-03-19 18:24+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1180,40 +1180,40 @@ msgid ""
 "Maybe no database is loaded."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_info_widget_manager.py:218
-#: FamilyTreeView/family_tree_view_info_widget_manager.py:255
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:221
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:258
 msgid "Parent [unknown]"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_info_widget_manager.py:220
-#: FamilyTreeView/family_tree_view_info_widget_manager.py:257
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:223
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:260
 msgid "Mother"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_info_widget_manager.py:222
-#: FamilyTreeView/family_tree_view_info_widget_manager.py:259
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:225
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:262
 msgid "Father"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_info_widget_manager.py:224
-#: FamilyTreeView/family_tree_view_info_widget_manager.py:261
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:227
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:264
 msgid "Parent"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_info_widget_manager.py:287
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:290
 msgid "Daughter"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_info_widget_manager.py:289
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:292
 msgid "Son"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_info_widget_manager.py:291
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:294
 msgid "Child"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_info_widget_manager.py:296
-#: FamilyTreeView/family_tree_view_info_widget_manager.py:298
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:299
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:301
 msgid "unspecified"
 msgstr ""
 
@@ -1238,12 +1238,16 @@ msgid "Can't display panel without FamilyTreeView loaded."
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_panel_manager.py:122
-#: FamilyTreeView/family_tree_view_panel_manager.py:164
+#: FamilyTreeView/family_tree_view_panel_manager.py:172
 msgid "Timeline"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_panel_manager.py:130
-#: FamilyTreeView/family_tree_view_panel_manager.py:172
+msgid "Gallery"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_panel_manager.py:138
+#: FamilyTreeView/family_tree_view_panel_manager.py:180
 msgid "Attributes"
 msgstr ""
 
