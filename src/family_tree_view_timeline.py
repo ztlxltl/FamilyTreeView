@@ -263,12 +263,16 @@ class FamilyTreeViewTimeline:
             if not event.date.is_empty() and event.date.modifier != Date.MOD_TEXTONLY
         ]
 
-        # Remove events for event types that should not be visible in the timeline (specified in the configuration 'Appearance' tab)
+        # Remove events for event types that should not be visible in
+        # the timeline (specified in the configuration 'Appearance' tab)
         event_types_visible = self.ftv._config.get("appearance.familytreeview-timeline-event-types-visible")
         event_and_ref_list = [
             (rel_type, rel, event, ref)
             for rel_type, rel, event, ref in event_and_ref_list
-            if not (EventType._I2EMAP[int(event.type)] in event_types_visible and not event_types_visible[EventType._I2EMAP[int(event.type)]])
+            if not (
+                EventType._I2EMAP[int(event.type)] in event_types_visible
+                and not event_types_visible[EventType._I2EMAP[int(event.type)]]
+            )
         ]
 
         # Remove non-primary events before birth and after death.
@@ -304,7 +308,6 @@ class FamilyTreeViewTimeline:
         timeline_label_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         event_types_show_description = self.ftv._config.get("appearance.familytreeview-timeline-event-types-show-description")
-        event_types_visible = self.ftv._config.get("appearance.familytreeview-timeline-event-types-visible")
 
         calendar = config.get("preferences.calendar-format-report")
         short_age = self.ftv._config.get("appearance.familytreeview-timeline-short-age")
@@ -316,8 +319,6 @@ class FamilyTreeViewTimeline:
             if event is None:
                 continue
             event_name = EventType._I2EMAP[int(event.type)]
-            if event_name in event_types_visible and not event_types_visible[event_name]:
-                continue
             if event_name in event_types_show_description and event_types_show_description[event_name]:
                 description = event.get_description() # if there is no description: ""
             else:
