@@ -19,14 +19,14 @@ class DateDisplayCompact(DateDisplay):
 
         self._mod_str = (
             "",
-            "<", # before
-            ">", # after
+            "\u2264", # before # less-than or equal to
+            "\u2265", # after # great-than or equal to
             "~", # about
             "",
             "",
             "",
             " +",
-            " −", # minus
+            " \u2212", # minus
         )
 
         self._qual_str = (
@@ -47,7 +47,7 @@ class DateDisplayCompact(DateDisplay):
             "{nonstd_calendar_and_ny}"
         ): # range
             return (
-                "{date_quality} {date_start} – {date_stop}"
+                "{date_quality} {date_start} \u2013 {date_stop}" # en dash
                 "{nonstd_calendar_and_ny}"
             )
 
@@ -56,9 +56,9 @@ class DateDisplayCompact(DateDisplay):
             "{nonstd_calendar_and_ny}"
         ): # span
             return (
-                "{date_quality} {date_start} \u2026 {date_stop}"
+                "{date_quality} {date_start} \u2026 {date_stop}" # ellipsis
                 "{nonstd_calendar_and_ny}"
-            ) # en dash
+            )
 
         return self.orig_gettext(msgid, context=context)
 
@@ -68,5 +68,5 @@ displayer = DateDisplayCompact()
 
 def get_date(date_base):
     date_str = displayer.display(date_base.get_date_object())
-    date_str = date_str.replace(" +", "+").replace(" −", "−")
+    date_str = date_str.replace(" +", "+").replace(" \u2212", "\u2212") # minus
     return date_str

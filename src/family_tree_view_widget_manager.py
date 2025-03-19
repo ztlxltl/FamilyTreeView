@@ -288,11 +288,13 @@ class FamilyTreeViewWidgetManager:
         alive = probably_alive(person, self.ftv.dbstate.db)
         gender = person.get_gender()
         background_color, border_color = color_graph_box(alive, gender)
-        home_person = self.ftv.dbstate.db.get_default_person()
-        if home_person is not None:
-            is_home_person = home_person.handle == person_handle
-            if is_home_person:
-                background_color = config.get("colors.home-person")[config.get("colors.scheme")]
+
+        if self.ftv._config.get("appearance.familytreeview-highlight-home-person"):
+            home_person = self.ftv.dbstate.db.get_default_person()
+            if home_person is not None:
+                is_home_person = home_person.handle == person_handle
+                if is_home_person:
+                    background_color = config.get("colors.home-person")[config.get("colors.scheme")]
 
         matches_filter = self.tree_builder.filter_matches_person_handle(person_handle)
         if (
