@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-19 19:45+0000\n"
+"POT-Creation-Date: 2025-03-19 20:16+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -163,15 +163,15 @@ msgstr ""
 msgid "Charts"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:783
+#: FamilyTreeView/family_tree_view.py:786
 msgid "Export tree as SVG"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:795
+#: FamilyTreeView/family_tree_view.py:798
 msgid "SVG files"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:800
+#: FamilyTreeView/family_tree_view.py:803
 msgid "Any files"
 msgstr ""
 
@@ -316,7 +316,7 @@ msgid "Image of the family or avatar"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:66
-#: FamilyTreeView/family_tree_view_config_provider_names.py:495
+#: FamilyTreeView/family_tree_view_config_provider_names.py:498
 msgid "Names"
 msgstr ""
 
@@ -1045,87 +1045,87 @@ msgstr ""
 msgid "Default format (defined by Gramps preferences)"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:109
+#: FamilyTreeView/family_tree_view_config_provider_names.py:110
 msgid "Default name format for the tree"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:127
+#: FamilyTreeView/family_tree_view_config_provider_names.py:128
 msgid ""
 "Use always this name format in the tree (never name-specific \"Display as:\" "
 "name format)"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:135
+#: FamilyTreeView/family_tree_view_config_provider_names.py:137
 msgid "ALL CAPS (keep as defined)"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:137
+#: FamilyTreeView/family_tree_view_config_provider_names.py:139
 msgid "S<small>MALL</small> C<small>APS</small>"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:138
+#: FamilyTreeView/family_tree_view_config_provider_names.py:140
 msgid "P<small><small>ETITE</small></small> C<small><small>APS</small></small>"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:139
+#: FamilyTreeView/family_tree_view_config_provider_names.py:141
 msgid "<b>Bold</b>"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:140
+#: FamilyTreeView/family_tree_view_config_provider_names.py:142
 msgid "<i>Italic</i>"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:141
+#: FamilyTreeView/family_tree_view_config_provider_names.py:143
 msgid "<u>Underline</u>"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:148
+#: FamilyTreeView/family_tree_view_config_provider_names.py:151
 msgid "Display ALL CAPS name parts in the tree as"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:166
+#: FamilyTreeView/family_tree_view_config_provider_names.py:169
 msgid "Name Abbreviation"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:175
+#: FamilyTreeView/family_tree_view_config_provider_names.py:178
 msgid "Specify the rules for name abbreviation below"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:181
+#: FamilyTreeView/family_tree_view_config_provider_names.py:184
 msgid "Reset abbreviation rules to default"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:233
+#: FamilyTreeView/family_tree_view_config_provider_names.py:236
 msgid "No."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:238
-#: FamilyTreeView/family_tree_view_config_provider_names.py:502
+#: FamilyTreeView/family_tree_view_config_provider_names.py:241
+#: FamilyTreeView/family_tree_view_config_provider_names.py:505
 msgid "abbreviate"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:239
-#: FamilyTreeView/family_tree_view_config_provider_names.py:504
+#: FamilyTreeView/family_tree_view_config_provider_names.py:242
+#: FamilyTreeView/family_tree_view_config_provider_names.py:507
 msgid "remove"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:259
+#: FamilyTreeView/family_tree_view_config_provider_names.py:262
 msgid "Action"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:264
+#: FamilyTreeView/family_tree_view_config_provider_names.py:267
 msgid "Name Part Types"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:287
+#: FamilyTreeView/family_tree_view_config_provider_names.py:290
 msgid "Start at End of Name"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:424
+#: FamilyTreeView/family_tree_view_config_provider_names.py:427
 msgid "Name Part"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:450
+#: FamilyTreeView/family_tree_view_config_provider_names.py:453
 msgid "Use in selected Rule"
 msgstr ""
 
