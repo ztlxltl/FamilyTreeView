@@ -325,6 +325,8 @@ class FamilyTreeViewTimeline:
                 description = ""
             if len(description) > 0:
                 description = " " + description
+            description = description.encode('utf-8')
+            description = GLib.markup_escape_text(description, len(description))
 
             event_age_str = ""
             if self.start_event is not None:
@@ -340,13 +342,21 @@ class FamilyTreeViewTimeline:
                 else:
                     age_str = (event.date - self.start_event.date).format(precision=age_precision)
                     event_age_str = f"({age_str}) "
+            event_age_str = event_age_str.encode('utf-8')
+            event_age_str = GLib.markup_escape_text(event_age_str, len(event_age_str))
             event_type = _(str(event.type))
+            event_type = event_type.encode('utf-8')
+            event_type = GLib.markup_escape_text(event_type, len(event_type))
             event_date_str = get_date(event)
+            event_date_str = event_date_str.encode('utf-8')
+            event_date_str = GLib.markup_escape_text(event_date_str, len(event_date_str))
             event_place_str = self.ftv.get_place_name_from_event(event)
             if event_place_str is None: # no place
                 event_place_str = ""
             else:
                 event_place_str = ",\n" + event_place_str
+            event_place_str = event_place_str.encode('utf-8')
+            event_place_str = GLib.markup_escape_text(event_place_str, len(event_place_str))
 
             if rel_type is None: # primary event
                 markup = f"{event_age_str}<b>{event_type}</b>{description}:\n{event_date_str}{event_place_str}"
@@ -377,8 +387,12 @@ class FamilyTreeViewTimeline:
                         relationship_type = "wife"
                     elif rel[-1].get_gender() == Person.MALE:
                         relationship_type = "husband"
+                relationship_type = relationship_type.encode('utf-8')
+                relationship_type = GLib.markup_escape_text(relationship_type, len(relationship_type))
                 if isinstance(rel[-1], Person):
                     relative_name = name_displayer.display_name(rel[-1].get_primary_name())
+                    relative_name = relative_name.encode('utf-8')
+                    relative_name = GLib.markup_escape_text(relative_name, len(relative_name))
                     uri = f"gramps://Person/handle/{rel[-1].handle}"
                     relative_name += f" <a href=\"{uri}\" title=\"Set {relative_name} as active person\">\u2794</a>" # rightwards arrow
                     markup = f"{event_age_str}{event_type} of {relationship_type} <b>{relative_name}</b>{description}:\n{event_date_str}{event_place_str}"

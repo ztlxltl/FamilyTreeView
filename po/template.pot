@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-19 20:16+0000\n"
+"POT-Creation-Date: 2025-03-20 16:34+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1292,7 +1292,7 @@ msgstr ""
 #: FamilyTreeView/family_tree_view_timeline.py:62
 #: FamilyTreeView/family_tree_view_timeline.py:63
 #: FamilyTreeView/family_tree_view_timeline.py:64
-#: FamilyTreeView/family_tree_view_timeline.py:469
+#: FamilyTreeView/family_tree_view_timeline.py:483
 msgid "age in years"
 msgstr ""
 
@@ -1303,7 +1303,7 @@ msgstr ""
 #: FamilyTreeView/family_tree_view_timeline.py:62
 #: FamilyTreeView/family_tree_view_timeline.py:63
 #: FamilyTreeView/family_tree_view_timeline.py:64
-#: FamilyTreeView/family_tree_view_timeline.py:471
+#: FamilyTreeView/family_tree_view_timeline.py:485
 msgid "time in years"
 msgstr ""
 
