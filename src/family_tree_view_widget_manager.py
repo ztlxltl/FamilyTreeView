@@ -926,29 +926,6 @@ class FamilyTreeViewWidgetManager:
         )
         self.menu.append(menu_item)
 
-        person = self.ftv.get_person_from_handle(person_handle)
-        associated_people_handles = []
-        for person_ref in person.get_person_ref_list():
-            associated_people_handles.append(person_ref.get_reference_handle())
-        if len(associated_people_handles) > 0:
-            submenu = Gtk.Menu()
-            menu_item = Gtk.MenuItem(label=_("Set associated person as active"))
-            menu_item.set_submenu(submenu)
-            menu_item.show()
-            self.menu.append(menu_item)
-
-            for associated_person_handle in associated_people_handles:
-                person = self.ftv.get_person_from_handle(associated_person_handle)
-                name = person.get_primary_name()
-                menu_item = Gtk.MenuItem(label=name_displayer.display_name(name))
-                menu_item.connect("activate", lambda *_args:
-                    self.ftv.set_active_person(associated_person_handle)
-                )
-                submenu.append(menu_item)
-
-            ## TODO: Add witnesses at this person's main event
-            ## TODO: Add main people at event this person witnessed
-
         menu_item = Gtk.MenuItem(label=_("Set as home person"))
         menu_item.connect("activate", lambda *_args:
             self.ftv.set_home_person(person_handle)
@@ -990,6 +967,29 @@ class FamilyTreeViewWidgetManager:
             self.ftv.add_new_spouse(person_handle, wife=False)
         )
         self.menu.append(menu_item)
+
+        person = self.ftv.get_person_from_handle(person_handle)
+        associated_people_handles = []
+        for person_ref in person.get_person_ref_list():
+            associated_people_handles.append(person_ref.get_reference_handle())
+        if len(associated_people_handles) > 0:
+            submenu = Gtk.Menu()
+            menu_item = Gtk.MenuItem(label=_("Set associated person as active"))
+            menu_item.set_submenu(submenu)
+            menu_item.show()
+            self.menu.append(menu_item)
+
+            for associated_person_handle in associated_people_handles:
+                person = self.ftv.get_person_from_handle(associated_person_handle)
+                name = person.get_primary_name()
+                menu_item = Gtk.MenuItem(label=name_displayer.display_name(name))
+                menu_item.connect("activate", lambda *_args:
+                    self.ftv.set_active_person(associated_person_handle)
+                )
+                submenu.append(menu_item)
+
+            ## TODO: Add witnesses at this person's main event
+            ## TODO: Add main people at event this person witnessed
 
         self.show_menu(event)
 
