@@ -94,12 +94,12 @@ jobs:
           # Create or switch to the 'dist' branch
           git checkout -b dist || git checkout dist
 
-          # Replace the content of the current directory with the contents of ../addons
-          rm -rf $(ls -A | grep -v '.git')
+          # Replace the directory of the built Gramps version with the new one from ../addons
+          rm -rf gramps60
           cp -r ../addons/* ./
 
           # Add and commit the updated build files
-          git add .
+          git add gramps60
           git commit -m "Automated build and distribution of addons"
 
           # Push changes to the 'dist' branch
