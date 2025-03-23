@@ -29,7 +29,6 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from gramps.gen.config import config
 from gramps.gen.const import CUSTOM_FILTERS
-from gramps.gen.db import DbTxn
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.errors import HandleError, WindowActiveError
 from gramps.gen.lib import ChildRef, EventType, Family, FamilyRelType
