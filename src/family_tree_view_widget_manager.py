@@ -950,21 +950,21 @@ class FamilyTreeViewWidgetManager:
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label=_("Add new parents family"))
+        menu_item = Gtk.MenuItem(label=_("Add a new parent family"))
         menu_item.connect("activate", lambda *_args:
             self.ftv.add_new_parent_family(person_handle)
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label=_("Add new family as husband"))
+        menu_item = Gtk.MenuItem(label=_("Add a new family with this person as first spouse"))
         menu_item.connect("activate", lambda *_args:
-            self.ftv.add_new_spouse(person_handle, wife=True)
+            self.ftv.add_new_spouse(person_handle, person_is_first=True)
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label=_("Add new family as wife"))
+        menu_item = Gtk.MenuItem(label=_("Add a new family with this person as second spouse"))
         menu_item.connect("activate", lambda *_args:
-            self.ftv.add_new_spouse(person_handle, wife=False)
+            self.ftv.add_new_spouse(person_handle, person_is_first=False)
         )
         self.menu.append(menu_item)
 
@@ -974,7 +974,7 @@ class FamilyTreeViewWidgetManager:
             associated_people_handles.append(person_ref.get_reference_handle())
         if len(associated_people_handles) > 0:
             submenu = Gtk.Menu()
-            menu_item = Gtk.MenuItem(label=_("Set associated person as active"))
+            menu_item = Gtk.MenuItem(label=_("Set an associated person as active"))
             menu_item.set_submenu(submenu)
             menu_item.show()
             self.menu.append(menu_item)

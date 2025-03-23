@@ -723,7 +723,7 @@ class FamilyTreeView(NavigationView, Callback):
         person = self.get_person_from_handle(person_handle)
         if person is None:
             return
-        with DbTxn("Add parents", self.dbstate.db) as trans:
+        with DbTxn("Add new parent family", self.dbstate.db) as trans:
             family = Family()
             family.set_relationship(FamilyRelType(FamilyRelType.UNKNOWN))
             ref = ChildRef()
@@ -735,15 +735,19 @@ class FamilyTreeView(NavigationView, Callback):
             self.dbstate.db.commit_person(person, trans)
         self.edit_family(family.handle)
 
-    def add_new_spouse(self, person_handle, wife):
+    def add_new_spouse(self, person_handle, person_is_first):
+        """
+        Add a new family for a new spouse of person_handle.  If `person_is_first`,
+        the person takes the first position, and the new spouse takes the second
+        position.
+        """
         person = self.get_person_from_handle(person_handle)
         if person is None:
             return
-        transaction_title = "Add new wife" if wife else "Add new husband"
-        with DbTxn(transaction_title, self.dbstate.db) as trans:
+        with DbTxn("Add new spouse family", self.dbstate.db) as trans:
             family = Family()
             family.set_relationship(FamilyRelType(FamilyRelType.UNKNOWN))
-            if wife:
+            if person_is_first:
                 family.set_father_handle(person_handle)
             else:
                 family.set_mother_handle(person_handle)
