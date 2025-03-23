@@ -280,6 +280,8 @@ class FamilyTreeView(NavigationView, Callback):
         self.config_provider.config_connect(self._config, self.cb_update_config)
 
     def cb_update_config(self, client, connection_id, entry, data):
+        # This method is called explicitly sometimes when the config
+        # value is a mutable object. Refactoring may be appropriate.
 
         # Required to apply changed box size or number of lines for abbreviated names.
         self.widget_manager.canvas_manager.reset_boxes()

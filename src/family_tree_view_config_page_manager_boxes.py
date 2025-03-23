@@ -309,8 +309,6 @@ class FamilyTreeViewConfigPageManagerBoxes:
             # TODO reduce image width
             self.ftv.widget_manager.canvas_manager.reset_abbrev_names()
 
-            # cb_update_config connected doesn't work, even when using a
-            # shallow or deep copy. Update explicitly:
             self.ftv.cb_update_config(None, None, None, None)
         self.person_width_spin_button.connect("value-changed", _cb_person_box_width_changed)
         main_grid.attach(self.person_width_spin_button, 3, row, 2, 1)
@@ -489,8 +487,6 @@ class FamilyTreeViewConfigPageManagerBoxes:
         self.item_defs_tree_views[box_type].get_selection().unselect_all()
         self._fill_item_defs_list_store_from_config(box_type)
 
-        # cb_update_config connected doesn't work, even when using a
-        # shallow or deep copy. Update explicitly:
         self.ftv.cb_update_config(None, None, None, None)
 
     def _cb_item_def_selection_changed(self, selection, box_type):
