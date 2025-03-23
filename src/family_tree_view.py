@@ -723,17 +723,12 @@ class FamilyTreeView(NavigationView, Callback):
         person = self.get_person_from_handle(person_handle)
         if person is None:
             return
-        with DbTxn("Add new parent family", self.dbstate.db) as trans:
-            family = Family()
-            family.set_relationship(FamilyRelType(FamilyRelType.UNKNOWN))
-            ref = ChildRef()
-            ref.set_reference_handle(person_handle)
-            family.add_child_ref(ref)
-            self.dbstate.db.add_family(family, trans)
-
-            person.add_parent_family_handle(family.handle)
-            self.dbstate.db.commit_person(person, trans)
-        self.edit_family(family.handle)
+        family = Family()
+        family.set_relationship(FamilyRelType(FamilyRelType.UNKNOWN))
+        ref = ChildRef()
+        ref.set_reference_handle(person_handle)
+        family.add_child_ref(ref)
+        EditFamily(self.dbstate, self.uistate, [], family)
 
     def add_new_spouse(self, person_handle, person_is_first):
         """
@@ -744,18 +739,13 @@ class FamilyTreeView(NavigationView, Callback):
         person = self.get_person_from_handle(person_handle)
         if person is None:
             return
-        with DbTxn("Add new spouse family", self.dbstate.db) as trans:
-            family = Family()
-            family.set_relationship(FamilyRelType(FamilyRelType.UNKNOWN))
-            if person_is_first:
-                family.set_father_handle(person_handle)
-            else:
-                family.set_mother_handle(person_handle)
-            self.dbstate.db.add_family(family, trans)
-
-            person.add_family_handle(family.handle)
-            self.dbstate.db.commit_person(person, trans)
-        self.edit_family(family.handle)
+        family = Family()
+        family.set_relationship(FamilyRelType(FamilyRelType.UNKNOWN))
+        if person_is_first:
+            family.set_father_handle(person_handle)
+        else:
+            family.set_mother_handle(person_handle)
+        EditFamily(self.dbstate, self.uistate, [], family)
 
     # printing
 
