@@ -144,8 +144,19 @@ class FamilyTreeViewInfoWidgetManager:
 
             pixbuf_loader = GdkPixbuf.PixbufLoader()
             pixbuf_loader.write(svg_code.encode())
-            pixbuf_loader.close()
-            pixbuf = pixbuf_loader.get_pixbuf()
+            try:
+                pixbuf_loader.close()
+            except GLib.Error:
+                # Error on MacOS, Gramps 6.0.0 for SVGs:
+                # gi.repository.GLib.GError: gdk-pixbuf-error-quark: Unrecognized image file format (3)
+                # Use white pixbuf of correct size as replacement
+                pixbuf = GdkPixbuf.Pixbuf.new(
+                    GdkPixbuf.Colorspace.RGB, True, 8,
+                    img_width, img_height
+                )
+                pixbuf.fill(0xFFFFFFFF)
+            else:
+                pixbuf = pixbuf_loader.get_pixbuf()
             image = Gtk.Image.new_from_pixbuf(pixbuf)
 
         return image
