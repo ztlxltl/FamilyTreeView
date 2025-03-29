@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-29 12:17+0000\n"
+"POT-Creation-Date: 2025-03-29 19:38+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -847,7 +847,7 @@ msgstr ""
 #: FamilyTreeView/family_tree_view_timeline.py:62
 #: FamilyTreeView/family_tree_view_timeline.py:63
 #: FamilyTreeView/family_tree_view_timeline.py:64
-#: FamilyTreeView/family_tree_view_timeline.py:483
+#: FamilyTreeView/family_tree_view_timeline.py:496
 msgid "age in years"
 msgstr ""
 
@@ -858,12 +858,16 @@ msgstr ""
 #: FamilyTreeView/family_tree_view_timeline.py:62
 #: FamilyTreeView/family_tree_view_timeline.py:63
 #: FamilyTreeView/family_tree_view_timeline.py:64
-#: FamilyTreeView/family_tree_view_timeline.py:485
+#: FamilyTreeView/family_tree_view_timeline.py:498
 msgid "time in years"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_timeline.py:301
 msgid "No timeline to show."
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_timeline.py:400
+msgid "[missing spouse]"
 msgstr ""
 
 #: FamilyTreeView/children_quick_report.py:41
