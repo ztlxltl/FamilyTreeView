@@ -606,8 +606,6 @@ class FamilyTreeViewConfigProvider:
                     config_val[event_name] = event_type_tree_store[path][i]
                 self.ftv._config.set(config_name, config_val)
 
-            # cb_update_config connected doesn't work, even when using a shallow or deep copy.
-            # Update explicitly:
             self.ftv.cb_update_config(None, None, None, None)
 
         # visible column
@@ -1030,8 +1028,6 @@ class FamilyTreeViewConfigProvider:
                         config[expander_type_] = expander_list_store[path_][i]
             self.ftv._config.set(config_key, config)
 
-            # cb_update_config connected doesn't work, even when using a shallow or deep copy.
-            # Update explicitly:
             self.ftv.cb_update_config(None, None, None, None)
 
         # checkbox column
@@ -1117,8 +1113,6 @@ class FamilyTreeViewConfigProvider:
             config_badges_active[badge_id][["person", "family"][i]] = badge_list_store[path][2*i+1]
             self.ftv._config.set("badges.familytreeview-badges-active", config_badges_active)
 
-            # cb_update_config connected doesn't work, even when using a shallow or deep copy.
-            # Update explicitly:
             self.ftv.cb_update_config(None, None, None, None)
 
         # checkbox column

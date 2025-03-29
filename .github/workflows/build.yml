@@ -50,17 +50,17 @@ jobs:
           python -m pip install --upgrade pip
           # Pin PyGObject version because newer versions require girepository-2.0 which is not available on some distributions (e.g. Ubuntu 24.04.2).
           pip install PyGObject==3.50.0
-          pip install gramps[GUI,i18n]==5.2.4
+          pip install gramps[GUI,i18n]==6.0.0
       - name: Get make.py
-        run: wget https://raw.githubusercontent.com/gramps-project/addons-source/refs/heads/maintenance/gramps52/make.py
+        run: wget https://raw.githubusercontent.com/gramps-project/addons-source/refs/heads/maintenance/gramps60/make.py
       - name: Build Addons
         run: |
           export LANGUAGE=en_US.UTF-8
-          python3 make.py gramps52 init all
-          python3 make.py gramps52 compile all
-          python3 make.py gramps52 build all
-          python3 make.py gramps52 listing all
-          python3 make.py gramps52 as-needed
+          python3 make.py gramps60 init all
+          python3 make.py gramps60 compile all
+          python3 make.py gramps60 build all
+          python3 make.py gramps60 listing all
+          python3 make.py gramps60 as-needed
       - name: Push new build version
         run: |
           cd FamilyTreeView
@@ -94,12 +94,12 @@ jobs:
           # Create or switch to the 'dist' branch
           git checkout -b dist || git checkout dist
 
-          # Replace the content of the current directory with the contents of ../addons
-          rm -rf $(ls -A | grep -v '.git')
+          # Replace the directory of the built Gramps version with the new one from ../addons
+          rm -rf gramps60
           cp -r ../addons/* ./
 
           # Add and commit the updated build files
-          git add .
+          git add gramps60
           git commit -m "Automated build and distribution of addons"
 
           # Push changes to the 'dist' branch

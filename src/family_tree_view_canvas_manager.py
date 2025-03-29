@@ -22,7 +22,7 @@
 from math import atan, cos, pi, sin, sqrt
 from typing import TYPE_CHECKING
 
-from gi.repository import Gtk, GdkPixbuf, Pango
+from gi.repository import GdkPixbuf, GLib, Gtk, Pango
 
 from gramps.gui.utils import get_contrast_color, rgb_to_hex
 
@@ -698,8 +698,19 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                             max_height*svg_factor
                         )
                         pixbuf_loader.write(svg_code.encode())
-                        pixbuf_loader.close()
-                        pixbuf = pixbuf_loader.get_pixbuf()
+                        try:
+                            pixbuf_loader.close()
+                        except GLib.Error:
+                            # Error on MacOS, Gramps 6.0.0 for SVGs:
+                            # gi.repository.GLib.GError: gdk-pixbuf-error-quark: Unrecognized image file format (3)
+                            # Use white pixbuf of correct size as replacement
+                            pixbuf = GdkPixbuf.Pixbuf.new(
+                                GdkPixbuf.Colorspace.RGB, True, 8,
+                                max_width, max_height
+                            )
+                            pixbuf.fill(0xFFFFFFFF)
+                        else:
+                            pixbuf = pixbuf_loader.get_pixbuf()
                         self.svg_pixbuf_cache[svg_code] = pixbuf
             else:
                 pixbuf = image_spec[1]

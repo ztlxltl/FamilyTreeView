@@ -214,7 +214,7 @@ class FamilyTreeView(NavigationView, Callback):
             "preferences.theme-dark-variant",
             "preferences.font"
         ]:
-            if config.is_set(key):
+            try:
                 # Wait for idle as the theme update takes a bit.
                 # The tree has to rebuild after the theme is applied.
                 if key == "preferences.font":
@@ -223,6 +223,15 @@ class FamilyTreeView(NavigationView, Callback):
                     # abbreviations).
                     config.connect(key, lambda *args: GLib.idle_add(self.widget_manager.canvas_manager.reset_boxes))
                 config.connect(key, lambda *args: GLib.idle_add(self._cb_global_appearance_config_changed))
+            except (AttributeError, KeyError):
+                # Config keys not set, e.g. Themes/ThemesPrefs plugin
+                # not installed. Unfortunately, config.is_set(key) and
+                # ConfigManager._validate_section_and_setting (in
+                # config.connect()) don't guarantee that
+                # config.connect() will work because they only check
+                # ConfigManager.data, not ConfigManager.callbacks. For
+                # some reason, they can be out of sync.
+                pass
 
         # There doesn't seem to be a signal for updating colors.
         # TODO This is not an ideal solution.
@@ -280,6 +289,8 @@ class FamilyTreeView(NavigationView, Callback):
         self.config_provider.config_connect(self._config, self.cb_update_config)
 
     def cb_update_config(self, client, connection_id, entry, data):
+        # This method is called explicitly sometimes when the config
+        # value is a mutable object. Refactoring may be appropriate.
 
         # Required to apply changed box size or number of lines for abbreviated names.
         self.widget_manager.canvas_manager.reset_boxes()

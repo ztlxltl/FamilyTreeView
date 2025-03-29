@@ -193,7 +193,7 @@ class FamilyTreeViewWidgetManager:
         stack = inspect.stack()
         frame = stack[2]
         if not (
-            frame.function == "remove_gramplet"
+            frame.function in ["remove_gramplet", "__delete_clicked"]
             and os.path.basename(frame.filename) == "grampletbar.py"
         ):
             # Gramps is closing. No need to move widgets around.
