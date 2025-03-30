@@ -81,8 +81,12 @@ class FamilyTreeView(NavigationView, Callback):
         """
         <placeholder id="otheredit">
             <item>
-                <attribute name="action">win.FilterEdit</attribute>
+                <attribute name="action">win.FilterEditPerson</attribute>
                 <attribute name="label" translatable="yes">Person Filter Editor</attribute>
+            </item>
+            <item>
+                <attribute name="action">win.FilterEditFamily</attribute>
+                <attribute name="label" translatable="yes">Family Filter Editor</attribute>
             </item>
         </placeholder>
         """,
@@ -283,7 +287,8 @@ class FamilyTreeView(NavigationView, Callback):
         super().define_actions()
         self._add_action("PrintView", self.print_view, "<PRIMARY><SHIFT>P")
         self._add_action("ExportSvgView", self.export_svg_view)
-        self._add_action("FilterEdit", self.open_filter_editor)
+        self._add_action("FilterEditPerson", self.open_person_filter_editor)
+        self._add_action("FilterEditFamily", self.open_family_filter_editor)
 
     def config_connect(self):
         self.config_provider.config_connect(self._config, self.cb_update_config)
@@ -712,9 +717,15 @@ class FamilyTreeView(NavigationView, Callback):
         if family is not None:
             EditFamily(self.dbstate, self.uistate, [], family)
 
-    def open_filter_editor(self, *args):
+    def open_person_filter_editor(self, *args):
         try:
             FilterEditor("Person", CUSTOM_FILTERS, self.dbstate, self.uistate)
+        except WindowActiveError:
+            pass
+
+    def open_family_filter_editor(self, *args):
+        try:
+            FilterEditor("Family", CUSTOM_FILTERS, self.dbstate, self.uistate)
         except WindowActiveError:
             pass
 

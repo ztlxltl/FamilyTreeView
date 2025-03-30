@@ -257,7 +257,7 @@ class NumOtherFamiliesBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
 class FilterResultBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
     def register_badges(self):
         self.badge_manager.register_person_badges_callback(
-            "filter_result", "Filter result",
+            "filter_result", "Filter result (deprecated)",
             self.cb_create_person_badge
         )
 

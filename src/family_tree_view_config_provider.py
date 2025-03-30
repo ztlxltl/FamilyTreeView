@@ -22,16 +22,17 @@
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
-from gi.repository import Gtk
+from gi.repository import Gdk, Gtk
 
 from gramps.gen.config import config
 from gramps.gen.const import SIZE_LARGE, SIZE_NORMAL, USER_HOME
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.lib.eventtype import EventType
+from gramps.gui.utils import rgb_to_hex
 
 from family_tree_view_config_page_manager_boxes import BOX_ITEMS, PREDEF_BOXES_DEFS, FamilyTreeViewConfigPageManagerBoxes
 from family_tree_view_config_provider_names import names_page, DEFAULT_ABBREV_RULES
-from family_tree_view_utils import get_gettext
+from family_tree_view_utils import get_gettext, get_reloaded_custom_filter_list
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
 
@@ -126,14 +127,18 @@ class FamilyTreeViewConfigProvider:
                 "children": None, # controlled by generation num-descendant-generations-default
             }),
 
-            ("badges.familytreeview-badges-active", { # most examples are turned off by default
+            ("badges.familytreeview-badges-active", { # example badges are turned off by default
                 "num_citations": {"person": False, "family": False},
                 "num_events_without_citations": {"person": False, "family": False},
                 "num_children": {"person": False, "family": False},
                 "num_other_families": {"person": False, "family": False},
-                "filter_result": {"person": True, "family": False},
+                "filter_result": {"person": False, "family": False},
                 "gramps_id": {"person": False, "family": False},
                 "gramps_handle": {"person": False, "family": False},
+            }),
+            ("badges.familytreeview-badges-filter-match", {
+                "person": {"generic": {}, "custom": {}},
+                "family": {"custom": {}}
             }),
 
             ("experimental.familytreeview-adaptive-ancestor-generation-dist", True),
@@ -1070,7 +1075,7 @@ class FamilyTreeViewConfigProvider:
         label = configdialog.add_text(
             grid,
             _("Choose which badges to display where:"),
-            row, stop=3
+            row, stop=8, bold=True
         )
         label.set_xalign(0)
 
@@ -1092,13 +1097,13 @@ class FamilyTreeViewConfigProvider:
                 "" # empty column
             ])
 
-        badge_tree_view = Gtk.TreeView(model=badge_list_store)
-        badge_tree_view.get_selection().set_mode(Gtk.SelectionMode.NONE)
+        badges_tree_view = Gtk.TreeView(model=badge_list_store)
+        badges_tree_view.get_selection().set_mode(Gtk.SelectionMode.NONE)
 
         # name column
         renderer = Gtk.CellRendererText()
         column = Gtk.TreeViewColumn(_("Name"), renderer, text=0)
-        badge_tree_view.append_column(column)
+        badges_tree_view.append_column(column)
 
         def _cb_badge_toggled(widget, path, i):
             badge_list_store[path][2*i+1] = not badge_list_store[path][2*i+1] # +1 to skip name column, factor 2 because of available columns
@@ -1120,18 +1125,177 @@ class FamilyTreeViewConfigProvider:
             renderer = Gtk.CellRendererToggle()
             renderer.connect("toggled", _cb_badge_toggled, i)
             column = Gtk.TreeViewColumn(column_title, renderer, active=2*i+1, activatable=2*i+2)
-            badge_tree_view.append_column(column)
+            badges_tree_view.append_column(column)
 
         # empty column to fill the remaining space
         renderer = Gtk.CellRendererText()
         column = Gtk.TreeViewColumn("", renderer, text=5)
-        badge_tree_view.append_column(column)
+        badges_tree_view.append_column(column)
 
         scrolled_window = Gtk.ScrolledWindow()
         scrolled_window.set_hexpand(True)
         scrolled_window.set_vexpand(True)
-        scrolled_window.add(badge_tree_view)
+        scrolled_window.add(badges_tree_view)
         grid.attach(scrolled_window, 1, row, 8, 1) # these are the default with of widgets created by configdialog's methods
+
+        # filter match badges
+
+        DEFAULT_FILTER_MATCH_BADGE_PARAMS = {
+            "active": False, # Do not show badge for each new filter.
+            "content_text": "◉",
+            "text_color": "#000",
+            "background_color": "#FFF",
+        }
+        filter_match_badges_config = self.ftv._config.get("badges.familytreeview-badges-filter-match")
+
+        # NOTE: We use Grid for the filter match badges instead of
+        # TreeView, since it seems to be very complicated to get color
+        # picker and text entry to work inside of a TreeView.
+
+        def fmt_grid(grid):
+            grid.set_border_width(0)
+            grid.set_column_spacing(13) # looks similar to TreeView
+            grid.set_row_spacing(6) # looks similar to TreeView
+
+        size_groups = [
+            Gtk.SizeGroup(mode=Gtk.SizeGroupMode.HORIZONTAL)
+            for _ in range(5)
+        ]
+
+        custom_filter_list = get_reloaded_custom_filter_list()
+
+        for filter_space in ["Person", "Family"]:
+            row += 1
+            if filter_space == "Person":
+                label_text = _("Badges based on person filters:")
+            else:
+                label_text = _("Badges based on family filters:")
+            label = Gtk.Label()
+            label.set_markup(f"<b>{label_text}</b>")
+            label.set_xalign(0)
+            label.set_margin_top(20)
+            grid.attach(label, 1, row, 8, 1)
+
+            if filter_space == "Person":
+                filters = [None] # generic filter (sidebar)
+            else:
+                filters = []
+            filters.extend(custom_filter_list.get_filters(filter_space))
+
+            namespace_config = filter_match_badges_config[filter_space.lower()]
+            for filt in filters:
+                if filt is None:
+                    # generic filter
+                    if len(namespace_config["generic"]) == 0:
+                        namespace_config["generic"] = deepcopy(DEFAULT_FILTER_MATCH_BADGE_PARAMS)
+                    continue
+
+                # Use name as filter key.
+                # TODO Using a hash would be better, but I haven't found
+                # a reliable way to hash a filter yet. 
+                filt_name = filt.get_name()
+                if filt_name not in namespace_config["custom"]:
+                    namespace_config["custom"][filt_name] = deepcopy(DEFAULT_FILTER_MATCH_BADGE_PARAMS)
+
+            row += 1
+            filter_header_grid = Gtk.Grid()
+            fmt_grid(filter_header_grid)
+            for col, col_name in enumerate([
+                _("Filter name"),
+                _("Active"),
+                _("Badge content"),
+                _("Text color"),
+                _("Background color"),
+            ]):
+                label = Gtk.Label()
+                label.set_xalign(0)
+                label.set_markup(f"<b>{col_name}</b>")
+                size_groups[col].add_widget(label)
+                filter_header_grid.attach(label, col, 0, 1, 1)
+            grid.attach(filter_header_grid, 1, row, 8, 1)
+
+            row += 1
+            filter_grid = Gtk.Grid()
+            fmt_grid(filter_grid)
+            for i, filt in enumerate(filters):
+                if filt is None:
+                    filt_name = None
+                    filt_label = _("Sidebar filter")
+                    filter_badge_config = namespace_config["generic"]
+                else:
+                    filt_name = filt.get_name()
+                    filt_label = filt_name
+                    filter_badge_config = namespace_config["custom"][filt_name]
+                col = -1
+
+                col += 1
+                label = Gtk.Label(filt_label)
+                label.set_xalign(0)
+                size_groups[col].add_widget(label)
+                filter_grid.attach(label, col, i, 1, 1)
+
+                col += 1
+                box = Gtk.Box()
+                check_button = Gtk.CheckButton()
+                check_button.set_active(filter_badge_config["active"])
+                def active_toggled(check_button, filter_badge_config):
+                    filter_badge_config["active"] = check_button.get_active()
+                    self.ftv._config.set("badges.familytreeview-badges-filter-match", filter_match_badges_config)
+                    self.ftv.cb_update_config(None, None, None, None)
+                check_button.connect("toggled", active_toggled, filter_badge_config)
+                box.pack_start(check_button, True, False, 0)
+                size_groups[col].add_widget(box)
+                filter_grid.attach(box, col, i, 1, 1)
+
+                # TODO maybe also support icons?
+                col += 1
+                entry = Gtk.Entry()
+                entry.set_text(filter_badge_config["content_text"])
+                def content_text_changed(entry, filter_badge_config):
+                    filter_badge_config["content_text"] = entry.get_text()
+                    self.ftv._config.set("badges.familytreeview-badges-filter-match", filter_match_badges_config)
+                    self.ftv.cb_update_config(None, None, None, None)
+                entry.connect("changed", content_text_changed, filter_badge_config)
+                size_groups[col].add_widget(entry)
+                filter_grid.attach(entry, col, i, 1, 1)
+
+                def color_set(color_button, filter_badge_config, key):
+                    rgba = color_button.get_rgba()
+                    filter_badge_config[key] = rgb_to_hex((rgba.red, rgba.green, rgba.blue))
+                    self.ftv._config.set("badges.familytreeview-badges-filter-match", filter_match_badges_config)
+                    self.ftv.cb_update_config(None, None, None, None)
+
+                col += 1
+                box = Gtk.Box()
+                color_button = Gtk.ColorButton()
+                color_button.set_hexpand(False)
+                rgba = Gdk.RGBA()
+                rgba.parse(filter_badge_config["text_color"])
+                color_button.set_rgba(rgba)
+                color_button.set_title(_("{name}: text color").format(name=filt_name))
+                color_button.connect("color-set", color_set, filter_badge_config, "text_color")
+                box.pack_start(color_button, True, False, 0)
+                size_groups[col].add_widget(box)
+                filter_grid.attach(box, col, i, 1, 1)
+
+                col += 1
+                box = Gtk.Box()
+                color_button = Gtk.ColorButton()
+                color_button.set_hexpand(False)
+                rgba = Gdk.RGBA()
+                rgba.parse(filter_badge_config["background_color"])
+                color_button.set_rgba(rgba)
+                color_button.set_title(_("{name}: background color").format(name=filt_name))
+                color_button.connect("color-set", color_set, filter_badge_config, "background_color")
+                box.pack_start(color_button, True, False, 0)
+                size_groups[col].add_widget(box)
+                filter_grid.attach(box, col, i, 1, 1)
+
+            scrolled_window = Gtk.ScrolledWindow()
+            scrolled_window.set_hexpand(True)
+            scrolled_window.set_vexpand(True)
+            scrolled_window.add(filter_grid)
+            grid.attach(scrolled_window, 1, row, 8, 1) # these are the default with of widgets created by configdialog's methods
 
         return (_("Badges"), grid)
 
