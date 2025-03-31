@@ -22,20 +22,22 @@
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
-from gi.repository import Gtk
+from gi.repository import Gdk, Gtk
 
 from gramps.gen.config import config
-from gramps.gen.const import GRAMPS_LOCALE, SIZE_LARGE, SIZE_NORMAL, USER_HOME
+from gramps.gen.const import SIZE_LARGE, SIZE_NORMAL, USER_HOME
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.lib.eventtype import EventType
+from gramps.gui.utils import rgb_to_hex
 
 from family_tree_view_config_page_manager_boxes import BOX_ITEMS, PREDEF_BOXES_DEFS, FamilyTreeViewConfigPageManagerBoxes
 from family_tree_view_config_provider_names import names_page, DEFAULT_ABBREV_RULES
+from family_tree_view_utils import get_gettext, get_reloaded_custom_filter_list
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeViewConfigProvider:
     def __init__(self, ftv: "FamilyTreeView"):
@@ -55,6 +57,7 @@ class FamilyTreeViewConfigProvider:
             ("appearance.familytreeview-num-descendant-generations-default", 2),
             ("appearance.familytreeview-connections-line-width", 2.0),
             ("appearance.familytreeview-box-line-width", 2.0),
+            ("appearance.familytreeview-highlight-home-person", True),
             ("appearance.familytreeview-highlight-root-person", True),
             ("appearance.familytreeview-show-deceased-ribbon", True),
             ("appearance.familytreeview-filter-person-gray-out", True),
@@ -97,6 +100,7 @@ class FamilyTreeViewConfigProvider:
             ("interaction.familytreeview-zoom-level-step", 0.15),
             ("interaction.familytreeview-family-info-box-set-active-button", False),
             ("interaction.familytreeview-printing-scale-to-page", False),
+            ("interaction.familytreeview-printing-export-hide-expanders", True),
 
             ("boxes.familytreeview-boxes-custom-defs", {}),
             ("boxes.familytreeview-boxes-selected-def-key", "regular"),
@@ -123,14 +127,18 @@ class FamilyTreeViewConfigProvider:
                 "children": None, # controlled by generation num-descendant-generations-default
             }),
 
-            ("badges.familytreeview-badges-active", { # most examples are turned off by default
+            ("badges.familytreeview-badges-active", { # example badges are turned off by default
                 "num_citations": {"person": False, "family": False},
                 "num_events_without_citations": {"person": False, "family": False},
                 "num_children": {"person": False, "family": False},
                 "num_other_families": {"person": False, "family": False},
-                "filter_result": {"person": True, "family": False},
+                "filter_result": {"person": False, "family": False},
                 "gramps_id": {"person": False, "family": False},
                 "gramps_handle": {"person": False, "family": False},
+            }),
+            ("badges.familytreeview-badges-filter-match", {
+                "person": {"generic": {}, "custom": {}},
+                "family": {"custom": {}}
             }),
 
             ("experimental.familytreeview-adaptive-ancestor-generation-dist", True),
@@ -175,51 +183,93 @@ class FamilyTreeViewConfigProvider:
             _config.set(key, default_value)
         else:
             changed = False
-            for k, v in content_def_config.items():
+            for k, v in list(content_def_config.items()):
                 if not isinstance(k, str):
                     content_def_config[str(k)] = content_def_config.pop(k)
                     k = str(k)
                     changed = True
 
-                v_changed = False
                 if len(v) != 4:
                     del content_def_config[k]
                     changed = True
-                elif not isinstance(v[0], str):
+                    continue
+
+                v = list(v)
+                v_changed = False
+                if not isinstance(v[0], str):
                     v[0] = str(v[0])
-                elif not isinstance(v[1], int):
+                    v_changed = True
+                if not isinstance(v[1], int):
                     try:
                         v[1] = int(v[1])
                     except ValueError:
-                        v[1] = PREDEF_BOXES_DEFS["regular"][1]
+                        v[1] = deepcopy(PREDEF_BOXES_DEFS["regular"][1])
                     v_changed = True
-                else:
-                    for i, box_type in [(2, "person"), (3, "family")]:
-                        if not isinstance(v[i], list):
-                            v[i] = PREDEF_BOXES_DEFS["regular"][i]
+                for i, box_type in [(2, "person"), (3, "family")]:
+                    if not isinstance(v[i], list):
+                        v[i] = deepcopy(PREDEF_BOXES_DEFS["regular"][i])
+                        v_changed = True
+                        continue
+
+                    # Delete all unknown items and fix or delete
+                    # corrupted items.
+                    js_to_delete = []
+                    for j in range(len(v[i])): # loop over items
+                        # corrupted or unknown item type
+                        if (
+                            not isinstance(v[i][j][0], str)
+                            or v[i][j][0] not in [item[0] for item in BOX_ITEMS[box_type]]
+                        ):
+                            js_to_delete.append(j)
+                            continue
+
+                        idx = [item[0] for item in BOX_ITEMS[box_type]].index(v[i][j][0])
+                        dflt_params = deepcopy(BOX_ITEMS[box_type][idx][3])
+
+                        # no dict with params
+                        if not isinstance(v[i][j][1], dict):
+                            # direct assignment to tuple: convert to
+                            # list
+                            v[i][j] = list(v[i][j])
+                            v[i][j][1] = dflt_params
+                            v[i][j] = tuple(v[i][j])
                             v_changed = True
-                        else:
-                            js_to_delete = []
-                            for j in range(len(v[i])):
-                                if (
-                                    not isinstance(v[i][j][0], str)
-                                    or v[i][j][0] not in [item[0] for item in BOX_ITEMS[box_type]]
-                                    or not isinstance(v[i][j][1], dict)
-                                ):
-                                    js_to_delete.append(j)
-                                else:
-                                    idx = [item[0] for item in BOX_ITEMS[box_type]].index(v[i][j][0])
-                                    for k_, v_ in v[i][j][1].items():
-                                        if k_ not in BOX_ITEMS[box_type][idx][3].keys():
-                                            js_to_delete.append(j)
-                                        elif type(v_) != type(BOX_ITEMS[box_type][idx][3][k_]):
-                                            js_to_delete.append(j)
-                            for j in reversed(js_to_delete):
-                                v[i].pop(j)
+                            continue
+
+                        # unknown, corrupted params
+                        for k_, v_ in list(v[i][j][1].items()):
+                            if k_ not in dflt_params.keys():
+                                del v[i][j][1][k_]
+                                v_changed = True
+                            elif type(v_) != type(dflt_params[k_]):
+                                v[i][j][1][k_] = dflt_params[k_]
                                 v_changed = True
 
+                        # missing params
+                        for k_ in dflt_params.keys():
+                            if k_ not in v[i][j][1].keys():
+                                v[i][j][1][k_] = dflt_params[k_]
+                                v_changed = True
+
+                        # ensure item param order, important for order
+                        # in UI
+                        if list(v[i][j][1].keys()) != list(dflt_params.keys()):
+                            # direct assignment to tuple: convert to
+                            # list
+                            v[i][j] = list(v[i][j])
+                            v[i][j][1] = {
+                                k: v[i][j][1][k]
+                                for k in dflt_params.keys()
+                            }
+                            v[i][j] = tuple(v[i][j])
+                            v_changed = True
+
+                    for j in reversed(js_to_delete):
+                        v[i].pop(j)
+                        v_changed = True
+
                 if v_changed:
-                    content_def_config[k] = v
+                    content_def_config[k] = tuple(v)
                     changed = True
             if changed:
                 _config.set(key, content_def_config)
@@ -344,6 +394,15 @@ class FamilyTreeViewConfigProvider:
         )
         box_line_width_spinner.set_digits(1)
         box_line_width_spinner.get_adjustment().set_step_increment(0.1)
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _("Highlight the home person according to the active Gramps color scheme"),
+            row,
+            "appearance.familytreeview-highlight-home-person",
+            stop=3 # same width as spinners and combos
+        )
 
         row += 1
         configdialog.add_checkbox(
@@ -552,8 +611,6 @@ class FamilyTreeViewConfigProvider:
                     config_val[event_name] = event_type_tree_store[path][i]
                 self.ftv._config.set(config_name, config_val)
 
-            # cb_update_config connected doesn't work, even when using a shallow or deep copy.
-            # Update explicitly:
             self.ftv.cb_update_config(None, None, None, None)
 
         # visible column
@@ -840,6 +897,16 @@ class FamilyTreeViewConfigProvider:
             stop=3 # same width as spinners and combos
         )
 
+        # TODO Maybe move printing options to appearance?
+        row += 1
+        configdialog.add_text(
+            grid,
+            _(
+                "Printing and exporting:"
+            ),
+            row,
+        )
+
         row += 1
         configdialog.add_checkbox(
             grid,
@@ -850,6 +917,17 @@ class FamilyTreeViewConfigProvider:
             ),
             row,
             "interaction.familytreeview-printing-scale-to-page",
+            stop=3 # same width as spinners and combos
+        )
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _(
+                "Hide expanders in prints and exports."
+            ),
+            row,
+            "interaction.familytreeview-printing-export-hide-expanders",
             stop=3 # same width as spinners and combos
         )
 
@@ -955,8 +1033,6 @@ class FamilyTreeViewConfigProvider:
                         config[expander_type_] = expander_list_store[path_][i]
             self.ftv._config.set(config_key, config)
 
-            # cb_update_config connected doesn't work, even when using a shallow or deep copy.
-            # Update explicitly:
             self.ftv.cb_update_config(None, None, None, None)
 
         # checkbox column
@@ -999,7 +1075,7 @@ class FamilyTreeViewConfigProvider:
         label = configdialog.add_text(
             grid,
             _("Choose which badges to display where:"),
-            row, stop=3
+            row, stop=8, bold=True
         )
         label.set_xalign(0)
 
@@ -1021,13 +1097,13 @@ class FamilyTreeViewConfigProvider:
                 "" # empty column
             ])
 
-        badge_tree_view = Gtk.TreeView(model=badge_list_store)
-        badge_tree_view.get_selection().set_mode(Gtk.SelectionMode.NONE)
+        badges_tree_view = Gtk.TreeView(model=badge_list_store)
+        badges_tree_view.get_selection().set_mode(Gtk.SelectionMode.NONE)
 
         # name column
         renderer = Gtk.CellRendererText()
         column = Gtk.TreeViewColumn(_("Name"), renderer, text=0)
-        badge_tree_view.append_column(column)
+        badges_tree_view.append_column(column)
 
         def _cb_badge_toggled(widget, path, i):
             badge_list_store[path][2*i+1] = not badge_list_store[path][2*i+1] # +1 to skip name column, factor 2 because of available columns
@@ -1042,8 +1118,6 @@ class FamilyTreeViewConfigProvider:
             config_badges_active[badge_id][["person", "family"][i]] = badge_list_store[path][2*i+1]
             self.ftv._config.set("badges.familytreeview-badges-active", config_badges_active)
 
-            # cb_update_config connected doesn't work, even when using a shallow or deep copy.
-            # Update explicitly:
             self.ftv.cb_update_config(None, None, None, None)
 
         # checkbox column
@@ -1051,18 +1125,177 @@ class FamilyTreeViewConfigProvider:
             renderer = Gtk.CellRendererToggle()
             renderer.connect("toggled", _cb_badge_toggled, i)
             column = Gtk.TreeViewColumn(column_title, renderer, active=2*i+1, activatable=2*i+2)
-            badge_tree_view.append_column(column)
+            badges_tree_view.append_column(column)
 
         # empty column to fill the remaining space
         renderer = Gtk.CellRendererText()
         column = Gtk.TreeViewColumn("", renderer, text=5)
-        badge_tree_view.append_column(column)
+        badges_tree_view.append_column(column)
 
         scrolled_window = Gtk.ScrolledWindow()
         scrolled_window.set_hexpand(True)
         scrolled_window.set_vexpand(True)
-        scrolled_window.add(badge_tree_view)
+        scrolled_window.add(badges_tree_view)
         grid.attach(scrolled_window, 1, row, 8, 1) # these are the default with of widgets created by configdialog's methods
+
+        # filter match badges
+
+        DEFAULT_FILTER_MATCH_BADGE_PARAMS = {
+            "active": False, # Do not show badge for each new filter.
+            "content_text": "◉",
+            "text_color": "#000",
+            "background_color": "#FFF",
+        }
+        filter_match_badges_config = self.ftv._config.get("badges.familytreeview-badges-filter-match")
+
+        # NOTE: We use Grid for the filter match badges instead of
+        # TreeView, since it seems to be very complicated to get color
+        # picker and text entry to work inside of a TreeView.
+
+        def fmt_grid(grid):
+            grid.set_border_width(0)
+            grid.set_column_spacing(13) # looks similar to TreeView
+            grid.set_row_spacing(6) # looks similar to TreeView
+
+        size_groups = [
+            Gtk.SizeGroup(mode=Gtk.SizeGroupMode.HORIZONTAL)
+            for _ in range(5)
+        ]
+
+        custom_filter_list = get_reloaded_custom_filter_list()
+
+        for filter_space in ["Person", "Family"]:
+            row += 1
+            if filter_space == "Person":
+                label_text = _("Badges based on person filters:")
+            else:
+                label_text = _("Badges based on family filters:")
+            label = Gtk.Label()
+            label.set_markup(f"<b>{label_text}</b>")
+            label.set_xalign(0)
+            label.set_margin_top(20)
+            grid.attach(label, 1, row, 8, 1)
+
+            if filter_space == "Person":
+                filters = [None] # generic filter (sidebar)
+            else:
+                filters = []
+            filters.extend(custom_filter_list.get_filters(filter_space))
+
+            namespace_config = filter_match_badges_config[filter_space.lower()]
+            for filt in filters:
+                if filt is None:
+                    # generic filter
+                    if len(namespace_config["generic"]) == 0:
+                        namespace_config["generic"] = deepcopy(DEFAULT_FILTER_MATCH_BADGE_PARAMS)
+                    continue
+
+                # Use name as filter key.
+                # TODO Using a hash would be better, but I haven't found
+                # a reliable way to hash a filter yet. 
+                filt_name = filt.get_name()
+                if filt_name not in namespace_config["custom"]:
+                    namespace_config["custom"][filt_name] = deepcopy(DEFAULT_FILTER_MATCH_BADGE_PARAMS)
+
+            row += 1
+            filter_header_grid = Gtk.Grid()
+            fmt_grid(filter_header_grid)
+            for col, col_name in enumerate([
+                _("Filter name"),
+                _("Active"),
+                _("Badge content"),
+                _("Text color"),
+                _("Background color"),
+            ]):
+                label = Gtk.Label()
+                label.set_xalign(0)
+                label.set_markup(f"<b>{col_name}</b>")
+                size_groups[col].add_widget(label)
+                filter_header_grid.attach(label, col, 0, 1, 1)
+            grid.attach(filter_header_grid, 1, row, 8, 1)
+
+            row += 1
+            filter_grid = Gtk.Grid()
+            fmt_grid(filter_grid)
+            for i, filt in enumerate(filters):
+                if filt is None:
+                    filt_name = None
+                    filt_label = _("Sidebar filter")
+                    filter_badge_config = namespace_config["generic"]
+                else:
+                    filt_name = filt.get_name()
+                    filt_label = filt_name
+                    filter_badge_config = namespace_config["custom"][filt_name]
+                col = -1
+
+                col += 1
+                label = Gtk.Label(filt_label)
+                label.set_xalign(0)
+                size_groups[col].add_widget(label)
+                filter_grid.attach(label, col, i, 1, 1)
+
+                col += 1
+                box = Gtk.Box()
+                check_button = Gtk.CheckButton()
+                check_button.set_active(filter_badge_config["active"])
+                def active_toggled(check_button, filter_badge_config):
+                    filter_badge_config["active"] = check_button.get_active()
+                    self.ftv._config.set("badges.familytreeview-badges-filter-match", filter_match_badges_config)
+                    self.ftv.cb_update_config(None, None, None, None)
+                check_button.connect("toggled", active_toggled, filter_badge_config)
+                box.pack_start(check_button, True, False, 0)
+                size_groups[col].add_widget(box)
+                filter_grid.attach(box, col, i, 1, 1)
+
+                # TODO maybe also support icons?
+                col += 1
+                entry = Gtk.Entry()
+                entry.set_text(filter_badge_config["content_text"])
+                def content_text_changed(entry, filter_badge_config):
+                    filter_badge_config["content_text"] = entry.get_text()
+                    self.ftv._config.set("badges.familytreeview-badges-filter-match", filter_match_badges_config)
+                    self.ftv.cb_update_config(None, None, None, None)
+                entry.connect("changed", content_text_changed, filter_badge_config)
+                size_groups[col].add_widget(entry)
+                filter_grid.attach(entry, col, i, 1, 1)
+
+                def color_set(color_button, filter_badge_config, key):
+                    rgba = color_button.get_rgba()
+                    filter_badge_config[key] = rgb_to_hex((rgba.red, rgba.green, rgba.blue))
+                    self.ftv._config.set("badges.familytreeview-badges-filter-match", filter_match_badges_config)
+                    self.ftv.cb_update_config(None, None, None, None)
+
+                col += 1
+                box = Gtk.Box()
+                color_button = Gtk.ColorButton()
+                color_button.set_hexpand(False)
+                rgba = Gdk.RGBA()
+                rgba.parse(filter_badge_config["text_color"])
+                color_button.set_rgba(rgba)
+                color_button.set_title(_("{name}: text color").format(name=filt_name))
+                color_button.connect("color-set", color_set, filter_badge_config, "text_color")
+                box.pack_start(color_button, True, False, 0)
+                size_groups[col].add_widget(box)
+                filter_grid.attach(box, col, i, 1, 1)
+
+                col += 1
+                box = Gtk.Box()
+                color_button = Gtk.ColorButton()
+                color_button.set_hexpand(False)
+                rgba = Gdk.RGBA()
+                rgba.parse(filter_badge_config["background_color"])
+                color_button.set_rgba(rgba)
+                color_button.set_title(_("{name}: background color").format(name=filt_name))
+                color_button.connect("color-set", color_set, filter_badge_config, "background_color")
+                box.pack_start(color_button, True, False, 0)
+                size_groups[col].add_widget(box)
+                filter_grid.attach(box, col, i, 1, 1)
+
+            scrolled_window = Gtk.ScrolledWindow()
+            scrolled_window.set_hexpand(True)
+            scrolled_window.set_vexpand(True)
+            scrolled_window.add(filter_grid)
+            grid.attach(scrolled_window, 1, row, 8, 1) # these are the default with of widgets created by configdialog's methods
 
         return (_("Badges"), grid)
 

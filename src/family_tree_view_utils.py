@@ -19,8 +19,13 @@
 #
 
 
+import os
+
 from gi import require_version
 from gi.repository import Pango
+
+from gramps.gen.const import CUSTOM_FILTERS, GRAMPS_LOCALE
+from gramps.gen.filters import FilterList
 
 
 def import_GooCanvas():
@@ -38,6 +43,38 @@ def import_GooCanvas():
     if not gooCanvas_available:
         raise Exception("GooCanvas 2 or 3 (http://live.gnome.org/GooCanvas) is required for this view to work.")
     return GooCanvas
+
+def get_gettext(return_ngettext=False, return_sgettext=False):
+    file = os.path.abspath(__file__)
+    dir_name = os.path.basename(os.path.dirname(file))
+    if dir_name == "src":
+        # Python files in subdirectory (e.g. manual installation), use
+        # parent directory.
+        file = os.path.dirname(file)
+
+    try:
+        translation = GRAMPS_LOCALE.get_addon_translator(file)
+    except ValueError:
+        translation = GRAMPS_LOCALE.translation
+
+    if not return_ngettext and not return_sgettext:
+        return translation.gettext
+    elif return_ngettext and not return_sgettext:
+        return translation.gettext, translation.ngettext
+    elif not return_ngettext and return_sgettext:
+        return translation.gettext, translation.sgettext
+    else:
+        return translation.gettext, translation.ngettext, translation.sgettext
+
+def get_reloaded_custom_filter_list():
+    # Due to cached imports, filters.reload_custom_filters() doesn't
+    # work. importlib.reload() (to reload the value from the module
+    # after it was reloaded with the module's function) doesn't work
+    # since this sets the variable value back to None. Seems like the
+    # only way is to generate the new custom filter object here.
+    custom_filter_list = FilterList(CUSTOM_FILTERS)
+    custom_filter_list.load()
+    return custom_filter_list
 
 def get_contrast_color(color):
     """

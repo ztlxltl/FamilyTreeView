@@ -28,7 +28,7 @@ import cairo
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from gramps.gen.config import config
-from gramps.gen.const import CUSTOM_FILTERS, GRAMPS_LOCALE
+from gramps.gen.const import CUSTOM_FILTERS
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.errors import HandleError, WindowActiveError
 from gramps.gen.lib import EventType
@@ -46,10 +46,11 @@ from abbreviated_name_display import AbbreviatedNameDisplay
 from family_tree_view_badge_manager import FamilyTreeViewBadgeManager
 from family_tree_view_config_provider import FamilyTreeViewConfigProvider
 from family_tree_view_icons import get_family_avatar_svg_data, get_person_avatar_svg_data
+from family_tree_view_utils import get_gettext
 from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeView(NavigationView, Callback):
     ADDITIONAL_UI = [
@@ -80,8 +81,12 @@ class FamilyTreeView(NavigationView, Callback):
         """
         <placeholder id="otheredit">
             <item>
-                <attribute name="action">win.FilterEdit</attribute>
+                <attribute name="action">win.FilterEditPerson</attribute>
                 <attribute name="label" translatable="yes">Person Filter Editor</attribute>
+            </item>
+            <item>
+                <attribute name="action">win.FilterEditFamily</attribute>
+                <attribute name="label" translatable="yes">Family Filter Editor</attribute>
             </item>
         </placeholder>
         """,
@@ -193,9 +198,6 @@ class FamilyTreeView(NavigationView, Callback):
         self.dbstate = dbstate
         self.uistate = uistate
         self.nav_group = nav_group
-        self.dbstate.connect("database-changed", self._cb_db_changed)
-        self.dbstate.connect("no-database", self._cb_db_closed)
-        self.uistate.connect("nameformat-changed", self.rebuild_tree)
 
         self.additional_uis.append(self.ADDITIONAL_UI)
 
@@ -216,7 +218,7 @@ class FamilyTreeView(NavigationView, Callback):
             "preferences.theme-dark-variant",
             "preferences.font"
         ]:
-            if config.is_set(key):
+            try:
                 # Wait for idle as the theme update takes a bit.
                 # The tree has to rebuild after the theme is applied.
                 if key == "preferences.font":
@@ -225,16 +227,32 @@ class FamilyTreeView(NavigationView, Callback):
                     # abbreviations).
                     config.connect(key, lambda *args: GLib.idle_add(self.widget_manager.canvas_manager.reset_boxes))
                 config.connect(key, lambda *args: GLib.idle_add(self._cb_global_appearance_config_changed))
+            except (AttributeError, KeyError):
+                # Config keys not set, e.g. Themes/ThemesPrefs plugin
+                # not installed. Unfortunately, config.is_set(key) and
+                # ConfigManager._validate_section_and_setting (in
+                # config.connect()) don't guarantee that
+                # config.connect() will work because they only check
+                # ConfigManager.data, not ConfigManager.callbacks. For
+                # some reason, they can be out of sync.
+                pass
 
         # There doesn't seem to be a signal for updating colors.
         # TODO This is not an ideal solution.
         for config_name in config.get_section_settings("colors"):
             config.connect("colors." + config_name, self._cb_global_appearance_config_changed)
 
+        # Register callbacks after initializing other managers to
+        # rebuild the tree after specific resets.
+        self.dbstate.connect("database-changed", self._cb_db_changed)
+        self.dbstate.connect("no-database", self._cb_db_closed)
+        self.uistate.connect("nameformat-changed", self.rebuild_tree)
+
         self.addons_registered_badges = False
 
         self.print_settings = None
         self.print_margin = 20
+        self.export_padding = 50
 
     def navigation_type(self):
         return "Person"
@@ -269,12 +287,15 @@ class FamilyTreeView(NavigationView, Callback):
         super().define_actions()
         self._add_action("PrintView", self.print_view, "<PRIMARY><SHIFT>P")
         self._add_action("ExportSvgView", self.export_svg_view)
-        self._add_action("FilterEdit", self.open_filter_editor)
+        self._add_action("FilterEditPerson", self.open_person_filter_editor)
+        self._add_action("FilterEditFamily", self.open_family_filter_editor)
 
     def config_connect(self):
         self.config_provider.config_connect(self._config, self.cb_update_config)
 
     def cb_update_config(self, client, connection_id, entry, data):
+        # This method is called explicitly sometimes when the config
+        # value is a mutable object. Refactoring may be appropriate.
 
         # Required to apply changed box size or number of lines for abbreviated names.
         self.widget_manager.canvas_manager.reset_boxes()
@@ -661,10 +682,28 @@ class FamilyTreeView(NavigationView, Callback):
             return self.symbols.get_symbol_fallback(symbol)
 
     def change_active_family(self, handle):
+        self.change_active_obj(handle, "Family")
+
+    def change_active_obj(self, handle, obj_class):
         nav_group = 0 # TODO not sure about this
-        hobj = self.uistate.get_history("Family", nav_group)
+        hobj = self.uistate.get_history(obj_class, nav_group)
         if handle and not hobj.lock and not (handle == hobj.present()):
             hobj.push(handle)
+
+    def open_uri(self, uri):
+        if not uri.startswith("gramps://"):
+            return Gtk.show_uri_on_window(uri)
+        obj_class, prop, value = uri[9:].split("/", 2)
+        if prop != "handle":
+            # TODO gramps_id
+            return False
+
+        if obj_class == "Person":
+            self.change_active(value)
+        else:
+            self.change_active_obj(value, obj_class)
+
+        return True
 
     # editing windows
 
@@ -678,9 +717,15 @@ class FamilyTreeView(NavigationView, Callback):
         if family is not None:
             EditFamily(self.dbstate, self.uistate, [], family)
 
-    def open_filter_editor(self, *args):
+    def open_person_filter_editor(self, *args):
         try:
             FilterEditor("Person", CUSTOM_FILTERS, self.dbstate, self.uistate)
+        except WindowActiveError:
+            pass
+
+    def open_family_filter_editor(self, *args):
+        try:
+            FilterEditor("Family", CUSTOM_FILTERS, self.dbstate, self.uistate)
         except WindowActiveError:
             pass
 
@@ -712,8 +757,8 @@ class FamilyTreeView(NavigationView, Callback):
         page_setup.set_bottom_margin(self.print_margin, Gtk.Unit.POINTS)
         canvas_bounds = self.widget_manager.canvas_manager.canvas_bounds
         padding = self.widget_manager.canvas_manager.canvas_padding
-        tree_width = canvas_bounds[2] - canvas_bounds[0] - 2*padding
-        tree_height = canvas_bounds[3] - canvas_bounds[1] - 2*padding
+        tree_width = canvas_bounds[2] - canvas_bounds[0] - 2*padding + 2*self.export_padding
+        tree_height = canvas_bounds[3] - canvas_bounds[1] - 2*padding + 2*self.export_padding
         if self._config.get("interaction.familytreeview-printing-scale-to-page"):
             # TODO How to get the page size used by Windows' print to PDF?
             # Use the smallest dimension of Letter and A4.
@@ -750,9 +795,11 @@ class FamilyTreeView(NavigationView, Callback):
         extra_scale = cr.get_matrix().x0 / self.print_margin
         cr.scale(extra_scale, extra_scale)
 
-        cr.translate(-canvas_bounds[0]-padding, -canvas_bounds[1]-padding)
-        bounds = None # entire canvas
-        self.widget_manager.canvas_manager.canvas.render(cr, bounds, 0.0)
+        cr.translate(
+            -canvas_bounds[0]-padding+self.export_padding,
+            -canvas_bounds[1]-padding+self.export_padding
+        )
+        self.render_canvas_to_context(cr)
 
     def export_svg_view(self, *args):
 
@@ -806,13 +853,15 @@ class FamilyTreeView(NavigationView, Callback):
         # actual export
         canvas_bounds = self.widget_manager.canvas_manager.canvas_bounds
         padding = self.widget_manager.canvas_manager.canvas_padding
-        width = canvas_bounds[2]-canvas_bounds[0]-2*padding
-        height = canvas_bounds[3]-canvas_bounds[1]-2*padding
+        width = canvas_bounds[2]-canvas_bounds[0]-2*padding+2*self.export_padding
+        height = canvas_bounds[3]-canvas_bounds[1]-2*padding+2*self.export_padding
         with cairo.SVGSurface(file_name, width, height) as surface:
             context = cairo.Context(surface)
-            context.translate(-canvas_bounds[0]-padding, -canvas_bounds[1]-padding)
-            bounds = None
-            self.widget_manager.canvas_manager.canvas.render(context, bounds, 0.0)
+            context.translate(
+                -canvas_bounds[0]-padding+self.export_padding,
+                -canvas_bounds[1]-padding+self.export_padding
+            )
+            self.render_canvas_to_context(context)
             surface.finish()
 
         # message: completed
@@ -828,3 +877,13 @@ class FamilyTreeView(NavigationView, Callback):
         )
         dialog.run()
         dialog.destroy()
+
+    def render_canvas_to_context(self, context, bounds=None):
+        hide_expanders = self._config.get("interaction.familytreeview-printing-export-hide-expanders")
+        if hide_expanders:
+            self.widget_manager.canvas_manager.set_expander_visible(False)
+        try:
+            self.widget_manager.canvas_manager.canvas.render(context, bounds, 0.0)
+        finally:
+            if hide_expanders:
+                self.widget_manager.canvas_manager.set_expander_visible(True)

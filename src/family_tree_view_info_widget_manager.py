@@ -21,22 +21,24 @@
 
 from typing import TYPE_CHECKING
 
-from gi.repository import Gdk, GdkPixbuf, Gtk
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.datehandler import get_date
 from gramps.gen.display.name import displayer as name_displayer
 from gramps.gen.lib import Person
 from gramps.gen.utils.alive import probably_alive
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback, get_divorce_or_fallback
+from gramps.gen.utils.file import media_path_full
+from gramps.gen.utils.thumbnails import get_thumbnail_image
 from gramps.gui.utils import color_graph_box
+from gramps.gui.widgets import Photo
 
-from family_tree_view_utils import get_contrast_color
+from family_tree_view_utils import get_contrast_color, get_gettext
 if TYPE_CHECKING:
     from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeViewInfoWidgetManager:
     def __init__(self, widget_manager: "FamilyTreeViewWidgetManager"):
@@ -74,6 +76,23 @@ class FamilyTreeViewInfoWidgetManager:
         label.set_line_wrap(True)
         label.set_xalign(0) # left align
         label.set_yalign(0) # top align
+        return label
+
+    def create_person_name_label_for_grid(self, person):
+        uri = f"gramps://Person/handle/{person.handle}"
+        name = name_displayer.display_name(person.get_primary_name())
+        label = self.create_label_for_grid(markup=
+            name
+            + f" <a href=\"{uri}\" title=\"Set {name} as active person\">\u2794</a>" # rightwards arrow
+        )
+        # TODO Increase font size of arrow without changing line height.
+        # Tried to increase the size of the error with
+        # <big><big><big><span line_height=\"{1/1.2**3}\">...</span></big></big></big>
+        # but the line height wasn't correct, even though <big> scales
+        # by 1.2.
+        label.connect("activate-link", lambda label, uri:
+            self.ftv.open_uri(uri)
+        )
         return label
 
     def create_birth_death_label_for_grid(self, person):
@@ -125,8 +144,19 @@ class FamilyTreeViewInfoWidgetManager:
 
             pixbuf_loader = GdkPixbuf.PixbufLoader()
             pixbuf_loader.write(svg_code.encode())
-            pixbuf_loader.close()
-            pixbuf = pixbuf_loader.get_pixbuf()
+            try:
+                pixbuf_loader.close()
+            except GLib.Error:
+                # Error on MacOS, Gramps 6.0.0 for SVGs:
+                # gi.repository.GLib.GError: gdk-pixbuf-error-quark: Unrecognized image file format (3)
+                # Use white pixbuf of correct size as replacement
+                pixbuf = GdkPixbuf.Pixbuf.new(
+                    GdkPixbuf.Colorspace.RGB, True, 8,
+                    img_width, img_height
+                )
+                pixbuf.fill(0xFFFFFFFF)
+            else:
+                pixbuf = pixbuf_loader.get_pixbuf()
             image = Gtk.Image.new_from_pixbuf(pixbuf)
 
         return image
@@ -214,7 +244,7 @@ class FamilyTreeViewInfoWidgetManager:
                 grid.attach(parent_type_label, 0, i_row, 1, 1)
 
                 if parent is not None:
-                    parent_name_label = self.create_label_for_grid(name_displayer.display_name(parent.get_primary_name()))
+                    parent_name_label = self.create_person_name_label_for_grid(parent)
                     grid.attach(parent_name_label, 1, i_row, 1, 1)
 
                     parent_dates_label = self.create_birth_death_label_for_grid(parent)
@@ -249,7 +279,7 @@ class FamilyTreeViewInfoWidgetManager:
             grid.attach(parent_type_label, 0, i_row, 1, 1)
 
             if parent is not None:
-                parent_name_label = self.create_label_for_grid(name_displayer.display_name(parent.get_primary_name()))
+                parent_name_label = self.create_person_name_label_for_grid(parent)
                 grid.attach(parent_name_label, 1, i_row, 1, 1)
 
                 parent_dates_label = self.create_birth_death_label_for_grid(parent)
@@ -285,7 +315,7 @@ class FamilyTreeViewInfoWidgetManager:
             child_type_label = self.create_label_for_grid(s)
             grid.attach(child_type_label, 0, i_row, 1, 1)
 
-            child_name_label = self.create_label_for_grid(name_displayer.display_name(child.get_primary_name()))
+            child_name_label = self.create_person_name_label_for_grid(child)
             grid.attach(child_name_label, 1, i_row, 1, 1)
 
             child_dates_label = self.create_birth_death_label_for_grid(child)
@@ -374,6 +404,7 @@ class FamilyTreeViewInfoWidgetManager:
     def create_tags_widget(self, obj):
         tags_flow = Gtk.FlowBox()
         tags_flow.set_selection_mode(Gtk.SelectionMode.NONE)
+        tags_flow.set_max_children_per_line(GLib.MAXUINT8) # no limit, larger is slow
         tag_handle_list = obj.get_tag_list()
         for tag_handle in tag_handle_list:
             tag = self.ftv.dbstate.db.get_tag_from_handle(tag_handle)
@@ -404,6 +435,25 @@ class FamilyTreeViewInfoWidgetManager:
 
             tags_flow.add(tag_widget)
         return tags_flow
+
+    def create_gallery(self, obj):
+        gallery_flow_box = Gtk.FlowBox()
+        gallery_flow_box.set_selection_mode(Gtk.SelectionMode.NONE)
+        gallery_flow_box.set_max_children_per_line(GLib.MAXUINT8) # no limit, larger is slow
+        media_list = obj.get_media_list()
+        for media_ref in media_list:
+            media_handle = media_ref.get_reference_handle()
+            media = self.ftv.dbstate.db.get_media_from_handle(media_handle)
+            path = media_path_full(self.ftv.dbstate.db, media.get_path())
+            photo = Photo()
+            pixbuf = get_thumbnail_image(
+                path,
+                media.get_mime_type(),
+                media_ref.get_rectangle()
+            )
+            photo.set_pixbuf(path, pixbuf)
+            gallery_flow_box.add(photo)
+        return gallery_flow_box
 
     def create_attributes(self, obj):
         grid = Gtk.Grid()

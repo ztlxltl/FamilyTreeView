@@ -40,8 +40,8 @@ There are two options for adding FamilyTreeView to Gramps. The first lets Gramps
 3. Go to the "Projects" tab
 4. Click the plus at the bottom left
 5. Enter `FamilyTreeView` as the project name
-6. Enter the following URL: `https://raw.githubusercontent.com/ztlxltl/FamilyTreeView/dist/gramps52`\
-   You cannot open this URL with a browser, but you can find the files that Gramps will use here: `https://github.com/ztlxltl/FamilyTreeView/tree/dist/gramps52`
+6. Enter the following URL: `https://raw.githubusercontent.com/ztlxltl/FamilyTreeView/dist/gramps60`\
+   You cannot open this URL with a browser, but you can find the files that Gramps will use here: `https://github.com/ztlxltl/FamilyTreeView/tree/dist/gramps60`
 7. Click OK, go to the "Addons" tab and select "All statuses" in the last dropdown menu (usually "Stable" is selected). This is necessary because this addon should not be considered stable.
 8. Select "FamilyTreeView" in the second dropdown menu (usually "All projects" is selected). Alternatively, you can search for FamilyTreeView.
 9. I recommended to install all three of the addons of this repository (which are explained above). Click the "Install" button of each of the addons.
@@ -50,14 +50,15 @@ If you have problems, you can always use the robust alternative of downloading t
 
 ### Downloading the source code
 1. Find your Gramps user directory. It's usually located here:
-    - Linux / MacoOS (built) / other POSIX: `~/.gramps` (e.g. `/home/<username>/.gramps`)
-    - Windows: `%AppData%\gramps` (e.g. `C:\Users\<username>\AppData\Roaming\gramps`)
-    - MacOS Application Package: `/Users/<username>/Library/Application Support/gramps`
-2. Go to the subdirectory `gramps52/plugins`, e.g. `~/.gramps/gramps52/plugins`.
-3. Clone or download the repository to this subdirectory, e.g. `~/.gramps/gramps52/plugins/FamilyTreeView` or `C:\Users\<username>\AppData\Roaming\gramps\gramps52\plugins\FamilyTreeView`. To do this, click on the green "Code" button on FamilyTreeView's repository on Github and 
+    - Linux / MacoOS (built) / other POSIX: `~/.local/share/gramps` (e.g. `/home/<username>/.local/share/gramps`)
+    - Windows: `%AppData%\gramps` (e.g. `C:\Users\<username>\AppData\Roaming\gramps`)\
+      [Note: According to the Gramps documentation it should be in `C:\Users\<username>\AppData\Local\gramps`, but in my tests it's always in `Roaming`.]
+    - MacOS Application Package: `/Users/<username>/.local/share/gramps`
+2. Go to the subdirectory `gramps60/plugins`, e.g. `~/.local/share/gramps/gramps60/plugins`.
+3. Clone or download the repository to this subdirectory, e.g. `~/.local/share/gramps/gramps60/plugins/FamilyTreeView` or `C:\Users\<username>\AppData\Roaming\gramps\gramps60\plugins\FamilyTreeView`. To do this, click on the green "Code" button on FamilyTreeView's repository on Github and 
     - copy the URL to clone it (I assume you know how to do this if you choose to clone it.)\
       or 
-    - click "Download ZIP" to download a ZIP of the source code directly. After the download finished, extract the ZIP file in the subdirectory mentioned above. You can check to make sure that this README.md is in the correct location: e.g. `~/.gramps/gramps52/plugins/FamilyTreeView/README.md` or `C:\Users\<username>\AppData\Roaming\gramps\gramps52\plugins\FamilyTreeView\README.md`
+    - click "Download ZIP" to download a ZIP of the source code directly. After the download finished, extract the ZIP file in the subdirectory mentioned above. You can check to make sure that `COPYING.txt` is in the correct location: e.g. `~/.local/share/gramps/gramps60/plugins/FamilyTreeView/COPYING.txt` or `C:\Users\<username>\AppData\Roaming\gramps\gramps60\plugins\FamilyTreeView\COPYING.txt`
 
 ## TODOs, ideas & known issues
 

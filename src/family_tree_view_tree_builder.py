@@ -24,15 +24,15 @@ from typing import TYPE_CHECKING
 
 from gi.repository import GLib, Gtk
 
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.lib.childreftype import ChildRefType
 from gramps.gui.utils import ProgressMeter
 
+from family_tree_view_utils import get_gettext
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeViewWidgetManager
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeViewTreeBuilder():
     """Collects all the information to build the tree and sends it to the canvas."""
@@ -95,6 +95,11 @@ class FamilyTreeViewTreeBuilder():
 
     def build_tree(self, root_person_handle, reset=True):
 
+        # TODO This is a workaround that fixes a bug that in some cases
+        # (observed on Windows, cause unknown) causes the measured line
+        # height to be incorrect the first time it is calculated.
+        self.canvas_manager.calculate_dimensions()
+
         # The tree needs to reset if the new tree is not closely related
         # to the previous one, e.g. based on a different person.
         if reset:
@@ -114,28 +119,37 @@ class FamilyTreeViewTreeBuilder():
         self.expander_types_expanded = self.ftv._config.get("expanders.familytreeview-expander-types-expanded")
 
         self.use_progress = self.ftv._config.get("experimental.familytreeview-tree-builder-use-progress")
-        if self.use_progress:
-            self.set_progress_meter_pass(
-                _("Building tree..."),
-            )
 
-        failed = False
-        try:
-            self.process_person(
-                root_person_handle, 0, 0,
-                ahnentafel=1
-            )
-        except RecursionError:
-            failed = True
-            text = (
-                "The following are known causes of this issue. They will be "
-                "addressed in a future update.\n"
-                "- One or multiple loops in the database near the active "
-                "person. \n"
-                "Possible workaround: Try to reduce the number of generations "
-                "and/or disable expander expansion by default in the "
-                "FamilyTreeView's config window."
-            )
+        try: # try ... finally to definitely close progress meter
+            if self.use_progress:
+                self.set_progress_meter_pass(
+                    _("Preparing badges..."),
+                )
+
+            self.ftv.badge_manager.prepare_badges()
+
+            if self.use_progress:
+                self.set_progress_meter_pass(
+                    _("Building tree..."),
+                )
+
+            failed = False
+            try:
+                self.process_person(
+                    root_person_handle, 0, 0,
+                    ahnentafel=1
+                )
+            except RecursionError:
+                failed = True
+                text = (
+                    "The following are known causes of this issue. They will be "
+                    "addressed in a future update.\n"
+                    "- One or multiple loops in the database near the active "
+                    "person. \n"
+                    "Possible workaround: Try to reduce the number of generations "
+                    "and/or disable expander expansion by default in the "
+                    "FamilyTreeView's config window."
+                )
         finally:
             # Close the progress meter even when unknown errors occur.
             if self.use_progress:
@@ -411,6 +425,12 @@ class FamilyTreeViewTreeBuilder():
 
         children_possible = person_generation <= 1
 
+        person_is_s1_in_primary_family = False # fallback
+        if len(family_handles) > 0:
+            primary_family = self.dbstate.db.get_family_from_handle(family_handles[0])
+            if primary_family is not None:
+                person_is_s1_in_primary_family = primary_family.get_father_handle() == person_handle
+
         for i_family, family_handle in enumerate(family_handles):
             if self.get_cancelled():
                 break
@@ -461,13 +481,13 @@ class FamilyTreeViewTreeBuilder():
 
                 if children_possible:
                     # Place the family so there is enough space for family and children.
-                    if person_is_s1:
+                    if person_is_s1_in_primary_family:
                         # Family will be on the left
                         x_family = x_person + person_bounds["st_l"] - max(family_width/2, children_bounds["st_r"]) - self.canvas_manager.other_families_sep
                     else:
                         x_family = x_person + person_bounds["st_r"] + max(family_width/2, -children_bounds["st_l"]) + self.canvas_manager.other_families_sep
                 else:
-                    if person_is_s1:
+                    if person_is_s1_in_primary_family:
                         # Family will be on the left
                         x_family = x_person + person_bounds["gs_l"] - family_width/2 - self.canvas_manager.other_families_sep
                     else:
@@ -952,14 +972,14 @@ class FamilyTreeViewTreeBuilder():
                         if grandparent_family is not None and self.get_expand(inner_parent_handle, "parents"):
                             # replacement values
                             if (inner_parent_alignment == "l") ^ mother_first: # mother_first: assumption that this will stay the same
-                                x_inner_parent_ = 105
-                                x_grandparent_family_ = 175
+                                x_inner_parent_ = grandparent_families_sep/2 + person_width/2
+                                x_grandparent_family_ = grandparent_families_sep/2 + family_width/2
                             else:
-                                x_inner_parent_ = -105
-                                x_grandparent_family_ = -175
+                                x_inner_parent_ = -grandparent_families_sep/2 - person_width/2
+                                x_grandparent_family_ = -grandparent_families_sep/2 - family_width/2
                             which = "b"
                             grandparent_family_bottom = 0 # replacement
-                            inner_parent_bounds_ = {"st_l": -65, "st_r": 65, "gs_l": -65, "gs_r": 65}
+                            inner_parent_bounds_ = {"st_l": -person_width/2, "st_r": person_width/2, "gs_l": -person_width/2, "gs_r": person_width/2}
                             inner_parent_bounds_ = self.process_siblings(inner_parent_bounds_, x_inner_parent_, inner_parent_handle, parent_generation, inner_parent_alignment, True, grandparent_family, x_grandparent_family_, grandparent_family_bottom, side, which, None)
                             extra_left += inner_parent_bounds_["st_l"] + person_width/2
                             extra_right += inner_parent_bounds_["st_r"] - person_width/2

@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 from gi.repository import Gtk, Pango
 
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.display.name import displayer as name_displayer
 from gramps.gen.lib.attrtype import AttributeType
 from gramps.gen.lib.eventtype import EventType
@@ -14,21 +13,32 @@ from gramps.gen.utils.keyword import (
 )
 from gramps.gui.widgets.monitoredwidgets import MonitoredDataType
 
+from family_tree_view_utils import get_gettext
 if TYPE_CHECKING:
     from family_tree_view_config_provider import FamilyTreeViewConfigProvider
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 EVENT_PARAMS = {
     "event_type_visualization": "symbol",
     "date": True,
     "date_only_year": False,
+    "date_compact": False,
     "place": False,
     "description": False,
     "tags": False,
     "tag_visualization": "text_colors_counted"
 }
+
+BIRTH_DEATH_PARAMS = dict(
+    EVENT_PARAMS,
+    **{
+        "date_only_year": True,
+        "date_compact": True,
+        "event_type_visualization": "symbol_only_if_empty"
+    }
+) # No full dates for birth and death as they wouldn't fit.
 
 BOX_ITEMS = {
     "person": [
@@ -38,7 +48,7 @@ BOX_ITEMS = {
         ("alt_name", _("Alternative name"), _("The first alternative name of the person"), {"lines": 2}),
         ("birth_or_fallback", _("Birth or fallback"), _("Different information of birth or fallback"), {"lines": 1, **EVENT_PARAMS}),
         ("death_or_fallback", _("Death or fallback"), _("Different information of death or fallback"), {"lines": 1, **EVENT_PARAMS}),
-        ("birth_death_or_fallbacks", _("Birth and death or fallbacks"), _("Different information of birth and death or fallbacks"), dict({"lines": 1, **EVENT_PARAMS}, **{"date_only_year": True, "event_type_visualization": "symbol_only_if_empty"})), # No full dates for birth and death as they wouldn't fit.
+        ("birth_death_or_fallbacks", _("Birth and death or fallbacks"), _("Different information of birth and death or fallbacks"), {"lines": 1, **BIRTH_DEATH_PARAMS}),
         ("event", _("Event"), _("Different information of the first event of the specified type"), {"event_type": "Birth", "lines": 1, "index": 0, **EVENT_PARAMS}),
         ("relationship", _("Relationship"), _("Relationship to the specified person"), {"rel_base": "active", "lines": 1}),
         ("attribute", _("Attribute"), _("The value of the attribute of the specified type"), {"attribute_type": "Nickname", "lines": 1}),
@@ -80,7 +90,7 @@ PREDEF_BOXES_DEFS = {
         [
             ("name", {"lines": 2}),
             ("gutter", {"size": 5}),
-            ("birth_death_or_fallbacks", dict({"lines": 1, **EVENT_PARAMS}, **{"date_only_year": True, "event_type_visualization": "symbol_only_if_empty"})),
+            ("birth_death_or_fallbacks", {"lines": 1, **BIRTH_DEATH_PARAMS}),
         ],
         [
             ("marriage_or_fallback", {"lines": 1, **EVENT_PARAMS}),
@@ -147,6 +157,7 @@ BOX_ITEM_PARAMS = {
     "tag_visualization": _("Visualization"),
     "date": _("Display date"),
     "date_only_year": _("only display year"),
+    "date_compact": _("compact format"),
     "place": _("Display place"),
     "description": _("Display description"),
     "tags": _("Display tags"),
@@ -298,8 +309,6 @@ class FamilyTreeViewConfigPageManagerBoxes:
             # TODO reduce image width
             self.ftv.widget_manager.canvas_manager.reset_abbrev_names()
 
-            # cb_update_config connected doesn't work, even when using a
-            # shallow or deep copy. Update explicitly:
             self.ftv.cb_update_config(None, None, None, None)
         self.person_width_spin_button.connect("value-changed", _cb_person_box_width_changed)
         main_grid.attach(self.person_width_spin_button, 3, row, 2, 1)
@@ -478,8 +487,6 @@ class FamilyTreeViewConfigPageManagerBoxes:
         self.item_defs_tree_views[box_type].get_selection().unselect_all()
         self._fill_item_defs_list_store_from_config(box_type)
 
-        # cb_update_config connected doesn't work, even when using a
-        # shallow or deep copy. Update explicitly:
         self.ftv.cb_update_config(None, None, None, None)
 
     def _cb_item_def_selection_changed(self, selection, box_type):
@@ -558,6 +565,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
                     break
             if not (
                 item_param == "date_only_year"
+                or item_param == "date_compact"
                 or (
                     # Don't hide tag_visualization if it's a primary
                     # param (of a "tags" item) but hide if it's a
@@ -587,7 +595,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
                         "You can change the place format on the 'Appearance' "
                         "page."
                     )
-            elif item_param == "date_only_year":
+            elif item_param in ["date_only_year", "date_compact"]:
                 check_button = Gtk.CheckButton(param_translation)
                 check_button.set_active(param_value)
                 check_button.connect("toggled", self._cb_param_check_button_toggled, box_type, item_i, item_param)
