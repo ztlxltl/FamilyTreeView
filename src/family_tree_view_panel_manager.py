@@ -21,17 +21,16 @@
 
 from gi.repository import Gtk
 
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.display.name import displayer as name_displayer
 
 from family_tree_view_info_widget_manager import FamilyTreeViewInfoWidgetManager
 from family_tree_view_timeline import FamilyTreeViewTimeline
-from family_tree_view_utils import import_GooCanvas
+from family_tree_view_utils import get_gettext, import_GooCanvas
 
 
 GooCanvas = import_GooCanvas()
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeViewPanelManager(FamilyTreeViewInfoWidgetManager):
     def __init__(self, widget_manager):
@@ -58,7 +57,7 @@ class FamilyTreeViewPanelManager(FamilyTreeViewInfoWidgetManager):
         panel_header_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         panel_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, halign=Gtk.Align.END)
 
-        image = Gtk.Image.new_from_icon_name("cancel", Gtk.IconSize.LARGE_TOOLBAR)
+        image = Gtk.Image.new_from_icon_name("window-close", Gtk.IconSize.LARGE_TOOLBAR)
         close_button = Gtk.Button(image=image)
         close_button.connect("clicked", lambda button: self.widget_manager.close_panel())
         panel_header.add(close_button)
@@ -125,6 +124,14 @@ class FamilyTreeViewPanelManager(FamilyTreeViewInfoWidgetManager):
         timeline = FamilyTreeViewTimeline(self.widget_manager, person, self.panel_scrolled)
         timeline_expander.add(timeline.main_widget_container)
         self.panel_content.add(timeline_expander)
+
+        self.panel_content.add(Gtk.Separator())
+
+        gallery_expander = Gtk.Expander(label=_("Gallery"))
+        gallery_expander.set_expanded(True)
+        gallery_section = self.create_gallery(person)
+        gallery_expander.add(gallery_section)
+        self.panel_content.add(gallery_expander)
 
         self.panel_content.add(Gtk.Separator())
 

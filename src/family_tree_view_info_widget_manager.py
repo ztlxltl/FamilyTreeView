@@ -21,23 +21,24 @@
 
 from typing import TYPE_CHECKING
 
-from gi.repository import Gdk, GdkPixbuf, Gtk
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.datehandler import get_date
 from gramps.gen.display.name import displayer as name_displayer
 from gramps.gen.lib import Person
 from gramps.gen.utils.alive import probably_alive
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback, get_divorce_or_fallback
+from gramps.gen.utils.file import media_path_full
+from gramps.gen.utils.thumbnails import get_thumbnail_image
 from gramps.gui.utils import color_graph_box
+from gramps.gui.widgets import Photo
 
-from family_tree_view_icons import get_svg_data
-from family_tree_view_utils import get_contrast_color
+from family_tree_view_utils import get_contrast_color, get_gettext
 if TYPE_CHECKING:
     from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class FamilyTreeViewInfoWidgetManager:
     def __init__(self, widget_manager: "FamilyTreeViewWidgetManager"):
@@ -77,6 +78,23 @@ class FamilyTreeViewInfoWidgetManager:
         label.set_yalign(0) # top align
         return label
 
+    def create_person_name_label_for_grid(self, person):
+        uri = f"gramps://Person/handle/{person.handle}"
+        name = name_displayer.display_name(person.get_primary_name())
+        label = self.create_label_for_grid(markup=
+            name
+            + f" <a href=\"{uri}\" title=\"Set {name} as active person\">\u2794</a>" # rightwards arrow
+        )
+        # TODO Increase font size of arrow without changing line height.
+        # Tried to increase the size of the error with
+        # <big><big><big><span line_height=\"{1/1.2**3}\">...</span></big></big></big>
+        # but the line height wasn't correct, even though <big> scales
+        # by 1.2.
+        label.connect("activate-link", lambda label, uri:
+            self.ftv.open_uri(uri)
+        )
+        return label
+
     def create_birth_death_label_for_grid(self, person):
         birth_or_fallback = get_birth_or_fallback(self.ftv.dbstate.db, person)
         death_or_fallback = get_death_or_fallback(self.ftv.dbstate.db, person)
@@ -90,10 +108,22 @@ class FamilyTreeViewInfoWidgetManager:
         return self.create_label_for_grid(s)
 
     def create_image_widget(self, person, img_width=100, img_height=100):
-        image_spec = self.ftv.get_image_spec(person)
+        image_spec = self.ftv.get_image_spec(person, "person")
         if image_spec[0] in ["path", "pixbuf"]:
+            color = None
+        else:
+            alive = probably_alive(person, self.ftv.dbstate.db)
+            gender = person.get_gender()
+            _, color = color_graph_box(alive, gender)
+        return self.create_image_from_image_spec(image_spec, img_width, img_height, color=color)
+
+    def create_image_from_image_spec(self, image_spec, img_width, img_height, color=None):
+        if image_spec[0] in ["path", "svg_path", "pixbuf"]:
             if image_spec[0] == "path":
                 pixbuf = GdkPixbuf.Pixbuf.new_from_file(image_spec[1])
+            elif image_spec[0] == "svg_path":
+                svg_factor = 16 # if 1: too pixelated, if too large: slow
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(image_spec[1], img_width*svg_factor, img_height*svg_factor)
             else:
                 pixbuf = image_spec[1]
             scale = min(
@@ -106,21 +136,27 @@ class FamilyTreeViewInfoWidgetManager:
                 GdkPixbuf.InterpType.BILINEAR
             )
             image = Gtk.Image.new_from_pixbuf(pixbuf)
-        else:
-            alive = probably_alive(person, self.ftv.dbstate.db)
-            gender = person.get_gender()
-
-            background_color, border_color = color_graph_box(alive, gender)
-            data = get_svg_data(image_spec[1], 0, 0, img_width, img_height)
+        else: # svg_data_callback
+            data, width, height = image_spec[1](img_width, img_height)
             svg_code = """<svg xmlns="http://www.w3.org/2000/svg">"""
-            for d in data:
-                svg_code += f"""<path fill="{border_color}" d="{d}" />"""
+            svg_code += f"""<path fill="{color}" d="{data}" />"""
             svg_code += "</svg>"
 
             pixbuf_loader = GdkPixbuf.PixbufLoader()
             pixbuf_loader.write(svg_code.encode())
-            pixbuf_loader.close()
-            pixbuf = pixbuf_loader.get_pixbuf()
+            try:
+                pixbuf_loader.close()
+            except GLib.Error:
+                # Error on MacOS, Gramps 6.0.0 for SVGs:
+                # gi.repository.GLib.GError: gdk-pixbuf-error-quark: Unrecognized image file format (3)
+                # Use white pixbuf of correct size as replacement
+                pixbuf = GdkPixbuf.Pixbuf.new(
+                    GdkPixbuf.Colorspace.RGB, True, 8,
+                    img_width, img_height
+                )
+                pixbuf.fill(0xFFFFFFFF)
+            else:
+                pixbuf = pixbuf_loader.get_pixbuf()
             image = Gtk.Image.new_from_pixbuf(pixbuf)
 
         return image
@@ -166,7 +202,7 @@ class FamilyTreeViewInfoWidgetManager:
             event_type_label = self.create_label_for_grid(markup=f"<b>{_(str(event.type))}</b>")
             grid.attach(event_type_label, 0, i_row, 1, 1)
 
-            place_name = self.ftv.get_full_place_name_from_event(event)
+            place_name = self.ftv.get_place_name_from_event(event)
             if place_name is not None:
                 event_data_label = self.create_label_for_grid(f"{get_date(event)}\n{place_name}")
                 grid.attach(event_data_label, 1, i_row, 1, 1)
@@ -208,7 +244,7 @@ class FamilyTreeViewInfoWidgetManager:
                 grid.attach(parent_type_label, 0, i_row, 1, 1)
 
                 if parent is not None:
-                    parent_name_label = self.create_label_for_grid(name_displayer.display_name(parent.get_primary_name()))
+                    parent_name_label = self.create_person_name_label_for_grid(parent)
                     grid.attach(parent_name_label, 1, i_row, 1, 1)
 
                     parent_dates_label = self.create_birth_death_label_for_grid(parent)
@@ -243,7 +279,7 @@ class FamilyTreeViewInfoWidgetManager:
             grid.attach(parent_type_label, 0, i_row, 1, 1)
 
             if parent is not None:
-                parent_name_label = self.create_label_for_grid(name_displayer.display_name(parent.get_primary_name()))
+                parent_name_label = self.create_person_name_label_for_grid(parent)
                 grid.attach(parent_name_label, 1, i_row, 1, 1)
 
                 parent_dates_label = self.create_birth_death_label_for_grid(parent)
@@ -279,7 +315,7 @@ class FamilyTreeViewInfoWidgetManager:
             child_type_label = self.create_label_for_grid(s)
             grid.attach(child_type_label, 0, i_row, 1, 1)
 
-            child_name_label = self.create_label_for_grid(name_displayer.display_name(child.get_primary_name()))
+            child_name_label = self.create_person_name_label_for_grid(child)
             grid.attach(child_name_label, 1, i_row, 1, 1)
 
             child_dates_label = self.create_birth_death_label_for_grid(child)
@@ -295,8 +331,8 @@ class FamilyTreeViewInfoWidgetManager:
         edit_button.connect("clicked", lambda *_: self.ftv.edit_person(person_handle))
         buttons.pack_start(edit_button, False, False, 0)
 
-        set_home_button = self.create_button("Set home", icon="go-home")
         home_person = self.ftv.dbstate.db.get_default_person()
+        set_home_button = self.create_button("Set home", icon="go-home")
         if home_person is not None:
             set_home_button.set_sensitive(home_person.handle!=person_handle)
         set_home_button.connect("clicked", lambda *_: self.ftv.set_home_person(person_handle, also_set_active=False))
@@ -328,7 +364,7 @@ class FamilyTreeViewInfoWidgetManager:
 
         if self.ftv._config.get("interaction.familytreeview-family-info-box-set-active-button"):
             set_active_button = self.create_button("Set active", char="\u2794") # rightwards arrow
-            set_active_button.set_sensitive(self.ftv.get_active_family() != family_handle)
+            set_active_button.set_sensitive(self.ftv.get_active_family_handle() != family_handle)
             set_active_button.connect("clicked", lambda *_: self.ftv.set_active_family(family_handle))
             buttons.pack_start(set_active_button, False, False, 0)
 
@@ -368,6 +404,7 @@ class FamilyTreeViewInfoWidgetManager:
     def create_tags_widget(self, obj):
         tags_flow = Gtk.FlowBox()
         tags_flow.set_selection_mode(Gtk.SelectionMode.NONE)
+        tags_flow.set_max_children_per_line(GLib.MAXUINT8) # no limit, larger is slow
         tag_handle_list = obj.get_tag_list()
         for tag_handle in tag_handle_list:
             tag = self.ftv.dbstate.db.get_tag_from_handle(tag_handle)
@@ -398,6 +435,25 @@ class FamilyTreeViewInfoWidgetManager:
 
             tags_flow.add(tag_widget)
         return tags_flow
+
+    def create_gallery(self, obj):
+        gallery_flow_box = Gtk.FlowBox()
+        gallery_flow_box.set_selection_mode(Gtk.SelectionMode.NONE)
+        gallery_flow_box.set_max_children_per_line(GLib.MAXUINT8) # no limit, larger is slow
+        media_list = obj.get_media_list()
+        for media_ref in media_list:
+            media_handle = media_ref.get_reference_handle()
+            media = self.ftv.dbstate.db.get_media_from_handle(media_handle)
+            path = media_path_full(self.ftv.dbstate.db, media.get_path())
+            photo = Photo()
+            pixbuf = get_thumbnail_image(
+                path,
+                media.get_mime_type(),
+                media_ref.get_rectangle()
+            )
+            photo.set_pixbuf(path, pixbuf)
+            gallery_flow_box.add(photo)
+        return gallery_flow_box
 
     def create_attributes(self, obj):
         grid = Gtk.Grid()

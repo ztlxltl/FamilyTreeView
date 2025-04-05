@@ -91,9 +91,11 @@ class FamilyTreeViewMinimapManager:
         self.widget_manager.canvas_manager.vadjustment.connect("value-changed", self.set_view_rect)
 
     def reset_minimap(self):
-        self.minimap_canvas.get_root_item().remove()
-        new_default_root_item = GooCanvas.CanvasGroup()
-        self.minimap_canvas.set_root_item(new_default_root_item)
+        # Remove children of root item (instead of creating a new root
+        # item) to keep signal connections when resetting.
+        root_item = self.minimap_canvas.get_root_item()
+        for i in range(root_item.get_n_children()-1, -1, -1):
+            root_item.remove_child(i)
         self.init_minimap()
 
     def init_minimap(self):
@@ -162,7 +164,7 @@ class FamilyTreeViewMinimapManager:
             line_width=0
         )
         self.adjust_bounds(x-self.canvas_manager.person_width/2, y, x+self.canvas_manager.person_width/2, y+self.canvas_manager.person_height)
-        self.minimap_outer_container.show_all()
+        self.minimap_canvas.show_all()
 
     def add_family(self, x, family_generation, background_color):
         y = self.widget_manager.tree_builder.get_y_of_generation(family_generation)+self.canvas_manager.above_family_sep
@@ -176,7 +178,7 @@ class FamilyTreeViewMinimapManager:
             line_width=0
         )
         self.adjust_bounds(x-self.canvas_manager.family_width/2, y, x+self.canvas_manager.family_width/2, y+self.canvas_manager.family_height)
-        self.minimap_outer_container.show_all()
+        self.minimap_canvas.show_all()
 
     def minimap_button_clicked(self, *_):
         if self.minimap_inner_container.get_visible():

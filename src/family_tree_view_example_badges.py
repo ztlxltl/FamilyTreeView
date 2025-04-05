@@ -19,17 +19,19 @@
 #
 
 
+import os
+
 from gramps.gen.config import config
-from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.lib.childreftype import ChildRefType
 from gramps.gen.simple import make_basic_stylesheet
 from gramps.gui.plug.quick._textbufdoc import TextBufDoc
 
 import children_quick_report
 from family_tree_view_badge_registerer import FamilyTreeViewBadgeRegisterer
+from family_tree_view_utils import get_gettext
 
 
-_ = GRAMPS_LOCALE.translation.gettext
+_ = get_gettext()
 
 class NumCitationsBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
     def register_badges(self):
@@ -130,30 +132,40 @@ class NumChildrenBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
             document.open("")
             children_quick_report.run(dbstate.db, document, person)
 
-        num_children = 0
-        num_birth_children = 0
+        child_handles = []
+        birth_child_handles = []
         person = dbstate.db.get_person_from_handle(person_handle)
         family_handles = person.get_family_handle_list()
         for family_handle in family_handles:
             family = dbstate.db.get_family_from_handle(family_handle)
             child_refs = family.get_child_ref_list()
             for ref in child_refs:
-                num_children += 1
+                if ref.ref not in child_handles:
+                    child_handles.append(ref.ref)
                 if (
                     person_handle == family.get_father_handle() and ref.get_father_relation() == ChildRefType.BIRTH
                     or person_handle == family.get_mother_handle() and ref.get_mother_relation() == ChildRefType.BIRTH
                 ):
-                    num_birth_children += 1
+                    if ref.ref not in birth_child_handles:
+                        birth_child_handles.append(ref.ref)
+
+        num_children = len(child_handles)
+        num_birth_children = len(birth_child_handles)
 
         if num_children == 0:
             # no badge(s)
             return []
 
+        # changed folder structure in package
+        base_dir = os.path.dirname(__file__)
+        if os.path.basename(base_dir) != "src":
+            base_dir = os.path.join(base_dir, "src")
+
         content = [
             {
-                "content_type": "icon_svg_inline",
-                "svg_inline": "descendants_simple",
-                "icon_fill_color": "SaddleBrown"
+                "content_type": "icon_file_svg",
+                "file": os.path.join(base_dir, "icons", "descendants.svg"),
+                "current_color": "black"
             },
             {
                 "content_type": "text",
@@ -166,7 +178,7 @@ class NumChildrenBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
                 "content_type": "text",
                 "tooltip": _("Number of all children: ") + str(num_children),
                 "text": "(" + str(num_children) + ")",
-                "text_color": "SaddleBrown"
+                "text_color": "saddlebrown"
             })
         return [
             {
@@ -186,15 +198,25 @@ class NumChildrenBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
             # no badge
             return []
 
+        # changed folder structure in package
+        base_dir = os.path.dirname(__file__)
+        if os.path.basename(base_dir) != "src":
+            base_dir = os.path.join(base_dir, "src")
+
         return [
             {
                 "background_color": "BurlyWood",
                 "tooltip": _("Number of all children: ") + str(num_children),
                 "content": [
                     {
+                        "content_type": "icon_file_svg",
+                        "file": os.path.join(base_dir, "icons", "descendants.svg"),
+                        "current_color": "saddlebrown"
+                    },
+                    {
                         "content_type": "text",
                         "text": str(num_children),
-                        "text_color": "SaddleBrown"
+                        "text_color": "saddlebrown"
                     }
                 ]
             }
@@ -240,7 +262,7 @@ class NumOtherFamiliesBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
 class FilterResultBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
     def register_badges(self):
         self.badge_manager.register_person_badges_callback(
-            "filter_result", "Filter result",
+            "filter_result", "Filter result (deprecated)",
             self.cb_create_person_badge
         )
 
@@ -248,7 +270,12 @@ class FilterResultBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
         if self.ftv.generic_filter is None:
             return []
 
-        if not self.ftv.generic_filter.match(handle, dbstate.db):
+        try:
+            match = self.ftv.generic_filter.match(handle, dbstate.db)
+        except:
+            return []
+
+        if not match:
             return []
 
         return [{
