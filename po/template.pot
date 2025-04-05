@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-30 14:14+0000\n"
+"POT-Creation-Date: 2025-04-05 08:38+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -793,32 +793,32 @@ msgstr ""
 msgid "Number of events without citations: "
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_example_badges.py:167
+#: FamilyTreeView/family_tree_view_example_badges.py:172
 msgid "Number of children with birth relationship: "
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_example_badges.py:174
-#: FamilyTreeView/family_tree_view_example_badges.py:204
+#: FamilyTreeView/family_tree_view_example_badges.py:179
+#: FamilyTreeView/family_tree_view_example_badges.py:209
 msgid "Number of all children: "
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_example_badges.py:181
+#: FamilyTreeView/family_tree_view_example_badges.py:186
 msgid "Number of children"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_example_badges.py:246
+#: FamilyTreeView/family_tree_view_example_badges.py:251
 msgid "Number of other families: "
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_example_badges.py:278
+#: FamilyTreeView/family_tree_view_example_badges.py:283
 msgid "Matches filter"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_example_badges.py:305
+#: FamilyTreeView/family_tree_view_example_badges.py:310
 msgid "Gramps ID: "
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_example_badges.py:325
+#: FamilyTreeView/family_tree_view_example_badges.py:330
 msgid "Gramps handle: "
 msgstr ""
 
