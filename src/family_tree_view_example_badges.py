@@ -132,20 +132,25 @@ class NumChildrenBadgeRegisterer(FamilyTreeViewBadgeRegisterer):
             document.open("")
             children_quick_report.run(dbstate.db, document, person)
 
-        num_children = 0
-        num_birth_children = 0
+        child_handles = []
+        birth_child_handles = []
         person = dbstate.db.get_person_from_handle(person_handle)
         family_handles = person.get_family_handle_list()
         for family_handle in family_handles:
             family = dbstate.db.get_family_from_handle(family_handle)
             child_refs = family.get_child_ref_list()
             for ref in child_refs:
-                num_children += 1
+                if ref.ref not in child_handles:
+                    child_handles.append(ref.ref)
                 if (
                     person_handle == family.get_father_handle() and ref.get_father_relation() == ChildRefType.BIRTH
                     or person_handle == family.get_mother_handle() and ref.get_mother_relation() == ChildRefType.BIRTH
                 ):
-                    num_birth_children += 1
+                    if ref.ref not in birth_child_handles:
+                        birth_child_handles.append(ref.ref)
+
+        num_children = len(child_handles)
+        num_birth_children = len(birth_child_handles)
 
         if num_children == 0:
             # no badge(s)
