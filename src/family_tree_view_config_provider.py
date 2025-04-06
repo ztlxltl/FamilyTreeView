@@ -49,8 +49,23 @@ class FamilyTreeViewConfigProvider:
     @staticmethod
     def get_config_settings():
         default_event_types_show_description = [
+            # religious
             EventType.RELIGION,
+            # vocational
             EventType.OCCUPATION,
+            EventType.RETIREMENT,
+            EventType.ELECTED,
+            EventType.MILITARY_SERV,
+            EventType.ORDINATION,
+            # academic
+            EventType.EDUCATION,
+            EventType.DEGREE,
+            EventType.GRADUATION,
+            # other
+            EventType.CAUSE_DEATH,
+            EventType.MED_INFO,
+            EventType.NOB_TITLE,
+            EventType.NUM_MARRIAGES,
         ]
         return (
             ("appearance.familytreeview-num-ancestor-generations-default", 2),
