@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-06 14:59+0000\n"
+"POT-Creation-Date: 2025-04-06 15:52+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -55,7 +55,7 @@ msgid ""
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_tree_builder.py:377
-#: FamilyTreeView/family_tree_view_tree_builder.py:650
+#: FamilyTreeView/family_tree_view_tree_builder.py:655
 msgid "Building families and descendants..."
 msgstr ""
 
@@ -67,11 +67,11 @@ msgstr ""
 msgid "Building ancestors..."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_tree_builder.py:603
+#: FamilyTreeView/family_tree_view_tree_builder.py:608
 msgid "Preparing to build descendants..."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_tree_builder.py:627
+#: FamilyTreeView/family_tree_view_tree_builder.py:632
 msgid "Building descendants..."
 msgstr ""
 
