@@ -86,6 +86,7 @@ class FamilyTreeViewMinimapManager:
         self.init_minimap()
 
         self.minimap_view_rect = None
+        self.minimap_view_rect_line_width = 2
         self.widget_manager.canvas_manager.canvas_container.connect("size-allocate", self.set_view_rect)
         self.widget_manager.canvas_manager.hadjustment.connect("value-changed", self.set_view_rect)
         self.widget_manager.canvas_manager.vadjustment.connect("value-changed", self.set_view_rect)
@@ -128,7 +129,7 @@ class FamilyTreeViewMinimapManager:
             width=canvas_allocation.width/scale,
             fill_color_gdk_rgba=Gdk.RGBA(*fg_color, 0.15),
             stroke_color=rgb_to_hex(fg_color),
-            line_width=20
+            line_width=self.minimap_view_rect_line_width
         )
 
     def adjust_bounds(self, left, top, right, bottom):
@@ -151,6 +152,9 @@ class FamilyTreeViewMinimapManager:
             self.minimap_bounds[2] + h_extra/scale/2,
             self.minimap_bounds[3] + v_extra/scale/2
         )
+
+        self.minimap_view_rect_line_width = 2/scale
+        self.minimap_view_rect.props.line_width = self.minimap_view_rect_line_width
 
     def add_person(self, x, person_generation, background_color):
         y = self.widget_manager.tree_builder.get_y_of_generation(person_generation)-self.canvas_manager.person_height
