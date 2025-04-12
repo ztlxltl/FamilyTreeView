@@ -353,7 +353,7 @@ class FamilyTreeViewTimeline:
             event_place_str = self.ftv.get_place_name_from_event(event)
             if event_place_str is None: # no place
                 event_place_str = ""
-            else:
+            if event_place_str != "":
                 event_place_str = ",\n" + event_place_str
             event_place_str = event_place_str.encode('utf-8')
             event_place_str = GLib.markup_escape_text(event_place_str, len(event_place_str))
