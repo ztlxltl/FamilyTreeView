@@ -344,9 +344,19 @@ class FamilyTreeViewInfoWidgetManager:
         buttons.pack_start(set_active_button, False, False, 0)
 
         if panel_button:
-            open_panel_button = self.create_button("Open panel", icon="sidebar-show-right")
-            open_panel_button.connect("clicked", lambda*_: self.widget_manager.panel_manager.open_person_panel(person_handle))
-            buttons.pack_start(open_panel_button, False, False, 0)
+            self.open_panel_button = self.create_button("Open panel", icon="sidebar-show-right")
+            self.open_panel_button_opens = True
+            def cb_open_panel_button(*args):
+                if self.open_panel_button_opens:
+                    self.widget_manager.panel_manager.open_person_panel(person_handle)
+                    new_label = "Close panel"
+                else:
+                    self.widget_manager.close_panel()
+                    new_label = "Open panel"
+                self.open_panel_button.get_children()[0].get_children()[1].set_label(new_label)
+                self.open_panel_button_opens = not self.open_panel_button_opens
+            self.open_panel_button.connect("clicked", cb_open_panel_button)
+            buttons.pack_start(self.open_panel_button, False, False, 0)
 
         add_relative_button = self.create_button("Add relative", icon="list-add")
         add_relative_button.set_sensitive(False)
@@ -369,9 +379,19 @@ class FamilyTreeViewInfoWidgetManager:
             buttons.pack_start(set_active_button, False, False, 0)
 
         if panel_button:
-            open_panel_button = self.create_button("Open panel", icon="sidebar-show-right")
-            open_panel_button.connect("clicked", lambda*_: self.widget_manager.panel_manager.open_family_panel(family_handle))
-            buttons.pack_start(open_panel_button, False, False, 0)
+            self.open_panel_button = self.create_button("Open panel", icon="sidebar-show-right")
+            self.open_panel_button_opens = True
+            def cb_open_panel_button(*args):
+                if self.open_panel_button_opens:
+                    self.widget_manager.panel_manager.open_family_panel(family_handle)
+                    new_label = "Close panel"
+                else:
+                    self.widget_manager.close_panel()
+                    new_label = "Open panel"
+                self.open_panel_button.get_children()[0].get_children()[1].set_label(new_label)
+                self.open_panel_button_opens = not self.open_panel_button_opens
+            self.open_panel_button.connect("clicked", cb_open_panel_button)
+            buttons.pack_start(self.open_panel_button, False, False, 0)
 
         add_relative_button = self.create_button("Add relative", icon="list-add")
         add_relative_button.set_sensitive(False)
