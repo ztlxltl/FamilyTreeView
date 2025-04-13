@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-13 15:45+0000\n"
+"POT-Creation-Date: 2025-04-13 15:49+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -75,41 +75,83 @@ msgstr ""
 msgid "Building descendants..."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_info_widget_manager.py:232
-#: FamilyTreeView/family_tree_view_info_widget_manager.py:269
-msgid "Parent [unknown]"
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:87
+#, python-brace-format
+msgid "Set {name} as active person"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:234
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:271
-msgid "Mother"
+msgid "Parent [unknown]"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:236
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:273
-msgid "Father"
+msgid "Mother"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:238
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:275
+msgid "Father"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:240
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:277
 msgid "Parent"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_info_widget_manager.py:301
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:303
 msgid "Daughter"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_info_widget_manager.py:303
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:305
 msgid "Son"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_info_widget_manager.py:305
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:307
 msgid "Child"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_info_widget_manager.py:310
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:312
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:314
 msgid "unspecified"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:332
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:373
+#: FamilyTreeView/family_tree_view_widget_manager.py:922
+#: FamilyTreeView/family_tree_view_widget_manager.py:957
+msgid "Edit"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:337
+msgid "Set home"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:343
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:378
+msgid "Set active"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:349
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:357
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:384
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:392
+#: FamilyTreeView/family_tree_view_config_provider.py:676
+#: FamilyTreeView/family_tree_view_config_provider.py:685
+#: FamilyTreeView/family_tree_view_widget_manager.py:946
+#: FamilyTreeView/family_tree_view_widget_manager.py:969
+msgid "Open panel"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:354
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:389
+msgid "Close panel"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:363
+#: FamilyTreeView/family_tree_view_info_widget_manager.py:398
+msgid "Add relative"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_example_badges.gpr.py:24
@@ -439,13 +481,6 @@ msgstr ""
 #: FamilyTreeView/family_tree_view_widget_manager.py:940
 #: FamilyTreeView/family_tree_view_widget_manager.py:963
 msgid "Open info box"
-msgstr ""
-
-#: FamilyTreeView/family_tree_view_config_provider.py:676
-#: FamilyTreeView/family_tree_view_config_provider.py:685
-#: FamilyTreeView/family_tree_view_widget_manager.py:946
-#: FamilyTreeView/family_tree_view_widget_manager.py:969
-msgid "Open panel"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_config_provider.py:677
@@ -834,11 +869,6 @@ msgstr ""
 msgid ""
 "Search is not available. Install the Graph View addon and restart Gramps to "
 "make the search available."
-msgstr ""
-
-#: FamilyTreeView/family_tree_view_widget_manager.py:922
-#: FamilyTreeView/family_tree_view_widget_manager.py:957
-msgid "Edit"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_widget_manager.py:998
