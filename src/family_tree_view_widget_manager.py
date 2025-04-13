@@ -228,8 +228,14 @@ class FamilyTreeViewWidgetManager:
         else:
             paned_width = self.main_container_paned.get_allocation().width
             if self.panel_hidden:
-                self.main_container_paned.set_position(round(paned_width*0.8)) # default value
-                # if not hidden, keep position
+                paned_pos = round(paned_width * self.main_container_rel_pos)
+                min_panel_width = 100
+                if paned_width - paned_pos < min_panel_width:
+                    # Set to default or minimum width which can be
+                    # considered visible.
+                    paned_pos = max(min_panel_width, round(paned_width * 0.8))
+                self.main_container_paned.set_position(paned_pos)
+            # else: if not hidden, keep position
             self.panel_manager.panel_widget.show_all()
             self.panel_hidden = False
 
@@ -258,7 +264,7 @@ class FamilyTreeViewWidgetManager:
                 self.main_container_rel_pos = main_container.get_position() / allocation.width
             else:
                 # keep relative position
-                main_container.set_position(int(allocation.width * self.main_container_rel_pos))
+                main_container.set_position(round(allocation.width * self.main_container_rel_pos))
                 # don't update main_container_rel_pos here since this can cause drift in rel pos if size is changed fast
         self.container_size_last_allocation_tuple = allocation_tuple
 
