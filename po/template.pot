@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-13 15:49+0000\n"
+"POT-Creation-Date: 2025-04-13 16:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -119,8 +119,8 @@ msgstr ""
 
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:332
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:373
-#: FamilyTreeView/family_tree_view_widget_manager.py:922
-#: FamilyTreeView/family_tree_view_widget_manager.py:957
+#: FamilyTreeView/family_tree_view_widget_manager.py:928
+#: FamilyTreeView/family_tree_view_widget_manager.py:963
 msgid "Edit"
 msgstr ""
 
@@ -139,8 +139,8 @@ msgstr ""
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:392
 #: FamilyTreeView/family_tree_view_config_provider.py:676
 #: FamilyTreeView/family_tree_view_config_provider.py:685
-#: FamilyTreeView/family_tree_view_widget_manager.py:946
-#: FamilyTreeView/family_tree_view_widget_manager.py:969
+#: FamilyTreeView/family_tree_view_widget_manager.py:952
+#: FamilyTreeView/family_tree_view_widget_manager.py:975
 msgid "Open panel"
 msgstr ""
 
@@ -478,8 +478,8 @@ msgstr ""
 
 #: FamilyTreeView/family_tree_view_config_provider.py:675
 #: FamilyTreeView/family_tree_view_config_provider.py:684
-#: FamilyTreeView/family_tree_view_widget_manager.py:940
-#: FamilyTreeView/family_tree_view_widget_manager.py:963
+#: FamilyTreeView/family_tree_view_widget_manager.py:946
+#: FamilyTreeView/family_tree_view_widget_manager.py:969
 msgid "Open info box"
 msgstr ""
 
@@ -488,12 +488,12 @@ msgid "Edit person"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_config_provider.py:678
-#: FamilyTreeView/family_tree_view_widget_manager.py:934
+#: FamilyTreeView/family_tree_view_widget_manager.py:940
 msgid "Set as active person"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_config_provider.py:679
-#: FamilyTreeView/family_tree_view_widget_manager.py:928
+#: FamilyTreeView/family_tree_view_widget_manager.py:934
 msgid "Set as home person"
 msgstr ""
 
@@ -512,17 +512,17 @@ msgid "Set as active family"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_config_provider.py:693
-#: FamilyTreeView/family_tree_view_widget_manager.py:980
+#: FamilyTreeView/family_tree_view_widget_manager.py:986
 msgid "Zoom in"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_config_provider.py:694
-#: FamilyTreeView/family_tree_view_widget_manager.py:986
+#: FamilyTreeView/family_tree_view_widget_manager.py:992
 msgid "Zoom out"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_config_provider.py:695
-#: FamilyTreeView/family_tree_view_widget_manager.py:992
+#: FamilyTreeView/family_tree_view_widget_manager.py:998
 msgid "Reset zoom"
 msgstr ""
 
@@ -871,15 +871,15 @@ msgid ""
 "make the search available."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:998
+#: FamilyTreeView/family_tree_view_widget_manager.py:1004
 msgid "Scroll to active person"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1004
+#: FamilyTreeView/family_tree_view_widget_manager.py:1010
 msgid "Scroll to home person"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1016
+#: FamilyTreeView/family_tree_view_widget_manager.py:1022
 msgid "Scroll to active family"
 msgstr ""
 
