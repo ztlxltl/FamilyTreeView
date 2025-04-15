@@ -33,7 +33,7 @@ class FamilyTreeViewCanvasManagerBase:
 
         self.zoom_level_step = 0.1
         self.zoom_level_max = 4
-        self.zoom_level_min = -4
+        self.zoom_level_min = -6
 
         self.default_zoom_level = 0
         self.default_x = 0

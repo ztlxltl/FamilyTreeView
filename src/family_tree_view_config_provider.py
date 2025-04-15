@@ -49,8 +49,23 @@ class FamilyTreeViewConfigProvider:
     @staticmethod
     def get_config_settings():
         default_event_types_show_description = [
+            # religious
             EventType.RELIGION,
+            # vocational
             EventType.OCCUPATION,
+            EventType.RETIREMENT,
+            EventType.ELECTED,
+            EventType.MILITARY_SERV,
+            EventType.ORDINATION,
+            # academic
+            EventType.EDUCATION,
+            EventType.DEGREE,
+            EventType.GRADUATION,
+            # other
+            EventType.CAUSE_DEATH,
+            EventType.MED_INFO,
+            EventType.NOB_TITLE,
+            EventType.NUM_MARRIAGES,
         ]
         return (
             ("appearance.familytreeview-num-ancestor-generations-default", 2),
@@ -353,13 +368,17 @@ class FamilyTreeViewConfigProvider:
         grid.set_row_spacing(6)
         row = -1
 
+        # Since Gramps doesn't freeze while building the tree and the
+        # progress dialog (which shows up by default) allows to cancel,
+        # it's acceptable to allow huge trees.
+
         row += 1
         configdialog.add_spinner(
             grid,
             _("Default number of ancestor generations to show"),
             row,
             "appearance.familytreeview-num-ancestor-generations-default",
-            (0, 20) # more might can performance issues, expanders can be used
+            (0, 100)
         )
 
         row += 1
@@ -368,7 +387,7 @@ class FamilyTreeViewConfigProvider:
             _("Default number of descendant generations to show"),
             row,
             "appearance.familytreeview-num-descendant-generations-default",
-            (0, 20) # more might can performance issues, expanders can be used
+            (0, 100)
         )
 
         row += 1

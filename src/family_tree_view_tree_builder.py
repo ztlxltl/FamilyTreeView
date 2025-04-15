@@ -425,11 +425,16 @@ class FamilyTreeViewTreeBuilder():
 
         children_possible = person_generation <= 1
 
-        person_is_s1_in_primary_family = False # fallback
+        person_is_s1_in_prominent_family = False # fallback
         if len(family_handles) > 0:
-            primary_family = self.dbstate.db.get_family_from_handle(family_handles[0])
-            if primary_family is not None:
-                person_is_s1_in_primary_family = primary_family.get_father_handle() == person_handle
+            if skip_family_handle is None:
+                # main family
+                prominent_family_handle = family_handles[0]
+            else:
+                prominent_family_handle = skip_family_handle
+            prominent_family = self.dbstate.db.get_family_from_handle(prominent_family_handle)
+            if prominent_family is not None:
+                person_is_s1_in_prominent_family = prominent_family.get_father_handle() == person_handle
 
         for i_family, family_handle in enumerate(family_handles):
             if self.get_cancelled():
@@ -481,13 +486,13 @@ class FamilyTreeViewTreeBuilder():
 
                 if children_possible:
                     # Place the family so there is enough space for family and children.
-                    if person_is_s1_in_primary_family:
+                    if person_is_s1_in_prominent_family:
                         # Family will be on the left
                         x_family = x_person + person_bounds["st_l"] - max(family_width/2, children_bounds["st_r"]) - self.canvas_manager.other_families_sep
                     else:
                         x_family = x_person + person_bounds["st_r"] + max(family_width/2, -children_bounds["st_l"]) + self.canvas_manager.other_families_sep
                 else:
-                    if person_is_s1_in_primary_family:
+                    if person_is_s1_in_prominent_family:
                         # Family will be on the left
                         x_family = x_person + person_bounds["gs_l"] - family_width/2 - self.canvas_manager.other_families_sep
                     else:
