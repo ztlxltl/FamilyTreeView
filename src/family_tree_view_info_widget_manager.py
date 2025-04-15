@@ -83,7 +83,9 @@ class FamilyTreeViewInfoWidgetManager:
         name = name_displayer.display_name(person.get_primary_name())
         label = self.create_label_for_grid(markup=
             name
-            + f" <a href=\"{uri}\" title=\"Set {name} as active person\">\u2794</a>" # rightwards arrow
+            + f" <a href=\"{uri}\" title=\""
+            + _("Set {name} as active person").format(name=name)
+            + "\">\u2794</a>" # rightwards arrow
         )
         # TODO Increase font size of arrow without changing line height.
         # Tried to increase the size of the error with
@@ -327,28 +329,38 @@ class FamilyTreeViewInfoWidgetManager:
     def create_person_buttons_widget(self, person_handle, panel_button=True):
         buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
-        edit_button = self.create_button("Edit", icon="gtk-edit")
+        edit_button = self.create_button(_("Edit"), icon="gtk-edit")
         edit_button.connect("clicked", lambda *_: self.ftv.edit_person(person_handle))
         buttons.pack_start(edit_button, False, False, 0)
 
         home_person = self.ftv.dbstate.db.get_default_person()
-        set_home_button = self.create_button("Set home", icon="go-home")
+        set_home_button = self.create_button(_("Set home"), icon="go-home")
         if home_person is not None:
             set_home_button.set_sensitive(home_person.handle!=person_handle)
         set_home_button.connect("clicked", lambda *_: self.ftv.set_home_person(person_handle, also_set_active=False))
         buttons.pack_start(set_home_button, False, False, 0)
 
-        set_active_button = self.create_button("Set active", char="\u2794") # rightwards arrow
+        set_active_button = self.create_button(_("Set active"), char="\u2794") # rightwards arrow
         set_active_button.set_sensitive(self.ftv.get_active() != person_handle)
         set_active_button.connect("clicked", lambda *_: self.ftv.set_active_person(person_handle))
         buttons.pack_start(set_active_button, False, False, 0)
 
         if panel_button:
-            open_panel_button = self.create_button("Open panel", icon="sidebar-show-right")
-            open_panel_button.connect("clicked", lambda*_: self.widget_manager.panel_manager.open_person_panel(person_handle))
-            buttons.pack_start(open_panel_button, False, False, 0)
+            self.open_panel_button = self.create_button(_("Open panel"), icon="sidebar-show-right")
+            self.open_panel_button_opens = True
+            def cb_open_panel_button(*args):
+                if self.open_panel_button_opens:
+                    self.widget_manager.panel_manager.open_person_panel(person_handle)
+                    new_label = _("Close panel")
+                else:
+                    self.widget_manager.close_panel()
+                    new_label = _("Open panel")
+                self.open_panel_button.get_children()[0].get_children()[1].set_label(new_label)
+                self.open_panel_button_opens = not self.open_panel_button_opens
+            self.open_panel_button.connect("clicked", cb_open_panel_button)
+            buttons.pack_start(self.open_panel_button, False, False, 0)
 
-        add_relative_button = self.create_button("Add relative", icon="list-add")
+        add_relative_button = self.create_button(_("Add relative"), icon="list-add")
         add_relative_button.set_sensitive(False)
         buttons.pack_start(add_relative_button, False, False, 0)
 
@@ -358,22 +370,32 @@ class FamilyTreeViewInfoWidgetManager:
 
         buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
-        edit_button = self.create_button("Edit", icon="gtk-edit")
+        edit_button = self.create_button(_("Edit"), icon="gtk-edit")
         edit_button.connect("clicked", lambda *_: self.ftv.edit_family(family_handle))
         buttons.pack_start(edit_button, False, False, 0)
 
         if self.ftv._config.get("interaction.familytreeview-family-info-box-set-active-button"):
-            set_active_button = self.create_button("Set active", char="\u2794") # rightwards arrow
+            set_active_button = self.create_button(_("Set active"), char="\u2794") # rightwards arrow
             set_active_button.set_sensitive(self.ftv.get_active_family_handle() != family_handle)
             set_active_button.connect("clicked", lambda *_: self.ftv.set_active_family(family_handle))
             buttons.pack_start(set_active_button, False, False, 0)
 
         if panel_button:
-            open_panel_button = self.create_button("Open panel", icon="sidebar-show-right")
-            open_panel_button.connect("clicked", lambda*_: self.widget_manager.panel_manager.open_family_panel(family_handle))
-            buttons.pack_start(open_panel_button, False, False, 0)
+            self.open_panel_button = self.create_button(_("Open panel"), icon="sidebar-show-right")
+            self.open_panel_button_opens = True
+            def cb_open_panel_button(*args):
+                if self.open_panel_button_opens:
+                    self.widget_manager.panel_manager.open_family_panel(family_handle)
+                    new_label = _("Close panel")
+                else:
+                    self.widget_manager.close_panel()
+                    new_label = _("Open panel")
+                self.open_panel_button.get_children()[0].get_children()[1].set_label(new_label)
+                self.open_panel_button_opens = not self.open_panel_button_opens
+            self.open_panel_button.connect("clicked", cb_open_panel_button)
+            buttons.pack_start(self.open_panel_button, False, False, 0)
 
-        add_relative_button = self.create_button("Add relative", icon="list-add")
+        add_relative_button = self.create_button(_("Add relative"), icon="list-add")
         add_relative_button.set_sensitive(False)
         buttons.pack_start(add_relative_button, False, False, 0)
 

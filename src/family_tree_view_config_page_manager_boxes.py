@@ -194,7 +194,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
         row = -1
 
         row += 1
-        label = Gtk.Label(_("Boxes definition:"))
+        label = Gtk.Label(_("Boxes definition used in the tree chart:"))
         label.set_halign(Gtk.Align.START)
         main_grid.attach(label, 1, row, 2, 1)
         self.boxes_defs = [
@@ -289,7 +289,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
 
         row +=1
         person_width_label = Gtk.Label(_(
-            "Width of each person box in the tree:"
+            "Width of each person box in the tree chart:"
         ))
         person_width_label.set_halign(Gtk.Align.START)
         main_grid.attach(person_width_label, 1, row, 2, 1)

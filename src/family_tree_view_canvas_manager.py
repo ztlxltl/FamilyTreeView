@@ -96,6 +96,15 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.ancestor_sep = sep_for_two_expanders
         self.other_parent_families_sep = sep_for_two_expanders
 
+        # visibility threshold
+        # Set the offset to positive a number for testing, or to a
+        # negative number for very high PPI screens.
+        # TODO Detect screen PPI/DPI and adjust this value.
+        visibility_threshold_offset = 0
+        self.visibility_threshold_expanders = 2**(-4+visibility_threshold_offset)
+        self.visibility_threshold_text = 2**(-5+visibility_threshold_offset)
+        self.visibility_threshold_badges = 2**(-5+visibility_threshold_offset)
+
         # defaults
         self.reset_zoom_values()
         self.reset_transform()
@@ -380,6 +389,8 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                     fill_color=contrast_color,
                     # ellipsize needs to be applied after abbreviation selection
                     wrap=Pango.WrapMode.WORD,
+                    visibility=GooCanvas.CanvasItemVisibility.VISIBLE_ABOVE_THRESHOLD,
+                    visibility_threshold=self.visibility_threshold_text,
                 )
 
                 if (
@@ -533,7 +544,11 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         for badge_info in reversed(badges): # since they are added from right to left
             x -= self.badge_sep
             x_ = x
-            group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
+            group = GooCanvas.CanvasGroup(
+                parent=self.canvas.get_root_item(),
+                visibility=GooCanvas.CanvasItemVisibility.VISIBLE_ABOVE_THRESHOLD,
+                visibility_threshold=self.visibility_threshold_badges,
+            )
             if "click_callback" in badge_info:
                 # We can't tell if the pointer moves away from the badge while the mouse button is held down.
                 # item and target of button-release-event are the same whether the mouse stays on the badge or not.
@@ -576,6 +591,8 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                         anchor=GooCanvas.CanvasAnchorType.EAST,
                         font_desc=font_desc,
                         tooltip=tooltip,
+                        visibility=GooCanvas.CanvasItemVisibility.VISIBLE_ABOVE_THRESHOLD,
+                        visibility_threshold=self.visibility_threshold_text,
                     )
                     ink_extent_rect, logical_extent_rect = badge_content_text.get_natural_extents()
                     Pango.extents_to_pixels(logical_extent_rect)
@@ -621,7 +638,11 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             badge_rect.props.width = w
 
     def add_expander(self, x, y, ang, click_callback):
-        group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
+        group = GooCanvas.CanvasGroup(
+            parent=self.canvas.get_root_item(),
+            visibility=GooCanvas.CanvasItemVisibility.VISIBLE_ABOVE_THRESHOLD,
+            visibility_threshold=self.visibility_threshold_expanders,
+        )
         group.connect("button-press-event", self.click_callback, click_callback)
         self.expander_list.append(group)
         parent = group
