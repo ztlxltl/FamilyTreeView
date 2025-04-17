@@ -515,7 +515,7 @@ class FamilyTreeViewTimeline:
                 # get the first tick unit whose ticks are far enough apart
                 for i in range(len(UNIT_LIST)):
                     num_base_units, unit_factor, unit_name_years, unit_name_time = UNIT_LIST[i]
-                    num_base_units *= num_days
+                    num_base_units *= num_days * (pos_num_days / num_days) # account for zero event > min event
                     num_ticks = num_base_units / unit_factor
                     tick_dist = pos_timeline_height / num_ticks
                     if tick_dist >= min_tick_dist or i == len(UNIT_LIST)-1:
@@ -579,24 +579,12 @@ class FamilyTreeViewTimeline:
 
         prev_y_time = None
         prev_first_line_center = None
-        start_event_sort_value = self.start_event.date.get_sort_value()
         for i, (event_sort_value, event_label) in enumerate(zip(event_sort_values, event_labels)):
             try:
                 y_time_rel = (event_sort_value - min_sort_values) / (max_sort_values - min_sort_values)
             except ZeroDivisionError:
                 y_time_rel = 0
             y_time = y_time_rel * timeline_height + self.timeline_top_margin
-            if start_event_sort_value > min_sort_values:
-                # y_time above goes progressively skewed when the timeline
-                # starts before a "zero event" because the timeline attach
-                # points were calculated on the entire vertical span.
-                # For timelines with events before a "zero event", they should
-                # be calculated only on the span from time 0 to the bottom.
-                y_time_bottom = canvas_height - self.timeline_bottom_margin
-                y_time_factor = (y_time_bottom - zero_event_offset) / y_time_bottom # % of the timeline
-                y_time_temp = y_time - (zero_event_offset + self.timeline_top_margin)
-                y_time_temp = y_time_temp * y_time_factor # apply the factor with respect to the applicable span
-                y_time = y_time_temp + (zero_event_offset + self.timeline_top_margin)
 
             connect_to_previous = prev_y_time is not None and y_time - prev_y_time < 2*self.timeline_marker_radius
 
