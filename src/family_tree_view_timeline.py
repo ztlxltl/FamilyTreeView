@@ -515,7 +515,7 @@ class FamilyTreeViewTimeline:
                 # get the first tick unit whose ticks are far enough apart
                 for i in range(len(UNIT_LIST)):
                     num_base_units, unit_factor, unit_name_years, unit_name_time = UNIT_LIST[i]
-                    num_base_units *= num_days * (pos_num_days / num_days) # account for zero event > min event
+                    num_base_units *= pos_num_days
                     num_ticks = num_base_units / unit_factor
                     tick_dist = pos_timeline_height / num_ticks
                     if tick_dist >= min_tick_dist or i == len(UNIT_LIST)-1:
