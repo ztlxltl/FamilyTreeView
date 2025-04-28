@@ -751,7 +751,7 @@ class FamilyTreeView(NavigationView, Callback):
         family.add_child_ref(ref)
         EditFamily(self.dbstate, self.uistate, [], family)
 
-    def add_new_spouse(self, person_handle, person_is_first):
+    def add_new_family(self, person_handle, person_is_first):
         """
         Add a new family for a new spouse of person_handle.  If `person_is_first`,
         the person takes the first position, and the new spouse takes the second
@@ -767,6 +767,25 @@ class FamilyTreeView(NavigationView, Callback):
         else:
             family.set_mother_handle(person_handle)
         EditFamily(self.dbstate, self.uistate, [], family)
+
+    def add_new_spouse(self, family_handle, new_spouse_is_first):
+        family = self.dbstate.db.get_family_from_handle(family_handle)
+        try:
+            edit_window = EditFamily(self.dbstate, self.uistate, [], family)
+            if new_spouse_is_first:
+                edit_window.add_father_clicked(None)
+            else:
+                edit_window.add_mother_clicked(None)
+        except WindowActiveError:
+            pass
+
+    def add_new_child(self, family_handle):
+        family = self.dbstate.db.get_family_from_handle(family_handle)
+        try:
+            edit_window = EditFamily(self.dbstate, self.uistate, [], family)
+            edit_window.child_list.add_button_clicked(None)
+        except WindowActiveError:
+            pass
 
     # printing
 
