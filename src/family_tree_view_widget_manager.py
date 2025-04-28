@@ -918,6 +918,7 @@ class FamilyTreeViewWidgetManager:
         self.canvas_manager.move_to_center(*active_pos)
 
     def open_person_context_menu(self, person_handle, event, x, person_generation, alignment):
+        person = self.ftv.get_person_from_handle(person_handle)
         self.menu = Gtk.Menu()
 
         menu_item = Gtk.MenuItem(label=_("Edit"))
@@ -950,25 +951,71 @@ class FamilyTreeViewWidgetManager:
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label=_("Add a new parent family"))
+        menu_item = Gtk.MenuItem(label=_("Add a new parent family (and parents)"))
         menu_item.connect("activate", lambda *_args:
             self.ftv.add_new_parent_family(person_handle)
         )
         self.menu.append(menu_item)
 
-        menu_item = Gtk.MenuItem(label=_("Add a new family with this person as first spouse"))
-        menu_item.connect("activate", lambda *_args:
-            self.ftv.add_new_spouse(person_handle, person_is_first=True)
-        )
-        self.menu.append(menu_item)
+        if person.get_gender() == Person.MALE:
+            show_as_first = True
+            show_as_second = False
+        elif person.get_gender() == Person.FEMALE:
+            show_as_first = False
+            show_as_second = True
+        else:
+            family_handle_list = person.get_family_handle_list()
+            families = [
+                self.ftv.dbstate.db.get_family_from_handle(family_handle)
+                for family_handle in family_handle_list
+            ]
+            if len(families) == 0:
+                show_as_first = True
+                show_as_second = True
+            else:
+                father_sum = 0
+                mother_sum = 0
+                for fam in families:
+                    father_sum += fam.get_father_handle() == person_handle
+                    mother_sum += fam.get_mother_handle() == person_handle
+                if father_sum > mother_sum:
+                    show_as_first = True
+                    show_as_second = False
+                elif father_sum < mother_sum:
+                    show_as_first = False
+                    show_as_second = True
+                else:
+                    show_as_first = True
+                    show_as_second = True
 
-        menu_item = Gtk.MenuItem(label=_("Add a new family with this person as second spouse"))
-        menu_item.connect("activate", lambda *_args:
-            self.ftv.add_new_spouse(person_handle, person_is_first=False)
-        )
-        self.menu.append(menu_item)
+        if show_as_first:
+            if show_as_second:
+                label = _(
+                    "Add a new family (and spouse/children)\n"
+                    "with this person as the first spouse"
+                )
+            else:
+                label = _("Add a new family (and spouse/children)")
+            menu_item = Gtk.MenuItem(label=label)
+            menu_item.connect("activate", lambda *_args:
+                self.ftv.add_new_spouse(person_handle, person_is_first=True)
+            )
+            self.menu.append(menu_item)
 
-        person = self.ftv.get_person_from_handle(person_handle)
+        if show_as_second:
+            if show_as_first:
+                label = _(
+                    "Add a new family (and spouse/children)\n"
+                    "with this person as the second spouse"
+                )
+            else:
+                label = _("Add a new family (and spouse/children)")
+            menu_item = Gtk.MenuItem(label=label)
+            menu_item.connect("activate", lambda *_args:
+                self.ftv.add_new_spouse(person_handle, person_is_first=False)
+            )
+            self.menu.append(menu_item)
+
         associated_people_handles = []
         for person_ref in person.get_person_ref_list():
             associated_people_handles.append(person_ref.get_reference_handle())
