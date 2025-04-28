@@ -31,7 +31,7 @@ from gramps.gen.config import config
 from gramps.gen.const import CUSTOM_FILTERS
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.errors import HandleError, WindowActiveError
-from gramps.gen.lib import EventType
+from gramps.gen.lib import ChildRef, EventType, Family, FamilyRelType
 from gramps.gen.utils.callback import Callback
 from gramps.gen.utils.file import find_file, media_path_full
 from gramps.gen.utils.symbols import Symbols
@@ -739,6 +739,34 @@ class FamilyTreeView(NavigationView, Callback):
             edit_family.add_father_clicked(None)
         else:
             edit_family.add_mother_clicked(None)
+
+    def add_new_parent_family(self, person_handle):
+        person = self.get_person_from_handle(person_handle)
+        if person is None:
+            return
+        family = Family()
+        family.set_relationship(FamilyRelType(FamilyRelType.UNKNOWN))
+        ref = ChildRef()
+        ref.set_reference_handle(person_handle)
+        family.add_child_ref(ref)
+        EditFamily(self.dbstate, self.uistate, [], family)
+
+    def add_new_spouse(self, person_handle, person_is_first):
+        """
+        Add a new family for a new spouse of person_handle.  If `person_is_first`,
+        the person takes the first position, and the new spouse takes the second
+        position.
+        """
+        person = self.get_person_from_handle(person_handle)
+        if person is None:
+            return
+        family = Family()
+        family.set_relationship(FamilyRelType(FamilyRelType.UNKNOWN))
+        if person_is_first:
+            family.set_father_handle(person_handle)
+        else:
+            family.set_mother_handle(person_handle)
+        EditFamily(self.dbstate, self.uistate, [], family)
 
     # printing
 

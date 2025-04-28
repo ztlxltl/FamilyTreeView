@@ -29,6 +29,7 @@ from gi.repository import Gdk, GLib, Gtk
 from gramps.gen.config import config
 from gramps.gen.const import USER_PLUGINS
 from gramps.gen.datehandler import get_date
+from gramps.gen.display.name import displayer as name_displayer
 from gramps.gen.lib import Person
 from gramps.gen.utils.alive import probably_alive
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback, get_divorce_or_fallback
@@ -923,6 +924,7 @@ class FamilyTreeViewWidgetManager:
         self.canvas_manager.move_to_center(*active_pos)
 
     def open_person_context_menu(self, person_handle, event, x, person_generation, alignment):
+        person = self.ftv.get_person_from_handle(person_handle)
         self.menu = Gtk.Menu()
 
         menu_item = Gtk.MenuItem(label=_("Edit"))
@@ -954,6 +956,93 @@ class FamilyTreeViewWidgetManager:
             self.panel_manager.open_person_panel(person_handle)
         )
         self.menu.append(menu_item)
+
+        menu_item = Gtk.MenuItem(label=_("Add a new parent family (and parents)"))
+        menu_item.connect("activate", lambda *_args:
+            self.ftv.add_new_parent_family(person_handle)
+        )
+        self.menu.append(menu_item)
+
+        if person.get_gender() == Person.MALE:
+            show_as_first = True
+            show_as_second = False
+        elif person.get_gender() == Person.FEMALE:
+            show_as_first = False
+            show_as_second = True
+        else:
+            family_handle_list = person.get_family_handle_list()
+            families = [
+                self.ftv.dbstate.db.get_family_from_handle(family_handle)
+                for family_handle in family_handle_list
+            ]
+            if len(families) == 0:
+                show_as_first = True
+                show_as_second = True
+            else:
+                father_sum = 0
+                mother_sum = 0
+                for fam in families:
+                    father_sum += fam.get_father_handle() == person_handle
+                    mother_sum += fam.get_mother_handle() == person_handle
+                if father_sum > mother_sum:
+                    show_as_first = True
+                    show_as_second = False
+                elif father_sum < mother_sum:
+                    show_as_first = False
+                    show_as_second = True
+                else:
+                    show_as_first = True
+                    show_as_second = True
+
+        if show_as_first:
+            if show_as_second:
+                label = _(
+                    "Add a new family (and spouse/children)\n"
+                    "with this person as the first spouse"
+                )
+            else:
+                label = _("Add a new family (and spouse/children)")
+            menu_item = Gtk.MenuItem(label=label)
+            menu_item.connect("activate", lambda *_args:
+                self.ftv.add_new_spouse(person_handle, person_is_first=True)
+            )
+            self.menu.append(menu_item)
+
+        if show_as_second:
+            if show_as_first:
+                label = _(
+                    "Add a new family (and spouse/children)\n"
+                    "with this person as the second spouse"
+                )
+            else:
+                label = _("Add a new family (and spouse/children)")
+            menu_item = Gtk.MenuItem(label=label)
+            menu_item.connect("activate", lambda *_args:
+                self.ftv.add_new_spouse(person_handle, person_is_first=False)
+            )
+            self.menu.append(menu_item)
+
+        associated_people_handles = []
+        for person_ref in person.get_person_ref_list():
+            associated_people_handles.append(person_ref.get_reference_handle())
+        if len(associated_people_handles) > 0:
+            submenu = Gtk.Menu()
+            menu_item = Gtk.MenuItem(label=_("Set an associated person as active"))
+            menu_item.set_submenu(submenu)
+            menu_item.show()
+            self.menu.append(menu_item)
+
+            for associated_person_handle in associated_people_handles:
+                person = self.ftv.get_person_from_handle(associated_person_handle)
+                name = person.get_primary_name()
+                menu_item = Gtk.MenuItem(label=name_displayer.display_name(name))
+                menu_item.connect("activate", lambda *_args:
+                    self.ftv.set_active_person(associated_person_handle)
+                )
+                submenu.append(menu_item)
+
+            ## TODO: Add witnesses at this person's main event
+            ## TODO: Add main people at event this person witnessed
 
         self.show_menu(event)
 
