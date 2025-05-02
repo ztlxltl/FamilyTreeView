@@ -495,7 +495,7 @@ def names_page(ftv: "FamilyTreeView", configdialog):
     preview_scrolled.add(preview_tree_view)
     grid.attach(preview_scrolled, 1, row, 3, 1)
 
-    return (_("Names"), grid)
+    return grid
 
 def _fill_abbrev_rules_model_from_config(ftv: "FamilyTreeView", abbrev_rules_model):
     abbrev_rules_model.clear()

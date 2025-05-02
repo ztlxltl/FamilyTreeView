@@ -456,7 +456,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
             boxes_def_grid.attach(box_type_def_grid, 1, box_def_i, 1, 1)
 
         main_grid.attach(boxes_def_grid, 1, box_def_row, 4, 1)
-        return (_("Boxes"), main_grid)
+        return main_grid
 
     def _fill_item_defs_list_store_from_config(self, box_type):
         self.item_defs_list_stores[box_type].clear()
