@@ -812,6 +812,7 @@ class FamilyTreeViewConfigProvider:
                 "Printing and exporting:"
             ),
             row,
+            stop=3,
         )
 
         row += 1
