@@ -744,11 +744,13 @@ class FamilyTreeView(NavigationView, Callback):
 
         with suppress(WindowActiveError):
             edit_window = EditFamily(self.dbstate, self.uistate, [], family)
-        with suppress(WindowActiveError): # suppress separately for each window
-            if is_first_spouse:
-                edit_window.add_father_clicked(None)
-            else:
-                edit_window.add_mother_clicked(None)
+            # TODO WindowActiveError: Can we get the active window and
+            # use it instead of creating a new one?
+            with suppress(WindowActiveError): # suppress separately for each window
+                if is_first_spouse:
+                    edit_window.add_father_clicked(None)
+                else:
+                    edit_window.add_mother_clicked(None)
 
     def add_new_parent_family(self, person_handle, add_parent=0, add_sibling=False):
         person = self.get_person_from_handle(person_handle)
@@ -761,15 +763,15 @@ class FamilyTreeView(NavigationView, Callback):
         family.add_child_ref(ref)
         with suppress(WindowActiveError):
             edit_window = EditFamily(self.dbstate, self.uistate, [], family)
-        with suppress(WindowActiveError): # suppress separately for each window
-            if add_parent == 1:
-                edit_window.add_father_clicked(None)
-            elif add_parent == 2:
-                edit_window.add_mother_clicked(None)
-            # else and_parent == 0: do nothing
-        with suppress(WindowActiveError): # suppress separately for each window
-            if add_sibling:
-                edit_window.child_list.add_button_clicked(None)
+            with suppress(WindowActiveError): # suppress separately for each window
+                if add_parent == 1:
+                    edit_window.add_father_clicked(None)
+                elif add_parent == 2:
+                    edit_window.add_mother_clicked(None)
+                # else and_parent == 0: do nothing
+            with suppress(WindowActiveError): # suppress separately for each window
+                if add_sibling:
+                    edit_window.child_list.add_button_clicked(None)
 
     def add_new_family(self, person_handle, person_is_first, add_spouse=False, add_child=False):
         """
@@ -788,32 +790,32 @@ class FamilyTreeView(NavigationView, Callback):
             family.set_mother_handle(person_handle)
         with suppress(WindowActiveError):
             edit_window = EditFamily(self.dbstate, self.uistate, [], family)
-        with suppress(WindowActiveError): # suppress separately for each window
-            if add_spouse:
-                if person_is_first: # person is father, add mother
-                    edit_window.add_mother_clicked(None)
-                else:
-                    edit_window.add_father_clicked(None)
-        with suppress(WindowActiveError): # suppress separately for each window
-            if add_child:
-                edit_window.child_list.add_button_clicked(None)
+            with suppress(WindowActiveError): # suppress separately for each window
+                if add_spouse:
+                    if person_is_first: # person is father, add mother
+                        edit_window.add_mother_clicked(None)
+                    else:
+                        edit_window.add_father_clicked(None)
+            with suppress(WindowActiveError): # suppress separately for each window
+                if add_child:
+                    edit_window.child_list.add_button_clicked(None)
 
     def add_new_spouse(self, family_handle, new_spouse_is_first):
         family = self.dbstate.db.get_family_from_handle(family_handle)
         with suppress(WindowActiveError):
             edit_window = EditFamily(self.dbstate, self.uistate, [], family)
-        with suppress(WindowActiveError): # suppress separately for each window
-            if new_spouse_is_first:
-                edit_window.add_father_clicked(None)
-            else:
-                edit_window.add_mother_clicked(None)
+            with suppress(WindowActiveError): # suppress separately for each window
+                if new_spouse_is_first:
+                    edit_window.add_father_clicked(None)
+                else:
+                    edit_window.add_mother_clicked(None)
 
     def add_new_child(self, family_handle):
         family = self.dbstate.db.get_family_from_handle(family_handle)
         with suppress(WindowActiveError):
             edit_window = EditFamily(self.dbstate, self.uistate, [], family)
-        with suppress(WindowActiveError): # suppress separately for each window
-            edit_window.child_list.add_button_clicked(None)
+            with suppress(WindowActiveError): # suppress separately for each window
+                edit_window.child_list.add_button_clicked(None)
 
     # printing
 
