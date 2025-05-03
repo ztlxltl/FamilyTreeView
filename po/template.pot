@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-03 15:08+0000\n"
+"POT-Creation-Date: 2025-05-03 16:43+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1594,14 +1594,14 @@ msgstr ""
 msgid "Add relative"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:883
+#: FamilyTreeView/family_tree_view.py:885
 msgid "Export tree as SVG"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:895
+#: FamilyTreeView/family_tree_view.py:897
 msgid "SVG files"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:900
+#: FamilyTreeView/family_tree_view.py:902
 msgid "Any files"
 msgstr ""
