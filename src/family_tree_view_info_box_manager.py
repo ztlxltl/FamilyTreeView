@@ -80,7 +80,7 @@ class FamilyTreeViewInfoBoxManager(FamilyTreeViewInfoWidgetManager):
         base_info.add(base_data)
         self.info_box_widget.add(base_info)
 
-        buttons = self.create_person_buttons_widget(person_handle)
+        buttons = self.create_person_buttons_widget(person_handle, x, person_generation)
         self.info_box_widget.add(buttons)
 
         tags = self.create_tags_widget(person)
@@ -107,7 +107,7 @@ class FamilyTreeViewInfoBoxManager(FamilyTreeViewInfoWidgetManager):
         main_events = self.create_family_base_events_widget(family)
         self.info_box_widget.add(main_events)
 
-        buttons = self.create_family_buttons_widget(family_handle)
+        buttons = self.create_family_buttons_widget(family_handle, x, family_generation)
         self.info_box_widget.add(buttons)
 
         tags = self.create_tags_widget(family)

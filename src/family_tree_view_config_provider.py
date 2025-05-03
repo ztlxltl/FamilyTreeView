@@ -114,6 +114,8 @@ class FamilyTreeViewConfigProvider:
             ("interaction.familytreeview-zoom-level-default", 0),
             ("interaction.familytreeview-zoom-level-step", 0.15),
             ("interaction.familytreeview-family-info-box-set-active-button", False),
+            ("interaction.familytreeview-person-add-relative-action", "overlay"),
+            ("interaction.familytreeview-family-add-relative-action", "overlay"),
             ("interaction.familytreeview-printing-scale-to-page", False),
             ("interaction.familytreeview-printing-export-hide-expanders", True),
 
@@ -803,6 +805,52 @@ class FamilyTreeViewConfigProvider:
             "interaction.familytreeview-family-info-box-set-active-button",
             stop=3 # same width as spinners and combos
         )
+
+        person_label = _("Menu to open with the person \"Add relatives\" button:")
+        family_label = _("Menu to open with the family \"Add relatives\" button:")
+        person_options = [
+            ("context_menu", _("Context menu")),
+            ("overlay", _("Overlay menu")),
+            ("overlay_direct", _("Overlay menu (only direct relationships)")),
+            ("overlay_main", _("Overlay menu (only main relationships)")),
+            ("overlay_all", _("Overlay menu (everything)")),
+        ]
+        family_options = [
+            ("context_menu", _("Context menu")),
+            ("overlay", _("Overlay menu")),
+        ]
+        def cb_add_relative_changed(combo, key, options):
+            self.ftv._config.set(
+                f"interaction.familytreeview-{key}-add-relative-action",
+                options[combo.get_active()][0]
+            )
+        for key, label_text, options in [
+            ("person", person_label, person_options),
+            ("family", family_label, family_options)
+        ]:
+            row += 1
+            add_rel_label = Gtk.Label(label_text)
+            add_rel_label.set_halign(Gtk.Align.START)
+            add_rel_label.set_xalign(0)
+            add_rel_label.set_line_wrap(True)
+            grid.attach(add_rel_label, 1, row, 1, 1)
+            add_rel_list_store = Gtk.ListStore(str, str)
+            for option_id, option_label in options:
+                add_rel_list_store.append((option_id, option_label))
+            add_rel_combo = Gtk.ComboBox(model=add_rel_list_store)
+            renderer = Gtk.CellRendererText()
+            add_rel_combo.pack_start(renderer, True)
+            add_rel_combo.add_attribute(renderer, "text", 1)
+            active_option = self.ftv._config.get(f"interaction.familytreeview-{key}-add-relative-action")
+            try:
+                active_index = [opt[0] for opt in options].index(active_option)
+            except ValueError:
+                active_index = 1 # overlay
+            add_rel_combo.set_active(
+                active_index
+            )
+            add_rel_combo.connect("changed", cb_add_relative_changed, key, options)
+            grid.attach(add_rel_combo, 2, row, 1, 1)
 
         # TODO Maybe move printing options to appearance?
         row += 1

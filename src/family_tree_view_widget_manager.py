@@ -156,12 +156,16 @@ class FamilyTreeViewWidgetManager:
         self.minimap_manager = FamilyTreeViewMinimapManager(self)
         self.minimap_overlay_container.add_overlay(self.minimap_manager.minimap_outer_container)
 
+        self.close_tree_overlay_container = Gtk.Overlay()
+        self.close_tree_overlay_button = None
+        self.close_tree_overlay_container.add(self.minimap_overlay_container)
+
         # Overlay is required for info boxes.
         # This solution isn't perfect since the overlayed child is in front of the scroll bar of ScrolledWindow.
         # Overlay inside ScrollWindow doesn't work as GooCanvas doesn't seem to expand Overlay larger than ScrolledWindow.
         # Maybe I'm missing a property to fix this.
         self.info_box_overlay_container = Gtk.Overlay()
-        self.info_box_overlay_container.add(self.minimap_overlay_container)
+        self.info_box_overlay_container.add(self.close_tree_overlay_container)
         self.main_container_paned.pack1(self.info_box_overlay_container)
         self.info_box_manager = FamilyTreeViewInfoBoxManager(self)
 
@@ -289,7 +293,7 @@ class FamilyTreeViewWidgetManager:
 
         self.position_of_handle = {}
 
-    def add_person(self, person_handle, x, person_generation, alignment, ahnentafel=None):
+    def add_person(self, person_handle, x, person_generation, alignment, ahnentafel=None, canvas_parent=None):
         person = self.ftv.get_person_from_handle(person_handle)
 
         alive = probably_alive(person, self.ftv.dbstate.db)
@@ -436,7 +440,7 @@ class FamilyTreeViewWidgetManager:
         person_bounds = self.canvas_manager.add_person(
             x, person_generation, content_items, background_color, border_color, alive, round_lower_corners,
             click_callback=lambda item, target, event: self._cb_person_clicked(person_handle, event, x, person_generation, alignment),
-            badges=badges
+            badges=badges, parent=canvas_parent
         )
         self.minimap_manager.add_person(x, person_generation, background_color)
 
@@ -449,7 +453,7 @@ class FamilyTreeViewWidgetManager:
 
         return person_bounds
 
-    def add_missing_person(self, x, person_generation, alignment, relationship, handle):
+    def get_colors_for_missing(self):
         fg_color_found, fg_color = self.main_widget.get_style_context().lookup_color('theme_fg_color')
         if fg_color_found:
             fg_color = tuple(fg_color)[:3]
@@ -465,6 +469,10 @@ class FamilyTreeViewWidgetManager:
         background_color = rgb_to_hex(tuple(fgc*0.1+bgc*0.9 for fgc, bgc in zip(fg_color, bg_color)))
         border_color = "#000"
 
+        return (background_color, border_color)
+
+    def add_missing_person(self, x, person_generation, alignment, relationship, handle):
+        background_color, border_color = self.get_colors_for_missing()
         round_lower_corners = alignment == "c"
 
         gutter_size = (
@@ -489,7 +497,7 @@ class FamilyTreeViewWidgetManager:
 
         return person_bounds
 
-    def add_family(self, family_handle, x, family_generation):
+    def add_family(self, family_handle, x, family_generation, canvas_parent=None):
         family = self.ftv.dbstate.db.get_family_from_handle(family_handle)
         background_color, border_color = color_graph_family(family, self.ftv.dbstate)
 
@@ -579,7 +587,7 @@ class FamilyTreeViewWidgetManager:
         family_bounds = self.canvas_manager.add_family(
             x, family_generation, content_items, background_color, border_color,
             click_callback=lambda item, target, event: self._cb_family_clicked(family_handle, event, x, family_generation),
-            badges=badges
+            badges=badges, parent=canvas_parent
         )
         self.minimap_manager.add_family(x, family_generation, background_color)
 
@@ -953,10 +961,37 @@ class FamilyTreeViewWidgetManager:
 
         menu_item = Gtk.MenuItem(label=_("Open panel"))
         menu_item.connect("activate", lambda *_args:
-            self.panel_manager.open_person_panel(person_handle)
+            self.panel_manager.open_person_panel(person_handle, x, person_generation)
         )
         self.menu.append(menu_item)
 
+        self.add_person_add_relatives_items_to_menu(person_handle, person)
+
+        associated_people_handles = []
+        for person_ref in person.get_person_ref_list():
+            associated_people_handles.append(person_ref.get_reference_handle())
+        if len(associated_people_handles) > 0:
+            submenu = Gtk.Menu()
+            menu_item = Gtk.MenuItem(label=_("Set an associated person as active"))
+            menu_item.set_submenu(submenu)
+            menu_item.show()
+            self.menu.append(menu_item)
+
+            for associated_person_handle in associated_people_handles:
+                person = self.ftv.get_person_from_handle(associated_person_handle)
+                name = person.get_primary_name()
+                menu_item = Gtk.MenuItem(label=name_displayer.display_name(name))
+                menu_item.connect("activate", lambda *_args:
+                    self.ftv.set_active_person(associated_person_handle)
+                )
+                submenu.append(menu_item)
+
+            ## TODO: Add witnesses at this person's main event
+            ## TODO: Add main people at event this person witnessed
+
+        self.show_menu(event)
+
+    def add_person_add_relatives_items_to_menu(self, person_handle, person):
         menu_item = Gtk.MenuItem(label=_("Add a new parent family (and parents)"))
         menu_item.connect("activate", lambda *_args:
             self.ftv.add_new_parent_family(person_handle)
@@ -1022,30 +1057,6 @@ class FamilyTreeViewWidgetManager:
             )
             self.menu.append(menu_item)
 
-        associated_people_handles = []
-        for person_ref in person.get_person_ref_list():
-            associated_people_handles.append(person_ref.get_reference_handle())
-        if len(associated_people_handles) > 0:
-            submenu = Gtk.Menu()
-            menu_item = Gtk.MenuItem(label=_("Set an associated person as active"))
-            menu_item.set_submenu(submenu)
-            menu_item.show()
-            self.menu.append(menu_item)
-
-            for associated_person_handle in associated_people_handles:
-                person = self.ftv.get_person_from_handle(associated_person_handle)
-                name = person.get_primary_name()
-                menu_item = Gtk.MenuItem(label=name_displayer.display_name(name))
-                menu_item.connect("activate", lambda *_args:
-                    self.ftv.set_active_person(associated_person_handle)
-                )
-                submenu.append(menu_item)
-
-            ## TODO: Add witnesses at this person's main event
-            ## TODO: Add main people at event this person witnessed
-
-        self.show_menu(event)
-
     def open_family_context_menu(self, family_handle, event, x, family_generation):
         family = self.ftv.dbstate.db.get_family_from_handle(family_handle)
         self.menu = Gtk.Menu()
@@ -1068,6 +1079,11 @@ class FamilyTreeViewWidgetManager:
         )
         self.menu.append(menu_item)
 
+        self.add_family_add_relatives_items_to_menu(family_handle, family)
+
+        self.show_menu(event)
+
+    def add_family_add_relatives_items_to_menu(self, family_handle, family):
         father_handle = family.get_father_handle()
         if father_handle is None or len(father_handle) == 0:
             menu_item = Gtk.MenuItem(label=_("Add a new person as father"))
@@ -1089,8 +1105,6 @@ class FamilyTreeViewWidgetManager:
             self.ftv.add_new_child(family_handle)
         )
         self.menu.append(menu_item)
-
-        self.show_menu(event)
 
     def open_background_context_menu(self, event):
         self.menu = Gtk.Menu()
@@ -1163,6 +1177,62 @@ class FamilyTreeViewWidgetManager:
         new_event.button = orig_event.button
         new_event.time = orig_event.time
         self.menu.popup_at_pointer(new_event)
+
+    def show_menu_at_widget(self, button):
+        self.menu.show_all()
+
+        new_event = Gdk.Event.new(Gdk.EventType.BUTTON_PRESS)
+        seat = self.main_widget.get_display().get_default_seat()
+        new_event.device = seat.get_pointer() or seat.get_keyboard()
+        self.menu.popup_at_widget(button, Gdk.Gravity.SOUTH_WEST, Gdk.Gravity.NORTH_WEST, new_event)
+
+    def person_add_relative_clicked(self, button, person_handle, x_person, generation):
+        action = self.ftv._config.get("interaction.familytreeview-person-add-relative-action")
+        if action == "context_menu":
+            self.menu = Gtk.Menu()
+            person = self.ftv.get_person_from_handle(person_handle)
+            self.add_person_add_relatives_items_to_menu(person_handle, person)
+            self.show_menu_at_widget(button)
+        else:
+            # x_person and generation are required to place the overlay
+            # where the user opened it, in case the person appears
+            # multiple times in the tree.
+            self.canvas_manager.open_add_person_relative_overlay(
+                person_handle, x_person, generation, action
+            )
+
+    def family_add_relative_clicked(self, button, family_handle, x_family, generation):
+        action = self.ftv._config.get("interaction.familytreeview-family-add-relative-action")
+        if action == "context_menu":
+            self.menu = Gtk.Menu()
+            family = self.ftv.get_family_from_handle(family_handle)
+            self.add_family_add_relatives_items_to_menu(family_handle, family)
+            self.show_menu_at_widget(button)
+        else:
+            # x_family and generation are required to place the overlay
+            # where the user opened it, in case the family appears
+            # multiple times in the tree.
+            self.canvas_manager.open_add_family_relative_overlay(
+                family_handle, x_family, generation
+            )
+
+    def show_close_tree_overlay_button(self, callback, text):
+        # TODO Tooltip doesn't work for some reason, use button label
+        # instead for now.
+        self.close_tree_overlay_button = Gtk.Button(label=text)
+        image = Gtk.Image.new_from_icon_name("window-close", Gtk.IconSize.LARGE_TOOLBAR)
+        self.close_tree_overlay_button.set_image(image)
+        self.close_tree_overlay_button.set_always_show_image(True)
+        self.close_tree_overlay_button.set_valign(Gtk.Align.START)
+        self.close_tree_overlay_button.set_halign(Gtk.Align.END)
+        self.close_tree_overlay_button.connect("clicked", callback)
+        self.close_tree_overlay_container.add_overlay(self.close_tree_overlay_button)
+        self.close_tree_overlay_button.show()
+
+    def hide_close_tree_overlay_button(self):
+        if self.close_tree_overlay_button is not None:
+            self.close_tree_overlay_button.destroy()
+            self.close_tree_overlay_button = None
 
     def add_to_provider(self, s):
         self.provider_str += s

@@ -71,7 +71,7 @@ class FamilyTreeViewPanelManager(FamilyTreeViewInfoWidgetManager):
             self.panel_content.remove(child)
         self.displayed_object = None
 
-    def open_person_panel(self, person_handle):
+    def open_person_panel(self, person_handle, x_person, generation):
         self.reset_panel()
 
         person = self.ftv.get_person_from_handle(person_handle)
@@ -106,7 +106,7 @@ class FamilyTreeViewPanelManager(FamilyTreeViewInfoWidgetManager):
         overview_section.add(families)
         self.panel_content.add(overview_section)
 
-        buttons = self.create_person_buttons_widget(person_handle, panel_button=False)
+        buttons = self.create_person_buttons_widget(person_handle, x_person, generation, panel_button=False)
         self.panel_content.add(buttons)
 
         self.panel_content.add(Gtk.Separator())
@@ -147,7 +147,7 @@ class FamilyTreeViewPanelManager(FamilyTreeViewInfoWidgetManager):
 
         return True
 
-    def open_family_panel(self, family_handle):
+    def open_family_panel(self, family_handle, x_family, generation):
         self.reset_panel()
 
         family = self.ftv.dbstate.db.get_family_from_handle(family_handle)
@@ -161,7 +161,7 @@ class FamilyTreeViewPanelManager(FamilyTreeViewInfoWidgetManager):
         children_grid = self.create_children_widget(family)
         self.panel_content.add(children_grid)
 
-        buttons = self.create_family_buttons_widget(family_handle, panel_button=False)
+        buttons = self.create_family_buttons_widget(family_handle, x_family, generation, panel_button=False)
         self.panel_content.add(buttons)
 
         tags = self.create_tags_widget(family)

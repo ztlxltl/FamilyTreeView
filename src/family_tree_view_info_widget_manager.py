@@ -326,7 +326,7 @@ class FamilyTreeViewInfoWidgetManager:
             i_row += 1
         return grid
 
-    def create_person_buttons_widget(self, person_handle, panel_button=True):
+    def create_person_buttons_widget(self, person_handle, x_person, generation, panel_button=True):
         buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         edit_button = self.create_button(_("Edit"), icon="gtk-edit")
@@ -350,7 +350,7 @@ class FamilyTreeViewInfoWidgetManager:
             self.open_panel_button_opens = True
             def cb_open_panel_button(*args):
                 if self.open_panel_button_opens:
-                    self.widget_manager.panel_manager.open_person_panel(person_handle)
+                    self.widget_manager.panel_manager.open_person_panel(person_handle, x_person, generation)
                     new_label = _("Close panel")
                 else:
                     self.widget_manager.close_panel()
@@ -361,12 +361,15 @@ class FamilyTreeViewInfoWidgetManager:
             buttons.pack_start(self.open_panel_button, False, False, 0)
 
         add_relative_button = self.create_button(_("Add relative"), icon="list-add")
-        add_relative_button.set_sensitive(False)
+        add_relative_button.connect("clicked",
+            self.widget_manager.person_add_relative_clicked,
+            person_handle, x_person, generation
+        )
         buttons.pack_start(add_relative_button, False, False, 0)
 
         return buttons
 
-    def create_family_buttons_widget(self, family_handle, panel_button=True):
+    def create_family_buttons_widget(self, family_handle, x_family, generation, panel_button=True):
 
         buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
@@ -385,7 +388,7 @@ class FamilyTreeViewInfoWidgetManager:
             self.open_panel_button_opens = True
             def cb_open_panel_button(*args):
                 if self.open_panel_button_opens:
-                    self.widget_manager.panel_manager.open_family_panel(family_handle)
+                    self.widget_manager.panel_manager.open_family_panel(family_handle, x_family, generation)
                     new_label = _("Close panel")
                 else:
                     self.widget_manager.close_panel()
@@ -396,7 +399,10 @@ class FamilyTreeViewInfoWidgetManager:
             buttons.pack_start(self.open_panel_button, False, False, 0)
 
         add_relative_button = self.create_button(_("Add relative"), icon="list-add")
-        add_relative_button.set_sensitive(False)
+        add_relative_button.connect("clicked",
+            self.widget_manager.family_add_relative_clicked,
+            family_handle, x_family, generation
+        )
         buttons.pack_start(add_relative_button, False, False, 0)
 
         return buttons

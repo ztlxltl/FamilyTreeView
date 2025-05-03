@@ -115,6 +115,10 @@ class FamilyTreeViewTreeBuilder():
         # After dry run, keep track where we are using this property.
         self.i_connections_per_generation = {}
 
+        # See also: self.widget_manager.position_of_handle
+        self.tree_cache_persons = {}
+        self.tree_cache_families = {}
+
         self.expander_types_shown = self.ftv._config.get("expanders.familytreeview-expander-types-shown")
         self.expander_types_expanded = self.ftv._config.get("expanders.familytreeview-expander-types-expanded")
 
@@ -338,6 +342,7 @@ class FamilyTreeViewTreeBuilder():
             person_bounds["st_r"] = descendant_subtree_bounds["st_r"]
 
         person = self.ftv.get_person_from_handle(person_handle)
+        self.init_person_cache(x_person, person_generation)
 
         if alignment is None:
             if person is None:
@@ -441,6 +446,8 @@ class FamilyTreeViewTreeBuilder():
                 break
             if skip_family_handle is None:
                 is_primary_family = i_family == 0
+                if is_primary_family:
+                    self.set_person_cache(x_person, person_generation, "prominent_family", family_handle)
             elif skip_family_handle == family_handle:
                 # This family has already been processed. Only add the expander.
                 if not dry_run and len(family_handles) > 1 and self.expander_types_shown[key]["default_hidden"]:
@@ -521,6 +528,7 @@ class FamilyTreeViewTreeBuilder():
 
             if not dry_run:
                 if spouse_handle is not None:
+                    self.set_person_cache(x_spouse, person_generation, "prominent_family", family_handle)
                     spouse_bounds = self.widget_manager.add_person(spouse_handle, x_spouse, person_generation, spouse_alignment)
                 else:
                     # missing person
@@ -637,6 +645,7 @@ class FamilyTreeViewTreeBuilder():
                 if self.get_cancelled():
                     break
                 x_child -= children_bounds[i_child]["st_l"] # subtree left is negative
+                self.set_person_cache(x_child, child_generation, "prominent_parents", family.handle)
                 child_bounds = self.process_person(child_handle, x_child, child_generation, dry_run=False, process_ancestors=False)
                 dashed = self.get_dashed(family, child_handle)
                 self.widget_manager.add_connection(
@@ -742,6 +751,7 @@ class FamilyTreeViewTreeBuilder():
                     x_sibling += -sibling_bounds["st_l"] + sibling_sep
                 else:
                     x_sibling -= sibling_bounds["st_r"] + sibling_sep
+                self.set_person_cache(x_sibling, sibling_generation, "prominent_parents", parent_family.handle)
                 sibling_bounds = self.process_person(sibling_handle, x_sibling, sibling_generation, dry_run=dry_run, process_ancestors=False, process_descendants=process_descendants)
                 if not dry_run:
                     dashed = self.get_dashed(parent_family, sibling_handle)
@@ -1079,6 +1089,9 @@ class FamilyTreeViewTreeBuilder():
             else:
                 inner_parent_x = x_father
                 outer_parent_x = x_mother
+            if is_main_parent_family:
+                self.set_person_cache(x_person, person_generation, "prominent_parents", parent_family_handle)
+            self.set_family_cache(x_family, parent_generation, "prominent_child", person_handle)
 
             inner_parent_bounds = self.process_parent(person_bounds, x_person, alignment, dry_run, parent_generation, person_handle, person_width, parent_family_handle, is_main_parent_family, inner_parent_handle, inner_parent_ahnentafel, inner_parent_alignment, inner_parent_x)
 
@@ -1153,6 +1166,7 @@ class FamilyTreeViewTreeBuilder():
                 child_handle_with_other_parents_to_collapse = person_handle
             else:
                 child_handle_with_other_parents_to_collapse = None
+            self.set_person_cache(this_parent_x, parent_generation, "prominent_family", parent_family_handle)
             this_parent_bounds = self.process_person(
                 this_parent_handle,
                 this_parent_x,
@@ -1208,6 +1222,32 @@ class FamilyTreeViewTreeBuilder():
             )
         ]
         return handles
+
+    def init_person_cache(self, x_person, generation):
+        if (x_person, generation) not in self.tree_cache_persons:
+            self.tree_cache_persons[(x_person, generation)] = {
+                "prominent_parents": None,
+                "prominent_family": None,
+            }
+
+    def init_family_cache(self, x_family, generation):
+        if (x_family, generation) not in self.tree_cache_families:
+            self.tree_cache_families[(x_family, generation)] = {
+                "prominent_child": None,
+            }
+
+    def set_person_cache(self, x_person, generation, key, value):
+        # Using coordinates instead of handle since prominent
+        # family/parents can differ if the person appears multiple times
+        # in the tree.
+        self.init_person_cache(x_person, generation)
+        self.tree_cache_persons[(x_person, generation)][key] = value
+
+    def set_family_cache(self, x_family, generation, key, value):
+        # Using coordinates instead of handle since prominent child can
+        # differ if the family appears multiple times in the tree.
+        self.init_family_cache(x_family, generation)
+        self.tree_cache_families[(x_family, generation)][key] = value
 
     def get_dashed(self, family, child_handle):
         child_ref = [ref for ref in family.get_child_ref_list() if ref.ref == child_handle][0]
