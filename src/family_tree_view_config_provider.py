@@ -70,8 +70,6 @@ class FamilyTreeViewConfigProvider:
         return (
             ("appearance.familytreeview-num-ancestor-generations-default", 2),
             ("appearance.familytreeview-num-descendant-generations-default", 2),
-            ("appearance.familytreeview-connections-line-width", 2.0),
-            ("appearance.familytreeview-box-line-width", 2.0),
             ("appearance.familytreeview-highlight-home-person", True),
             ("appearance.familytreeview-highlight-root-person", True),
             ("appearance.familytreeview-show-deceased-ribbon", True),
@@ -79,6 +77,10 @@ class FamilyTreeViewConfigProvider:
             ("appearance.familytreeview-person-image-resolution", 1),
             ("appearance.familytreeview-person-image-filter", 0),
             ("appearance.familytreeview-place-format", -1),
+            ("appearance.familytreeview-box-line-width", 2.0),
+            ("appearance.familytreeview-connections-line-width", 2.0),
+            ("appearance.familytreeview-connections-dashed-mode", "rel_any_non_birth"),
+
             ("appearance.familytreeview-timeline-mode-default-person", 3),
             ("appearance.familytreeview-timeline-mode-default-family", 3),
             ("appearance.familytreeview-timeline-short-age", True),
@@ -456,30 +458,6 @@ class FamilyTreeViewConfigProvider:
         )
 
         row += 1
-        connection_line_width_spinner = configdialog.add_spinner(
-            grid,
-            _("Line width of connections"),
-            row,
-            "appearance.familytreeview-connections-line-width",
-            (0.1, 10.0),
-            callback=self.spin_button_float_changed,
-        )
-        connection_line_width_spinner.set_digits(1)
-        connection_line_width_spinner.get_adjustment().set_step_increment(0.1)
-
-        row += 1
-        box_line_width_spinner = configdialog.add_spinner(
-            grid,
-            _("Line width of boxes"),
-            row,
-            "appearance.familytreeview-box-line-width",
-            (0.0, 10.0),
-            callback=self.spin_button_float_changed,
-        )
-        box_line_width_spinner.set_digits(1)
-        box_line_width_spinner.get_adjustment().set_step_increment(0.1)
-
-        row += 1
         configdialog.add_checkbox(
             grid,
             _("Highlight the home person according to the active Gramps color scheme"),
@@ -567,6 +545,77 @@ class FamilyTreeViewConfigProvider:
             setactive=active,
             callback=_cb_place_format_combo_changed,
         )
+
+        row += 1
+        box_line_width_spinner = configdialog.add_spinner(
+            grid,
+            _("Line width of boxes"),
+            row,
+            "appearance.familytreeview-box-line-width",
+            (0.0, 10.0),
+            callback=self.spin_button_float_changed,
+        )
+        box_line_width_spinner.set_digits(1)
+        box_line_width_spinner.get_adjustment().set_step_increment(0.1)
+
+        row += 1
+        connection_line_width_spinner = configdialog.add_spinner(
+            grid,
+            _("Line width of connections"),
+            row,
+            "appearance.familytreeview-connections-line-width",
+            (0.1, 10.0),
+            callback=self.spin_button_float_changed,
+        )
+        connection_line_width_spinner.set_digits(1)
+        connection_line_width_spinner.get_adjustment().set_step_increment(0.1)
+
+        row += 1
+        dashed_options = [
+            ("no_dash", _("No dashed connections")),
+            ("rel_any_non_birth", _("Dashed if at least one parent is non-birth")),
+            ("rel_both_non_birth", _("Dashed only if both parents are non-birth")),
+            ("rel_split_non_birth", _("Dashed on each side based on each parent")),
+        ]
+        add_rel_label = Gtk.Label(_("Dashed connection lines:"))
+        add_rel_label.set_halign(Gtk.Align.START)
+        add_rel_label.set_xalign(0)
+        add_rel_label.set_line_wrap(True)
+        grid.attach(add_rel_label, 1, row, 1, 1)
+        add_rel_list_store = Gtk.ListStore(str, str)
+        for option_id, option_label in dashed_options:
+            add_rel_list_store.append((option_id, option_label))
+        add_rel_combo = Gtk.ComboBox(model=add_rel_list_store)
+        renderer = Gtk.CellRendererText()
+        add_rel_combo.pack_start(renderer, True)
+        add_rel_combo.add_attribute(renderer, "text", 1)
+        active_option = self.ftv._config.get("appearance.familytreeview-connections-dashed-mode")
+        try:
+            active_index = [opt[0] for opt in dashed_options].index(active_option)
+        except ValueError:
+            active_index = 1 # any non birth
+        add_rel_combo.set_active(
+            active_index
+        )
+        def cb_add_relative_changed(combo, options):
+            self.ftv._config.set(
+                "appearance.familytreeview-connections-dashed-mode",
+                options[combo.get_active()][0]
+            )
+        add_rel_combo.connect("changed", cb_add_relative_changed, dashed_options)
+        grid.attach(add_rel_combo, 2, row, 1, 1)
+        
+        row += 1
+        label = Gtk.Label()
+        label.set_markup(_(
+            "Dashed on each side based on each parent:\n"
+            "<i>Each half of the connection is dashed if the parent on that "
+            "side is non-birth (father: left half, mother: right half)</i>"
+        ))
+        label.set_halign(Gtk.Align.START)
+        label.set_xalign(0)
+        label.set_line_wrap(True)
+        grid.attach(label, 2, row, 1, 1)
 
         return grid
 

@@ -1250,8 +1250,28 @@ class FamilyTreeViewTreeBuilder():
         self.tree_cache_families[(x_family, generation)][key] = value
 
     def get_dashed(self, family, child_handle):
+        dashed_mode = self.ftv._config.get("appearance.familytreeview-connections-dashed-mode")
+        if dashed_mode == "no_dash":
+            return False
+
         child_ref = [ref for ref in family.get_child_ref_list() if ref.ref == child_handle][0]
-        dashed = int(child_ref.get_father_relation()) != ChildRefType.BIRTH or int(child_ref.get_mother_relation()) != ChildRefType.BIRTH
+        dashed = [
+            int(child_ref.get_father_relation()) != ChildRefType.BIRTH,
+            int(child_ref.get_mother_relation()) != ChildRefType.BIRTH
+        ]
+
+        if dashed_mode == "rel_any_non_birth":
+            dashed = any(dashed)
+        elif dashed_mode == "rel_both_non_birth":
+            dashed = all(dashed)
+        elif dashed_mode == "rel_split_non_birth":
+            # Don't get separate lines if this is not necessary. This
+            # would result in more canvas elements than needed. It would
+            # also cause an offset of the dashes after arcs.
+            if dashed[0] == dashed[1]:
+                # list to bool
+                dashed = dashed[0]
+
         return dashed
 
     def get_expand(self, handle, key, default=None):

@@ -1065,13 +1065,29 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         if parent is None:
             parent = self.connection_group
 
+        if line_width is None:
+            line_width = self.ftv._config.get("appearance.familytreeview-connections-line-width")
+        overlap = 0.1 # prevents thin gap due to anti-aliasing
+        offset = line_width/4 - overlap/2 # only used when dashed is list
+
         if ym is None:
             ym = (y1 + y2) / 2 # middle
+
+        data_list = []
         if x1 == x2:
-            data = f"""
-                M {x1} {y1}
-                L {x2} {y2}
-            """
+            if isinstance(dashed, list):
+                coords_list = [
+                    (x1-offset, x2-offset),
+                    (x1+offset, x2+offset)
+                ]
+            else:
+                coords_list = [(x1, x2)]
+            for x1_, x2_ in coords_list:
+                data = f"""
+                    M {x1} {y1}
+                    L {x2} {y2}
+                """
+                data_list.append(data)
         else:
             if m is not None:
                 # m[0] which line, 0-based, counted from top to bottom
@@ -1096,28 +1112,43 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                 xDirSign = -1
 
             r = self.connection_radius
+
+            if isinstance(dashed, list):
+                if x1 < x2:
+                    m1 = -1
+                else:
+                    m1 = 1
+                coords_list = [
+                    (x1-offset, x2-offset, ym-m1*offset, r-m1*offset, r+m1*offset),
+                    (x1+offset, x2+offset, ym+m1*offset, r+m1*offset, r-m1*offset)
+                ]
+            else:
+                coords_list = [(x1, x2, ym, r, r)]
+            
             if abs(x1 - x2) < 2*r:
                 # The line between the two arcs is not horizontal.
                 Dx = abs(x1 - x2)/r
                 # angle of the line (Dx=2 -> alpha=0, Dx=0° -> alpha=90°)
                 alpha = pi/2 + 2*atan(Dx/(Dx-4))
-                data = f"""
-                    M {x1} {y1}
-                    V {ym + yDirSign*r}
-                    A {r} {r} 0 0 {sweepFlag1} {x1 + xDirSign*r*(1-sin(alpha))} {ym + yDirSign*r*(1-cos(alpha))}
-                    L {x2 - xDirSign*r*(1-sin(alpha))} {ym - yDirSign*r*(1-cos(alpha))}
-                    A {r} {r} 0 0 {sweepFlag2} {x2} {ym - yDirSign*r}
-                    V {y2}
-                """
+                for x1_, x2_, ym_, r1, r2 in coords_list:
+                    data_list.append(f"""
+                        M {x1_} {y1}
+                        V {ym_ + yDirSign*r1}
+                        A {r1} {r1} 0 0 {sweepFlag1} {x1_ + xDirSign*r1*(1-sin(alpha))} {ym_ + yDirSign*r1*(1-cos(alpha))}
+                        L {x2_ - xDirSign*r2*(1-sin(alpha))} {ym_ - yDirSign*r2*(1-cos(alpha))}
+                        A {r2} {r2} 0 0 {sweepFlag2} {x2_} {ym_ - yDirSign*r2}
+                        V {y2}
+                    """)
             else:
-                data = f"""
-                    M {x1} {y1}
-                    V {ym + yDirSign*r}
-                    A {r} {r} 0 0 {sweepFlag1} {x1 + xDirSign*r} {ym}
-                    H {x2 - xDirSign*r}
-                    A {r} {r} 0 0 {sweepFlag2} {x2} {ym - yDirSign*r}
-                    V {y2}
-                """
+                for x1_, x2_, ym_, r1, r2 in coords_list:
+                    data_list.append(f"""
+                        M {x1_} {y1}
+                        V {ym_ + yDirSign*r1}
+                        A {r1} {r1} 0 0 {sweepFlag1} {x1_ + xDirSign*r1} {ym_}
+                        H {x2_ - xDirSign*r2}
+                        A {r2} {r2} 0 0 {sweepFlag2} {x2_} {ym_ - yDirSign*r2}
+                        V {y2}
+                    """)
 
         if fg_color is None:
             fg_color_found, fg_color = self.canvas.get_style_context().lookup_color('theme_fg_color')
@@ -1126,20 +1157,27 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             else:
                 fg_color = "black"
 
+        line_width_ = line_width
         if dashed:
-            line_dash = GooCanvas.CanvasLineDash.newv([10, 5])
+            if isinstance(dashed, list):
+                line_dash_list = [
+                    GooCanvas.CanvasLineDash.newv([10, 5])
+                    if dashed_ else None
+                    for dashed_ in dashed
+                ]
+                line_width_ = line_width/2 + overlap
+            else:
+                line_dash_list = [GooCanvas.CanvasLineDash.newv([10, 5])]
         else:
-            line_dash = None
-
-        if line_width is None:
-            line_width = self.ftv._config.get("appearance.familytreeview-connections-line-width")
-        path = GooCanvas.CanvasPath(
-            parent=parent,
-            data=data,
-            stroke_color=fg_color,
-            line_width=line_width,
-            line_dash=line_dash
-        )
+            line_dash_list = [None]
+        for data, line_dash in zip(data_list, line_dash_list):
+            path = GooCanvas.CanvasPath(
+                parent=parent,
+                data=data,
+                stroke_color=fg_color,
+                line_width=line_width_,
+                line_dash=line_dash
+            )
         if line_width < 5:
             # add additional (invisible) path for larger clickable area
             path = GooCanvas.CanvasPath(
