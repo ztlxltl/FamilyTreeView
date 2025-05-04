@@ -741,7 +741,7 @@ class FamilyTreeViewWidgetManager:
             data = [person_handle, x, person_generation, alignment]
         elif action == "open_panel_person":
             fcn = self.panel_manager.open_person_panel
-            data = [person_handle]
+            data = [person_handle, x, person_generation]
         elif action == "edit_person":
             fcn = self.ftv.edit_person
             data = [person_handle]
@@ -788,7 +788,7 @@ class FamilyTreeViewWidgetManager:
             data = [family_handle, x, family_generation]
         elif action == "open_panel_family":
             fcn = self.panel_manager.open_family_panel
-            data = [family_handle]
+            data = [family_handle, x, family_generation]
         elif action == "edit_family":
             fcn = self.ftv.edit_family
             data = [family_handle]
