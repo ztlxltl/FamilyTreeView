@@ -1291,13 +1291,16 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             badge_rect.props.x = x
             badge_rect.props.width = w
 
-    def add_expander(self, x, y, ang, click_callback):
+    def add_expander(self, x, y, ang, click_callback=None, unavailable=False, tooltip=None):
         group = GooCanvas.CanvasGroup(
             parent=self.canvas.get_root_item(),
             visibility=GooCanvas.CanvasItemVisibility.VISIBLE_ABOVE_THRESHOLD,
             visibility_threshold=self.visibility_threshold_expanders,
         )
-        group.connect("button-press-event", self.click_callback, click_callback)
+        if click_callback is not None:
+            group.connect("button-press-event", self.click_callback, click_callback)
+        if tooltip is not None:
+            group.props.tooltip = tooltip
         self.expander_list.append(group)
         parent = group
 
@@ -1325,19 +1328,37 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             stroke_color=None,
         )
 
-        # Use path instead of pixbuf with icon as icon is pixelated.
-        # (tried Gtk.IconLookupFlags.FORCE_SVG, doesn't work)
-        l = 5
-        data = f"""
-            M {x-l/2} {y-l}
-            L {x+l/2} {y}
-            L {x-l/2} {y+l}
-        """
-        GooCanvas.CanvasPath(
-            parent=parent,
-            data=data,
-            stroke_color=rgb_to_hex(fg_color),
-        ).rotate(ang, x, y)
+        if unavailable:
+            ang_rad = ang*pi/180
+            dots_unit = self.expander_size/12
+            for offset in [ # 3 dots
+                -3*dots_unit,
+                0,
+                3*dots_unit
+            ]:
+                GooCanvas.CanvasEllipse(
+                    parent=parent,
+                    center_x=x + offset*cos(ang_rad),
+                    center_y=y - offset*sin(ang_rad),
+                    radius_x=dots_unit,
+                    radius_y=dots_unit,
+                    fill_color=rgb_to_hex(fg_color),
+                    stroke_color=None,
+                )
+        else:
+            # Use path instead of pixbuf with icon as icon is pixelated.
+            # (tried Gtk.IconLookupFlags.FORCE_SVG, doesn't work)
+            l = 5
+            data = f"""
+                M {x-l/2} {y-l}
+                L {x+l/2} {y}
+                L {x-l/2} {y+l}
+            """
+            GooCanvas.CanvasPath(
+                parent=parent,
+                data=data,
+                stroke_color=rgb_to_hex(fg_color),
+            ).rotate(ang, x, y)
 
     def add_from_image_spec(self, parent, image_spec, x, y, max_width, max_height, color=None, grayscale=False, tooltip=None):
         if image_spec[0] in ["path", "svg_path", "pixbuf"]:

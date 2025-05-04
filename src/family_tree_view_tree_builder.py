@@ -553,6 +553,20 @@ class FamilyTreeViewTreeBuilder():
             # children
             if process_descendants:
                 person_bounds = self.process_children(person_bounds, x_person, person_generation, dry_run, family, x_family, family_bounds)
+            elif not dry_run and self.expander_types_shown["children"]["default_hidden"]:
+                child_refs = family.get_child_ref_list()
+                if len(child_refs) > 0:
+                    bottom_family_offset = self.canvas_manager.bottom_family_offset
+                    expander_sep = self.canvas_manager.expander_sep
+                    expander_size = self.canvas_manager.expander_size
+                    x_expander = x_family
+                    y_expander = self.get_y_of_generation(person_generation) + bottom_family_offset + expander_sep + expander_size/2
+                    tooltip = _(
+                        "The children of this family cannot be displayed. "
+                        "Set a person more closely related to this family as "
+                        "the active person to be able to display the children."
+                    )
+                    self.add_unavailable_expander(x_expander, y_expander, -90, tooltip=tooltip)
 
             # Now, person_bounds includes the descendants.
 
@@ -1303,6 +1317,9 @@ class FamilyTreeViewTreeBuilder():
         else:
             ang = ang_collapsed
         self.widget_manager.add_expander(x_expander, y_expander, ang, expander_clicked)
+
+    def add_unavailable_expander(self, x_expander, y_expander, ang, tooltip=None):
+        self.widget_manager.add_unavailable_expander(x_expander, y_expander, ang, tooltip=tooltip)
 
     def add_other_families_expander(self, person_handle, x_person, person_generation, person_is_s1, key, expanded, collapse_on_expand=None):
         person_width = self.canvas_manager.person_width

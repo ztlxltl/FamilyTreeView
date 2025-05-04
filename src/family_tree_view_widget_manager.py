@@ -612,6 +612,9 @@ class FamilyTreeViewWidgetManager:
     def add_expander(self, x, y, ang, click_callback):
         self.canvas_manager.add_expander(x, y, ang, click_callback)
 
+    def add_unavailable_expander(self, x, y, ang, tooltip=None):
+        self.canvas_manager.add_expander(x, y, ang, unavailable=True, tooltip=tooltip)
+
     # box helpers
 
     def get_event_for_box(self, event, event_type_visualization_type, display_date, display_only_year, date_compact, display_place, display_description, display_tags, tag_visualization, place_format):
