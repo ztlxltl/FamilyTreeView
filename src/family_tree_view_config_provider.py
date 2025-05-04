@@ -31,7 +31,7 @@ from gramps.gen.lib.eventtype import EventType
 from gramps.gui.utils import rgb_to_hex
 
 from family_tree_view_config_page_manager_boxes import BOX_ITEMS, PREDEF_BOXES_DEFS, FamilyTreeViewConfigPageManagerBoxes
-from family_tree_view_config_provider_names import names_page, DEFAULT_ABBREV_RULES
+from family_tree_view_config_provider_names import name_abbr_page, names_page, DEFAULT_ABBREV_RULES
 from family_tree_view_utils import get_gettext, get_reloaded_custom_filter_list
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
@@ -91,6 +91,12 @@ class FamilyTreeViewConfigProvider:
                 for i, event_str, event_name in EventType._DATAMAP
             }),
 
+            ("interaction.familytreeview-zoom-level-default", 0),
+            ("interaction.familytreeview-zoom-level-step", 0.15),
+            ("interaction.familytreeview-family-info-box-set-active-button", False),
+            ("interaction.familytreeview-person-add-relative-action", "overlay"),
+            ("interaction.familytreeview-family-add-relative-action", "overlay"),
+
             ("interaction.familytreeview-person-single-primary-click-action", "open_info_box_person"),
             ("interaction.familytreeview-person-double-primary-click-action", "edit_person"),
             ("interaction.familytreeview-person-single-secondary-click-action", "open_context_menu_person"),
@@ -111,13 +117,6 @@ class FamilyTreeViewConfigProvider:
             ("interaction.familytreeview-background-double-middle-click-action", "nothing"),
             ("interaction.familytreeview-double-click-timeout-milliseconds", 200),
             ("interaction.familytreeview-scroll-mode", "map"),
-            ("interaction.familytreeview-zoom-level-default", 0),
-            ("interaction.familytreeview-zoom-level-step", 0.15),
-            ("interaction.familytreeview-family-info-box-set-active-button", False),
-            ("interaction.familytreeview-person-add-relative-action", "overlay"),
-            ("interaction.familytreeview-family-add-relative-action", "overlay"),
-            ("interaction.familytreeview-printing-scale-to-page", False),
-            ("interaction.familytreeview-printing-export-hide-expanders", True),
 
             ("boxes.familytreeview-boxes-custom-defs", {}),
             ("boxes.familytreeview-boxes-selected-def-key", "regular"),
@@ -157,6 +156,9 @@ class FamilyTreeViewConfigProvider:
                 "person": {"generic": {}, "custom": {}},
                 "family": {"custom": {}}
             }),
+
+            ("interaction.familytreeview-printing-scale-to-page", False),
+            ("interaction.familytreeview-printing-export-hide-expanders", True),
 
             ("experimental.familytreeview-adaptive-ancestor-generation-dist", True),
             ("experimental.familytreeview-connection-follow-on-click", False),
@@ -387,30 +389,39 @@ class FamilyTreeViewConfigProvider:
         box.pack_start(stack, True, True, 0)
 
         default_page_id = "appearance"
+        id_to_iter_dict = {}
         for page_id, parent_id, page_label, page_fcn in [
             ("appearance", None, _("Appearance"), self.appearance_page),
             ("interaction", None, _("Interaction"), self.interaction_page),
+            ("mouse", "interaction", _("Mouse"), self.mouse_page),
             ("boxes", None, _("Boxes"), self.boxes_page),
             ("names", None, _("Names"), self.names_page),
+            ("name_abbr", "names", _("Name Abbreviation"), self.name_abbr_page),
             ("expanders", None, _("Expanders"), self.expanders_page),
             ("badges", None, _("Badges"), self.badges_page),
             ("timeline", None, _("Panel: Timeline"), self.timeline_page),
+            ("print_export", None, _("Print/Export"), self.print_export_page),
             ("experimental", None, _("Experimental"), self.experimental_page),
         ]:
-            tree_iter = tree_store.append(parent_id, (page_id, page_label, ""))
-            if page_id == default_page_id:
-                default_tree_iter = tree_iter
+            if parent_id is None:
+                parent_iter = None
+            else:
+                parent_iter = id_to_iter_dict[parent_id]
+            tree_iter = tree_store.append(parent_iter, (page_id, page_label, ""))
+            id_to_iter_dict[page_id] = tree_iter
             page_widget = page_fcn(configdialog)
             stack.add_named(page_widget, page_id)
 
-        def cb_selection_changed(selection):
-            model, tree_iter = selection.get_selected()
-            if tree_iter is not None:
-                selected_id = model[tree_iter][0]
+        def cb_selection_changed(selection, tree_view):
+            model, selected_tree_iter = selection.get_selected()
+            if selected_tree_iter is not None:
+                selected_path = model.get_path(selected_tree_iter)
+                tree_view.expand_row(selected_path, False)
+                selected_id = model[selected_tree_iter][0]
                 stack.set_visible_child_name(selected_id)
-        selection.connect("changed", cb_selection_changed)
+        selection.connect("changed", cb_selection_changed, tree_view)
 
-        selection.select_iter(default_tree_iter)
+        selection.select_iter(id_to_iter_dict[default_page_id])
         stack.set_visible_child_name(default_page_id)
 
         return (_("FamilyTreeView"), box)
@@ -560,6 +571,135 @@ class FamilyTreeViewConfigProvider:
         return grid
 
     def interaction_page(self, configdialog):
+        grid = Gtk.Grid()
+        grid.set_border_width(12)
+        grid.set_column_spacing(6)
+        grid.set_row_spacing(6)
+        row = -1
+
+        row += 1
+        checkbox = configdialog.add_checkbox(
+            grid,
+            _(
+                "Prepend FamilyTreeView to the plugin list instead of appending it. (Requires restart.)\n"
+                "If no other chart view is prepended, this makes FamilyTreeView the first and default chart view.\n"
+                "Since FamilyTreeView is still in beta stage, be cautious with this option."
+            ),
+            row,
+            "interface.familytreeview-order-start",
+            stop=3, # same width as spinners and combos
+            config=config, # This is stored in Gramps' config to be available when registering the plugin.
+        )
+        label = checkbox.get_child()
+        label.set_line_wrap(True)
+
+        row += 1
+        zoom_level_default_spin_button = configdialog.add_spinner(
+            grid,
+            _("Default zoom level"),
+            row,
+            "interaction.familytreeview-zoom-level-default",
+            (
+                self.ftv.widget_manager.canvas_manager.zoom_level_min,
+                self.ftv.widget_manager.canvas_manager.zoom_level_max
+            ),
+            callback=self.spin_button_float_changed,
+        )
+        zoom_level_default_spin_button.set_digits(2)
+        zoom_level_default_spin_button.get_adjustment().set_step_increment(0.1)
+
+        row += 1
+        set_default_zoom_button = configdialog.add_button(
+            grid,
+            _("Set current zoom level as default zoom level"),
+            row,
+            "",
+            extra_callback=lambda button:
+                zoom_level_default_spin_button.set_value(round(
+                    self.ftv.widget_manager.canvas_manager.get_zoom_level(),
+                    2 # two digits, same as displayed
+                ))
+        )
+        # move 1 grid column to the right (under spin button)
+        grid.remove(set_default_zoom_button)
+        grid.attach(set_default_zoom_button, 2, row, 1, 1)
+
+        row += 1
+        zoom_level_step_spin_button = configdialog.add_spinner(
+            grid,
+            _("Zoom level step size"),
+            row,
+            "interaction.familytreeview-zoom-level-step",
+            (0.01, 2.0),
+            callback=self.spin_button_float_changed,
+        )
+        zoom_level_step_spin_button.set_digits(2)
+        zoom_level_step_spin_button.get_adjustment().set_step_increment(0.05)
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _("Show \"Set active\" button in family info box (it has no effect on FamilyTreeView)"),
+            row,
+            "interaction.familytreeview-family-info-box-set-active-button",
+            stop=3 # same width as spinners and combos
+        )
+
+        person_label = _("Menu to open with the person \"Add relatives\" button:")
+        family_label = _("Menu to open with the family \"Add relatives\" button:")
+        person_options = [
+            ("context_menu", _("Context menu")),
+            ("overlay", _("Overlay menu")),
+            ("overlay_direct", _("Overlay menu (only direct relationships)")),
+            ("overlay_main", _("Overlay menu (only main relationships)")),
+            ("overlay_all", _("Overlay menu (everything)")),
+        ]
+        family_options = [
+            ("context_menu", _("Context menu")),
+            ("overlay", _("Overlay menu")),
+        ]
+        def cb_add_relative_changed(combo, key, options):
+            self.ftv._config.set(
+                f"interaction.familytreeview-{key}-add-relative-action",
+                options[combo.get_active()][0]
+            )
+        for key, label_text, options in [
+            ("person", person_label, person_options),
+            ("family", family_label, family_options)
+        ]:
+            row += 1
+            add_rel_label = Gtk.Label(label_text)
+            add_rel_label.set_halign(Gtk.Align.START)
+            add_rel_label.set_xalign(0)
+            add_rel_label.set_line_wrap(True)
+            grid.attach(add_rel_label, 1, row, 1, 1)
+            add_rel_list_store = Gtk.ListStore(str, str)
+            for option_id, option_label in options:
+                add_rel_list_store.append((option_id, option_label))
+            add_rel_combo = Gtk.ComboBox(model=add_rel_list_store)
+            renderer = Gtk.CellRendererText()
+            add_rel_combo.pack_start(renderer, True)
+            add_rel_combo.add_attribute(renderer, "text", 1)
+            active_option = self.ftv._config.get(f"interaction.familytreeview-{key}-add-relative-action")
+            try:
+                active_index = [opt[0] for opt in options].index(active_option)
+            except ValueError:
+                active_index = 1 # overlay
+            add_rel_combo.set_active(
+                active_index
+            )
+            add_rel_combo.connect("changed", cb_add_relative_changed, key, options)
+            grid.attach(add_rel_combo, 2, row, 1, 1)
+
+        return grid
+
+    def mouse_page(self, configdialog):
+        grid = Gtk.Grid()
+        grid.set_border_width(12)
+        grid.set_column_spacing(6)
+        grid.set_row_spacing(6)
+        row = -1
+
         person_click_options = [
             ("nothing", _("Do nothing")),
             ("open_info_box_person", _("Open info box")),
@@ -587,28 +727,6 @@ class FamilyTreeViewConfigProvider:
             ("scroll_to_home_person", _("Move to home person")),
             ("scroll_to_active_family", _("Move to active family")),
         ]
-
-        grid = Gtk.Grid()
-        grid.set_border_width(12)
-        grid.set_column_spacing(6)
-        grid.set_row_spacing(6)
-        row = -1
-
-        row += 1
-        checkbox = configdialog.add_checkbox(
-            grid,
-            _(
-                "Prepend FamilyTreeView to the plugin list instead of appending it. (Requires restart.)\n"
-                "If no other chart view is prepended, this makes FamilyTreeView the first and default chart view.\n"
-                "Since FamilyTreeView is still in beta stage, be cautious with this option."
-            ),
-            row,
-            "interface.familytreeview-order-start",
-            stop=3, # same width as spinners and combos
-            config=config, # This is stored in Gramps' config to be available when registering the plugin.
-        )
-        label = checkbox.get_child()
-        label.set_line_wrap(True)
 
         row += 1
         click_grid = Gtk.Grid()
@@ -754,139 +872,6 @@ class FamilyTreeViewConfigProvider:
         scroll_mode_combo_box.connect("changed", _cb_scroll_mode_changed)
         grid.attach(scroll_mode_combo_box, 2, row, 1, 1)
 
-        row += 1
-        zoom_level_default_spin_button = configdialog.add_spinner(
-            grid,
-            _("Default zoom level"),
-            row,
-            "interaction.familytreeview-zoom-level-default",
-            (
-                self.ftv.widget_manager.canvas_manager.zoom_level_min,
-                self.ftv.widget_manager.canvas_manager.zoom_level_max
-            ),
-            callback=self.spin_button_float_changed,
-        )
-        zoom_level_default_spin_button.set_digits(2)
-        zoom_level_default_spin_button.get_adjustment().set_step_increment(0.1)
-
-        row += 1
-        set_default_zoom_button = configdialog.add_button(
-            grid,
-            _("Set current zoom level as default zoom level"),
-            row,
-            "",
-            extra_callback=lambda button:
-                zoom_level_default_spin_button.set_value(round(
-                    self.ftv.widget_manager.canvas_manager.get_zoom_level(),
-                    2 # two digits, same as displayed
-                ))
-        )
-        # move 1 grid column to the right (under spin button)
-        grid.remove(set_default_zoom_button)
-        grid.attach(set_default_zoom_button, 2, row, 1, 1)
-
-        row += 1
-        zoom_level_step_spin_button = configdialog.add_spinner(
-            grid,
-            _("Zoom level step size"),
-            row,
-            "interaction.familytreeview-zoom-level-step",
-            (0.01, 2.0),
-            callback=self.spin_button_float_changed,
-        )
-        zoom_level_step_spin_button.set_digits(2)
-        zoom_level_step_spin_button.get_adjustment().set_step_increment(0.05)
-
-        row += 1
-        configdialog.add_checkbox(
-            grid,
-            _("Show \"Set active\" button in family info box (it has no effect on FamilyTreeView)"),
-            row,
-            "interaction.familytreeview-family-info-box-set-active-button",
-            stop=3 # same width as spinners and combos
-        )
-
-        person_label = _("Menu to open with the person \"Add relatives\" button:")
-        family_label = _("Menu to open with the family \"Add relatives\" button:")
-        person_options = [
-            ("context_menu", _("Context menu")),
-            ("overlay", _("Overlay menu")),
-            ("overlay_direct", _("Overlay menu (only direct relationships)")),
-            ("overlay_main", _("Overlay menu (only main relationships)")),
-            ("overlay_all", _("Overlay menu (everything)")),
-        ]
-        family_options = [
-            ("context_menu", _("Context menu")),
-            ("overlay", _("Overlay menu")),
-        ]
-        def cb_add_relative_changed(combo, key, options):
-            self.ftv._config.set(
-                f"interaction.familytreeview-{key}-add-relative-action",
-                options[combo.get_active()][0]
-            )
-        for key, label_text, options in [
-            ("person", person_label, person_options),
-            ("family", family_label, family_options)
-        ]:
-            row += 1
-            add_rel_label = Gtk.Label(label_text)
-            add_rel_label.set_halign(Gtk.Align.START)
-            add_rel_label.set_xalign(0)
-            add_rel_label.set_line_wrap(True)
-            grid.attach(add_rel_label, 1, row, 1, 1)
-            add_rel_list_store = Gtk.ListStore(str, str)
-            for option_id, option_label in options:
-                add_rel_list_store.append((option_id, option_label))
-            add_rel_combo = Gtk.ComboBox(model=add_rel_list_store)
-            renderer = Gtk.CellRendererText()
-            add_rel_combo.pack_start(renderer, True)
-            add_rel_combo.add_attribute(renderer, "text", 1)
-            active_option = self.ftv._config.get(f"interaction.familytreeview-{key}-add-relative-action")
-            try:
-                active_index = [opt[0] for opt in options].index(active_option)
-            except ValueError:
-                active_index = 1 # overlay
-            add_rel_combo.set_active(
-                active_index
-            )
-            add_rel_combo.connect("changed", cb_add_relative_changed, key, options)
-            grid.attach(add_rel_combo, 2, row, 1, 1)
-
-        # TODO Maybe move printing options to appearance?
-        row += 1
-        configdialog.add_text(
-            grid,
-            _(
-                "Printing and exporting:"
-            ),
-            row,
-            stop=3,
-        )
-
-        row += 1
-        configdialog.add_checkbox(
-            grid,
-            _(
-                "Printing: Scale down tree to fit on Letter and A4 paper. "
-                "Uncheck to print at 1:1 scale.\n"
-                "Note that scaling down can cause distorted text on some systems."
-            ),
-            row,
-            "interaction.familytreeview-printing-scale-to-page",
-            stop=3 # same width as spinners and combos
-        )
-
-        row += 1
-        configdialog.add_checkbox(
-            grid,
-            _(
-                "Hide expanders in prints and exports."
-            ),
-            row,
-            "interaction.familytreeview-printing-export-hide-expanders",
-            stop=3 # same width as spinners and combos
-        )
-
         return grid
 
     def boxes_page(self, configdialog):
@@ -894,6 +879,9 @@ class FamilyTreeViewConfigProvider:
 
     def names_page(self, configdialog):
         return names_page(self.ftv, configdialog)
+
+    def name_abbr_page(self, configdialog):
+        return name_abbr_page(self.ftv, configdialog)
 
     def expanders_page(self, configdialog):
         grid = Gtk.Grid()
@@ -1425,6 +1413,39 @@ class FamilyTreeViewConfigProvider:
             row, stop=3
         )
         label.set_xalign(0)
+
+        return grid
+
+    def print_export_page(self, configdialog):
+        grid = Gtk.Grid()
+        grid.set_border_width(12)
+        grid.set_column_spacing(6)
+        grid.set_row_spacing(6)
+        row = -1
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _(
+                "Printing: Scale down tree to fit on Letter and A4 paper. "
+                "Uncheck to print at 1:1 scale.\n"
+                "Note that scaling down can cause distorted text on some systems."
+            ),
+            row,
+            "interaction.familytreeview-printing-scale-to-page",
+            stop=3 # same width as spinners and combos
+        )
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _(
+                "Hide expanders in prints and exports."
+            ),
+            row,
+            "interaction.familytreeview-printing-export-hide-expanders",
+            stop=3 # same width as spinners and combos
+        )
 
         return grid
 

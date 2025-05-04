@@ -163,6 +163,15 @@ def names_page(ftv: "FamilyTreeView", configdialog):
     grid.attach(combo_label, 1, row, 1, 1)
     grid.attach(all_caps_combo, 2, row, 2, 1)
 
+    return grid
+
+def name_abbr_page(ftv: "FamilyTreeView", configdialog):
+    grid = Gtk.Grid()
+    grid.set_border_width(12)
+    grid.set_column_spacing(6)
+    grid.set_row_spacing(6)
+    row = -1
+
     row += 1
     label = configdialog.add_text(
         grid,
@@ -170,7 +179,6 @@ def names_page(ftv: "FamilyTreeView", configdialog):
         row, stop=3, bold=True
     )
     label.set_xalign(0)
-    label.set_margin_top(20)
 
     row += 1
     label = configdialog.add_text(
