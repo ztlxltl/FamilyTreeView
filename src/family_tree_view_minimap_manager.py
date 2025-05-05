@@ -83,10 +83,11 @@ class FamilyTreeViewMinimapManager:
         self.minimap_inner_container.add(self.minimap_canvas)
         self.minimap_outer_container.add(self.minimap_inner_container)
 
-        self.init_minimap()
-
         self.minimap_view_rect = None
         self.minimap_view_rect_line_width = 2
+
+        self.init_minimap()
+
         self.widget_manager.canvas_manager.canvas_container.connect("size-allocate", self.set_view_rect)
         self.widget_manager.canvas_manager.hadjustment.connect("value-changed", self.set_view_rect)
         self.widget_manager.canvas_manager.vadjustment.connect("value-changed", self.set_view_rect)
@@ -104,6 +105,7 @@ class FamilyTreeViewMinimapManager:
         self.content_group = GooCanvas.CanvasGroup(
             parent=self.minimap_canvas.get_root_item()
         )
+        self.set_view_rect()
 
     def set_view_rect(self, *_):
         canvas_allocation = self.canvas_manager.canvas_container.get_allocation()
