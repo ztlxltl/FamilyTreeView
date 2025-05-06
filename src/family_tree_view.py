@@ -32,7 +32,7 @@ from gramps.gen.config import config
 from gramps.gen.const import CUSTOM_FILTERS
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.errors import HandleError, WindowActiveError
-from gramps.gen.lib import ChildRef, EventType, Family, FamilyRelType
+from gramps.gen.lib import ChildRef, EventType, Family, FamilyRelType, Person, Surname
 from gramps.gen.utils.callback import Callback
 from gramps.gen.utils.file import find_file, media_path_full
 from gramps.gen.utils.symbols import Symbols
@@ -451,6 +451,14 @@ class FamilyTreeView(NavigationView, Callback):
         self.uistate.status.set_filter(text)
 
     def _connect_db_signals(self):
+        # Only connect to the update signals. Connecting to the add
+        # signal would result in multiple rebuilds. In all cases where a
+        # person/family/event is added, it is only relevant if it linked
+        # to something that is already present in the database. It seems
+        # like the corresponding update signal is triggered in those
+        # cases. Deletion doesn't need to be considered as you cannot
+        # delete objects from within FTV. You have to change the view to
+        # delte an object and changing back triggers a rebuild.
         self.callman.add_db_signal("person-update", self._object_updated)
         self.callman.add_db_signal("family-update", self._object_updated)
         self.callman.add_db_signal("event-update", self._object_updated)
@@ -736,6 +744,31 @@ class FamilyTreeView(NavigationView, Callback):
             FilterEditor("Family", CUSTOM_FILTERS, self.dbstate, self.uistate)
 
     # editing windows: new objects
+
+    def add_new_person(self, set_active=False, set_home=False):
+        person = Person()
+        # The editor window requires a surname.
+        person.primary_name.add_surname(Surname())
+        person.primary_name.set_primary_surname(0)
+
+        def callback(obj):
+            # This is the only case where a person is added without
+            # modifying an object. No callback for adding objects was
+            # connected using callman.add_db_signal(). Therefore we need
+            # to trigger rebuilding the tree. See comments in
+            # self._connect_db_signals() for more details. Note that
+            # setting the home or active person triggers a rebuild.
+            handle = obj.handle
+            if set_home:
+                self.set_home_person(handle, also_set_active=set_active)
+            elif set_active:
+                self.set_active_person(handle)
+            else:
+                self.widget_manager.info_box_manager.close_info_box()
+                self.rebuild_tree()
+
+        with suppress(WindowActiveError):
+            EditPerson(self.dbstate, self.uistate, [], person, callback)
 
     def add_new_parent_to_family(self, family_handle, is_first_spouse):
         family = self.get_family_from_handle(family_handle)

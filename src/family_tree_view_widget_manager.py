@@ -771,7 +771,8 @@ class FamilyTreeViewWidgetManager:
         if relationship is None:
             return False
         elif relationship == "root":
-            return False # TODO
+            fcn = self.ftv.add_new_person
+            args = [True, True] # set active and home since it's the first person in db
         elif relationship in ["spouse", "parent"]:
             fcn = self.ftv.add_new_parent_to_family
             family_handle = handle
