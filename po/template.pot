@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-05 18:05+0000\n"
+"POT-Creation-Date: 2025-05-06 20:23+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -742,32 +742,32 @@ msgid ""
 "make the search available."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:941
-#: FamilyTreeView/family_tree_view_widget_manager.py:1067
+#: FamilyTreeView/family_tree_view_widget_manager.py:942
+#: FamilyTreeView/family_tree_view_widget_manager.py:1068
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:332
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:376
 msgid "Edit"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:947
+#: FamilyTreeView/family_tree_view_widget_manager.py:948
 #: FamilyTreeView/family_tree_view_config_provider.py:758
 msgid "Set as home person"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:953
+#: FamilyTreeView/family_tree_view_widget_manager.py:954
 #: FamilyTreeView/family_tree_view_config_provider.py:757
 msgid "Set as active person"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:959
-#: FamilyTreeView/family_tree_view_widget_manager.py:1073
+#: FamilyTreeView/family_tree_view_widget_manager.py:960
+#: FamilyTreeView/family_tree_view_widget_manager.py:1074
 #: FamilyTreeView/family_tree_view_config_provider.py:754
 #: FamilyTreeView/family_tree_view_config_provider.py:763
 msgid "Open info box"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:965
-#: FamilyTreeView/family_tree_view_widget_manager.py:1079
+#: FamilyTreeView/family_tree_view_widget_manager.py:966
+#: FamilyTreeView/family_tree_view_widget_manager.py:1080
 #: FamilyTreeView/family_tree_view_config_provider.py:755
 #: FamilyTreeView/family_tree_view_config_provider.py:764
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:349
@@ -777,67 +777,67 @@ msgstr ""
 msgid "Open panel"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:978
+#: FamilyTreeView/family_tree_view_widget_manager.py:979
 msgid "Set an associated person as active"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:998
+#: FamilyTreeView/family_tree_view_widget_manager.py:999
 msgid "Add a new parent family (and parents)"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1038
+#: FamilyTreeView/family_tree_view_widget_manager.py:1039
 msgid ""
 "Add a new family (and spouse/children)\n"
 "with this person as the first spouse"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1042
-#: FamilyTreeView/family_tree_view_widget_manager.py:1056
+#: FamilyTreeView/family_tree_view_widget_manager.py:1043
+#: FamilyTreeView/family_tree_view_widget_manager.py:1057
 msgid "Add a new family (and spouse/children)"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1052
+#: FamilyTreeView/family_tree_view_widget_manager.py:1053
 msgid ""
 "Add a new family (and spouse/children)\n"
 "with this person as the second spouse"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1092
+#: FamilyTreeView/family_tree_view_widget_manager.py:1093
 msgid "Add a new person as father"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1100
+#: FamilyTreeView/family_tree_view_widget_manager.py:1101
 msgid "Add a new person as mother"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1106
+#: FamilyTreeView/family_tree_view_widget_manager.py:1107
 msgid "Add a new person as child"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1115
+#: FamilyTreeView/family_tree_view_widget_manager.py:1116
 #: FamilyTreeView/family_tree_view_config_provider.py:772
 msgid "Zoom in"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1121
+#: FamilyTreeView/family_tree_view_widget_manager.py:1122
 #: FamilyTreeView/family_tree_view_config_provider.py:773
 msgid "Zoom out"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1127
+#: FamilyTreeView/family_tree_view_widget_manager.py:1128
 #: FamilyTreeView/family_tree_view_config_provider.py:774
 msgid "Reset zoom"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1133
+#: FamilyTreeView/family_tree_view_widget_manager.py:1134
 msgid "Scroll to active person"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1139
+#: FamilyTreeView/family_tree_view_widget_manager.py:1140
 msgid "Scroll to home person"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1151
+#: FamilyTreeView/family_tree_view_widget_manager.py:1152
 msgid "Scroll to active family"
 msgstr ""
 
@@ -1633,14 +1633,14 @@ msgstr ""
 msgid "Add relative"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:885
+#: FamilyTreeView/family_tree_view.py:918
 msgid "Export tree as SVG"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:897
+#: FamilyTreeView/family_tree_view.py:930
 msgid "SVG files"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:902
+#: FamilyTreeView/family_tree_view.py:935
 msgid "Any files"
 msgstr ""
