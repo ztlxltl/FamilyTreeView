@@ -109,14 +109,20 @@ class FamilyTreeViewInfoWidgetManager:
             s += f"{self.ftv.get_symbol(death_or_fallback.type)} {get_date(death_or_fallback)}"
         return self.create_label_for_grid(s)
 
-    def create_image_widget(self, person, img_width=100, img_height=100):
-        image_spec = self.ftv.get_image_spec(person, "person")
+    def create_image_widget(self, obj, img_width=100, img_height=100, obj_type="person", only_media=False):
+        image_spec = self.ftv.get_image_spec(obj, obj_type)
         if image_spec[0] in ["path", "pixbuf"]:
             color = None
-        else:
-            alive = probably_alive(person, self.ftv.dbstate.db)
-            gender = person.get_gender()
+        elif only_media:
+            # If not a path or pixbuf is available and only media is
+            # requested (no avatar), return None.
+            return None
+        elif obj_type == "person":
+            alive = probably_alive(obj, self.ftv.dbstate.db)
+            gender = obj.get_gender()
             _, color = color_graph_box(alive, gender)
+        else: # "family"
+            color = "#000" # black
         return self.create_image_from_image_spec(image_spec, img_width, img_height, color=color)
 
     def create_image_from_image_spec(self, image_spec, img_width, img_height, color=None):

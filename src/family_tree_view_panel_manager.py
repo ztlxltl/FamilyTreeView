@@ -152,11 +152,24 @@ class FamilyTreeViewPanelManager(FamilyTreeViewInfoWidgetManager):
 
         family = self.ftv.dbstate.db.get_family_from_handle(family_handle)
 
+        base_info = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        base_info.set_spacing(self.spacing)
+
+        image = self.create_image_widget(family, obj_type="family", only_media=True)
+        if image is not None:
+            base_info.add(image)
+
+        base_info2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        base_info2.set_spacing(self.spacing)
+
         main_events = self.create_family_base_events_widget(family)
-        self.panel_content.add(main_events)
+        base_info2.add(main_events)
 
         parents_grid = self.create_parents_widget(family)
-        self.panel_content.add(parents_grid)
+        base_info2.add(parents_grid)
+
+        base_info.add(base_info2)
+        self.panel_content.add(base_info)
 
         children_grid = self.create_children_widget(family)
         self.panel_content.add(children_grid)

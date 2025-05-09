@@ -104,8 +104,17 @@ class FamilyTreeViewInfoBoxManager(FamilyTreeViewInfoWidgetManager):
         self.info_box_widget.set_spacing(self.spacing)
         self.info_box_widget.set_name("ftv-info-box")
 
+        base_info = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        base_info.set_spacing(self.spacing)
+
+        image = self.create_image_widget(family, obj_type="family", only_media=True)
+        if image is not None:
+            base_info.add(image)
+
         main_events = self.create_family_base_events_widget(family)
-        self.info_box_widget.add(main_events)
+        base_info.add(main_events)
+
+        self.info_box_widget.add(base_info)
 
         buttons = self.create_family_buttons_widget(family_handle, x, family_generation)
         self.info_box_widget.add(buttons)
