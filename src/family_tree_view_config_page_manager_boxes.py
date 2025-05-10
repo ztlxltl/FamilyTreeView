@@ -677,10 +677,12 @@ class FamilyTreeViewConfigPageManagerBoxes:
                 self.item_def_type_params_grids[box_type].attach(combo_box, 2, row, 1, 1)
             elif item_param in ["name_format", "tag_visualization", "word_or_symbol", "event_type_visualization", "rel_base"]:
                 combo_box = Gtk.ComboBox()
+                options_include_label = False # for most cases
                 if item_param == "name_format":
                     first_col_type = int
                     # TODO Is this list constructed correctly? See also names page.
                     options = []
+                    options_include_label = True
                     name_formats = [
                         (0, _("Default format"), "", True)
                     ]
@@ -737,13 +739,20 @@ class FamilyTreeViewConfigPageManagerBoxes:
                     ]
                 list_store = Gtk.ListStore(first_col_type, str)
                 for opt in options:
-                    list_store.append((opt, BOX_ITEM_PARAM_VALS[opt]))
+                    if options_include_label:
+                        list_store.append(opt)
+                    else:
+                        list_store.append((opt, BOX_ITEM_PARAM_VALS[opt]))
                 combo_box = Gtk.ComboBox.new_with_model(list_store)
                 renderer = Gtk.CellRendererText()
                 renderer.set_property("ellipsize", Pango.EllipsizeMode.END)
                 combo_box.pack_start(renderer, True)
                 combo_box.add_attribute(renderer, "text", 1)
-                combo_box.set_active(options.index(param_value))
+                if options_include_label:
+                    active_index = [opt[0] for opt in options].index(param_value)
+                else:
+                    active_index = options.index(param_value)
+                combo_box.set_active(active_index)
                 combo_box.connect("changed", self._cb_param_combo_box_changed, box_type, item_i, item_param)
                 self.item_def_type_params_grids[box_type].attach(combo_box, 2, row, 1, 1)
 
