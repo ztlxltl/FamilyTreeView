@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-09 19:11+0000\n"
+"POT-Creation-Date: 2025-05-10 11:28+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1354,21 +1354,21 @@ msgid ""
 "-2 -> the 2nd to last item (if there are at least two)\n"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:685
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:687
 msgid "Default format"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:702
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:704
 msgid ""
 "Tip: You can create a new name format in the Gramps preferences (e.g. "
 "'Surname' to display only the surnames) and use it here."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:956
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:965
 msgid "Content definition duplicated"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:959
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:968
 msgid ""
 "You edited a predefined boxes definition which cannot be changed by the "
 "user. A copy was created and selected. The change will be applied to that "
