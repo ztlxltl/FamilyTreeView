@@ -31,7 +31,7 @@ from gramps.gen.lib.eventtype import EventType
 from gramps.gui.utils import rgb_to_hex
 
 from family_tree_view_config_page_manager_boxes import BOX_ITEMS, PREDEF_BOXES_DEFS, FamilyTreeViewConfigPageManagerBoxes
-from family_tree_view_config_provider_names import name_abbr_page, names_page, DEFAULT_ABBREV_RULES
+from family_tree_view_config_provider_names import DEFAULT_ABBREV_RULES, FamilyTreeViewConfigProviderNames
 from family_tree_view_utils import get_gettext, get_reloaded_custom_filter_list
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
@@ -45,6 +45,7 @@ class FamilyTreeViewConfigProvider:
         self.badge_manager = ftv.badge_manager
 
         self.boxes_page_manager = FamilyTreeViewConfigPageManagerBoxes(self)
+        self.names_page_manager = FamilyTreeViewConfigProviderNames(self)
 
     @staticmethod
     def get_config_settings():
@@ -927,10 +928,10 @@ class FamilyTreeViewConfigProvider:
         return self.boxes_page_manager.boxes_page(configdialog)
 
     def names_page(self, configdialog):
-        return names_page(self.ftv, configdialog)
+        return self.names_page_manager.names_page(configdialog)
 
     def name_abbr_page(self, configdialog):
-        return name_abbr_page(self.ftv, configdialog)
+        return self.names_page_manager.name_abbr_page(configdialog)
 
     def expanders_page(self, configdialog):
         grid = Gtk.Grid()
