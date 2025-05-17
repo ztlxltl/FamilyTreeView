@@ -765,7 +765,10 @@ class AbbreviatedNameDisplay():
                 ):
                     continue
 
-                if name_sub_part_type == "given_given" and "given[ncnf]" in name_part_types:
+                if (
+                    name_sub_part_type in ["given", "given_call"]
+                    and "given[ncnf]" in name_part_types
+                ):
                     name_part_type_opts = "ncnf"
 
             # "-" connector cannot be simply removed.
@@ -794,10 +797,10 @@ class AbbreviatedNameDisplay():
                     for l in reversed_(range(len(upsep_parts_without_prefix))):
                         upsep_part_without_prefix = upsep_parts_without_prefix[l]
                         if name_part_type_opts == "ncnf" and (
-                            name_sub_part_type == "call" # skip call
+                            name_sub_part_type == "given_call" # skip call
                             or (
                                 j == 0 and k == 0 and l == 0 and not any(
-                                    name_sub_part_type_[0] == "call"
+                                    name_sub_part_type_[0].lower() == "given_call"
                                     for name_sub_part_type_ in name_parts[i][2]
                                 ) # skip first given if no call
                             )
