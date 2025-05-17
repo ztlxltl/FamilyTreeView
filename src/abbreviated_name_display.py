@@ -218,6 +218,55 @@ def _raw_single_surname(raw_surn_data_list):
         result += [("primary-surname", raw_surn_data["surname"]), " "]
     return __strip(__split_join(result))
 
+def _raw_given_names(first, call):
+    """split first into call and non-call parts
+
+    Returns [("given", first0), ("given_call", call), ("given", first1)]
+    (with "given" parts only if needed) or [("given", first)] (if no
+    call).
+    """
+
+    first = first.strip()
+    call = call.strip()
+
+    start_idx = 0
+    while True:
+        try:
+            idx = first.index(call, start_idx)
+        except ValueError:
+            return [("given", first)]
+        else:
+            valid_start = (
+                idx == 0
+                or first[idx-1] in [" ", "-"]
+                or first[idx].isupper() # skip "anna" in Joanna (call being lowercase "anna")
+            )
+            valid_end = (
+                idx+len(call) == len(first)
+                or first[idx+len(call)] in [" ", "-"]
+                or first[idx+len(call)].isupper() # skip "Anna" in "Annabelle"
+            )
+            if not (valid_start or valid_end):
+                start_idx = idx+1
+                continue
+
+            # a valid part of first was found
+            given_list = []
+            if idx > 0:
+                before_call = first[:idx].strip()
+                given_list.append(("given", before_call))
+                if len(before_call) < len(first[:idx]):
+                    # something was stripped off
+                    given_list.append(" ")
+            given_list.append(("given_call", call))
+            if idx+len(call) < len(first):
+                after_call = first[idx+len(call):].strip()
+                if len(after_call) < len(first[idx+len(call):]):
+                    # something was stripped off
+                    given_list.append(" ")
+                given_list.append(("given", after_call))
+            return given_list
+
 def __format_raw_surname(raw_surn_data, primary=False):
     """
     Return a formatted string representing one surname part.
@@ -439,7 +488,7 @@ class AbbreviatedNameDisplay():
 
         d = {
             "t": ("('title', title)","title", _("title", "Person")),
-            "f": ("('given', first, first, call)","given", _("given")),# first two items so one can be abbreviated and second can be checked for call afterwards
+            "f": ("_raw_given_names(first, call)","given", _("given")),
             "l": ("_raw_full_surname(raw_surname_list)", "surname", _("surname")),
             "s": ("('suffix', suffix)", "suffix", _("suffix")),
             "c": ("('call', call)", "call", _("call", "Name")),
@@ -704,44 +753,39 @@ class AbbreviatedNameDisplay():
             reversed_ = lambda x: x
 
         for i, ii in self._iter_name_parts(name_parts, reverse):
-            name_part_type = name_parts[i][2][ii][0].lower()
-            if name_part_type not in name_part_types:
-                if name_part_type == "given" and "given[ncnf]" in name_part_types:
-                    name_part_type_opts = "ncnf"
-                    call = name_parts[i][2][ii][3]
-                else:
+            name_sub_part_type = name_parts[i][2][ii][0].lower()
+            name_part_type_opts = ""
+
+            # In most cases, we continue with the next name sub part if
+            # it isn't in the list of the current rule.
+            if name_sub_part_type not in name_part_types:
+                if not (
+                    name_sub_part_type == "given_call" and "given" in name_part_types
+                    or name_sub_part_type == "given" and "given[ncnf]" in name_part_types
+                ):
                     continue
-            else:
-                name_part_type_opts = ""
+
+                if name_sub_part_type == "given_given" and "given[ncnf]" in name_part_types:
+                    name_part_type_opts = "ncnf"
+
+            # "-" connector cannot be simply removed.
+            # TODO Skip this connector here and remove it when one of
+            # the connected surnames is removed.
             if (
-                "connector" in name_part_type
+                "connector" in name_sub_part_type
                 and name_parts[i][2][ii][1] == "-"
                 and action == "remove"
             ):
                 name_parts[i][2][ii] = " "
                 return True
-            is_given = name_part_type == "given" # special handling for 'given'
+
             spsep_parts = name_parts[i][2][ii][1].split()
             for j in reversed_(range(len(spsep_parts))):
                 spsep_part = spsep_parts[j]
-                if is_given:
-                    # Check full (non-abbreviated) to check for actual call name.
-                    spsep_parts_given_full = name_parts[i][2][ii][2].split()
-                    if name_part_type_opts == "ncnf" and spsep_parts_given_full[j] == call:
-                        # NOTE: Don't check for first since first can be hyphenated or a compound name without a separator.
-                        # Skip call name.
-                        continue
                 hysep_parts = spsep_part.split("-")
                 for k in reversed_(range(len(hysep_parts))):
                     hysep_part = hysep_parts[k]
-                    if is_given:
-                        # Check full (non-abbreviated) to check for actual call name.
-                        hysep_parts_given_full = spsep_parts_given_full[j].split("-")
-                        if name_part_type_opts == "ncnf" and hysep_parts_given_full[k] == call:
-                            # NOTE: Don't check for first since first can be a compound name without a separator.
-                            # Skip call name.
-                            continue
-                    if name_part_type in ["surname", "primary-surname", "famnick"]:
+                    if name_sub_part_type in ["surname", "primary-surname", "famnick"]:
                         prefix, *upsep_parts_without_prefix = _split_name_at_capital_letter(hysep_part)
                     else:
                         # Only surnames have prefixes that need to be handled specially.
@@ -749,16 +793,17 @@ class AbbreviatedNameDisplay():
                         prefix = ""
                     for l in reversed_(range(len(upsep_parts_without_prefix))):
                         upsep_part_without_prefix = upsep_parts_without_prefix[l]
-                        if is_given:
-                            # Check full (non-abbreviated) to check for actual call name.
-                            # Only surnames have prefixes that need to be handled specially.
-                            upsep_parts_given_full = _split_name_at_capital_letter(hysep_parts_given_full[k], expect_prefix=False)
-                            if name_part_type_opts == "ncnf" and (
-                                upsep_parts_given_full[l] == call # call name
-                                or (call == "" and j == 0 and k == 0 and l == 0) # no call and this is first
-                            ):
-                                # Skip call name and first name.
-                                continue
+                        if name_part_type_opts == "ncnf" and (
+                            name_sub_part_type == "call" # skip call
+                            or (
+                                j == 0 and k == 0 and l == 0 and not any(
+                                    name_sub_part_type_[0] == "call"
+                                    for name_sub_part_type_ in name_parts[i][2]
+                                ) # skip first given if no call
+                            )
+                        ):
+                            # Skip call name and first name.
+                            continue
                         if action == "abbrev":
                             if not upsep_part_without_prefix.isalpha():
                                 # Ignore everything that's not a name or abbreviated name.
@@ -771,10 +816,6 @@ class AbbreviatedNameDisplay():
                             upsep_parts_without_prefix[l] = upsep_part_without_prefix[0] + "."
                             hysep_parts[k] =  prefix + "".join(upsep_parts_without_prefix)
                             spsep_parts[j] = "-".join(hysep_parts)
-                            if is_given:
-                                name_parts[i][2][ii] = (name_parts[i][2][ii][0], " ".join(spsep_parts), name_parts[i][2][ii][2], name_parts[i][2][ii][3])
-                            else:
-                                name_parts[i][2][ii] = (name_parts[i][2][ii][0], " ".join(spsep_parts))
                         elif action == "remove":
                             upsep_parts_without_prefix.pop(l)
                             hysep_parts[k] = "".join(upsep_parts_without_prefix)
@@ -783,17 +824,7 @@ class AbbreviatedNameDisplay():
                             spsep_parts[j] = "-".join(hysep_parts)
                             if len(spsep_parts[j]) == 0:
                                 spsep_parts.pop(j)
-                            if is_given:
-                                upsep_parts_given_full.pop(l)
-                                hysep_parts_given_full[k] = "".join(upsep_parts_given_full)
-                                if len(hysep_parts_given_full[k]) == 0:
-                                    hysep_parts_given_full.pop(k)
-                                spsep_parts_given_full[j] = "-".join(hysep_parts_given_full)
-                                if len(spsep_parts_given_full[j]) == 0:
-                                    spsep_parts_given_full.pop(j)
-                                name_parts[i][2][ii] = (name_parts[i][2][ii][0], " ".join(spsep_parts).strip(), " ".join(spsep_parts_given_full).strip(), name_parts[i][2][ii][3])
-                            else:
-                                name_parts[i][2][ii] = (name_parts[i][2][ii][0], " ".join(spsep_parts))
+                        name_parts[i][2][ii] = (name_parts[i][2][ii][0], " ".join(spsep_parts))
 
                         if action == "abbrev":
                             action_str = "abbreviate"
@@ -829,8 +860,9 @@ class AbbreviatedNameDisplay():
         return False
 
     def _iter_name_parts(self, name_parts, reverse=True):
-        """Loop backwards ofer non-str items of name_parts.
-        Yields i, ii for all useful name_parts[i][2][ii]
+        """Loop backwards over non-str items of name_parts.
+        Yields i, ii for all useful name_parts[i][2][ii] where i is the
+        index of the name part and ii of the name sub part.
         """
         if reverse:
             reversed_ = reversed
