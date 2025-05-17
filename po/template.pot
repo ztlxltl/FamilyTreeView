@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-17 07:29+0000\n"
+"POT-Creation-Date: 2025-05-17 16:44+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,87 +17,87 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: FamilyTreeView/abbreviated_name_display.py:441
+#: FamilyTreeView/abbreviated_name_display.py:490
 msgid "title"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:442
+#: FamilyTreeView/abbreviated_name_display.py:491
 msgid "given"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:443
+#: FamilyTreeView/abbreviated_name_display.py:492
 msgid "surname"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:444
+#: FamilyTreeView/abbreviated_name_display.py:493
 msgid "suffix"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:445
+#: FamilyTreeView/abbreviated_name_display.py:494
 msgid "call"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:449
+#: FamilyTreeView/abbreviated_name_display.py:498
 msgid "common"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:454
+#: FamilyTreeView/abbreviated_name_display.py:503
 msgid "initials"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:459
+#: FamilyTreeView/abbreviated_name_display.py:508
 msgid "primary"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:464
+#: FamilyTreeView/abbreviated_name_display.py:513
 msgid "primary[pre]"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:469
+#: FamilyTreeView/abbreviated_name_display.py:518
 msgid "primary[sur]"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:474
+#: FamilyTreeView/abbreviated_name_display.py:523
 msgid "primary[con]"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:479
+#: FamilyTreeView/abbreviated_name_display.py:528
 msgid "patronymic"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:484
+#: FamilyTreeView/abbreviated_name_display.py:533
 msgid "patronymic[pre]"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:489
+#: FamilyTreeView/abbreviated_name_display.py:538
 msgid "patronymic[sur]"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:494
+#: FamilyTreeView/abbreviated_name_display.py:543
 msgid "patronymic[con]"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:499
+#: FamilyTreeView/abbreviated_name_display.py:548
 msgid "notpatronymic"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:504
+#: FamilyTreeView/abbreviated_name_display.py:553
 msgid "rest"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:506
+#: FamilyTreeView/abbreviated_name_display.py:555
 msgid "prefix"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:510
+#: FamilyTreeView/abbreviated_name_display.py:559
 msgid "rawsurnames"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:512
+#: FamilyTreeView/abbreviated_name_display.py:561
 msgid "nickname"
 msgstr ""
 
-#: FamilyTreeView/abbreviated_name_display.py:513
+#: FamilyTreeView/abbreviated_name_display.py:562
 msgid "familynick"
 msgstr ""
 
