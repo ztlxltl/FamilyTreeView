@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-18 13:52+0000\n"
+"POT-Creation-Date: 2025-05-18 19:31+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -923,69 +923,69 @@ msgstr ""
 msgid "Attributes"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:234
+#: FamilyTreeView/family_tree_view_canvas_manager.py:236
 msgid "Close the \"Add relatives\" overlay"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:401
-#: FamilyTreeView/family_tree_view_canvas_manager.py:705
+#: FamilyTreeView/family_tree_view_canvas_manager.py:403
+#: FamilyTreeView/family_tree_view_canvas_manager.py:707
 msgid "Add a new spouse¦Add new spouse¦Add spouse¦+ spouse¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:416
-#: FamilyTreeView/family_tree_view_canvas_manager.py:734
+#: FamilyTreeView/family_tree_view_canvas_manager.py:418
+#: FamilyTreeView/family_tree_view_canvas_manager.py:736
 msgid "Add a new child¦Add new child¦Add child¦+ child¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:447
+#: FamilyTreeView/family_tree_view_canvas_manager.py:449
 msgid "Add a new family¦Add new family¦Add family¦+ family¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:457
+#: FamilyTreeView/family_tree_view_canvas_manager.py:459
 msgid ""
 "Add a new family and a new spouse¦Add new family and new spouse¦Add family "
 "and spouse¦Add family, spouse¦+ family, spouse¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:487
+#: FamilyTreeView/family_tree_view_canvas_manager.py:489
 msgid ""
 "Add a new family and a new child¦Add new family and new child¦Add family and "
 "child¦Add family, child¦+ family, child¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:525
+#: FamilyTreeView/family_tree_view_canvas_manager.py:527
 msgid "Add a new father¦Add new father¦Add father¦+ father¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:543
+#: FamilyTreeView/family_tree_view_canvas_manager.py:545
 msgid "Add a new mother¦Add new mother¦Add mother¦+ mother¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:558
+#: FamilyTreeView/family_tree_view_canvas_manager.py:560
 msgid "Add a new sibling¦Add new sibling¦Add sibling¦+ sibling¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:593
+#: FamilyTreeView/family_tree_view_canvas_manager.py:595
 msgid ""
 "Add a new parent family¦Add new parent family¦Add parent family¦Add "
 "parents¦+ parents¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:604
+#: FamilyTreeView/family_tree_view_canvas_manager.py:606
 msgid ""
 "Add a new parent family and a new father¦Add new parent family and new "
 "father¦Add parent family and father¦Add parent family, father¦Add parents, "
 "father¦+ parents, father¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:616
+#: FamilyTreeView/family_tree_view_canvas_manager.py:618
 msgid ""
 "Add a new parent family and a new mother¦Add new parent family and new "
 "mother¦Add parent family and mother¦Add parent family, mother¦Add parents, "
 "mother¦+ parents, mother¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:652
+#: FamilyTreeView/family_tree_view_canvas_manager.py:654
 msgid ""
 "Add a new parent family and a new sibling¦Add new parent family and new "
 "sibling¦Add parent family and sibling¦Add parent family, sibling¦Add "
