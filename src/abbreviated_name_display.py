@@ -692,51 +692,124 @@ class AbbreviatedNameDisplay():
 
     def _name_from_parts(self, display_name_parts):
         all_caps_style = self.ftv._config.get("names.familytreeview-abbrev-name-all-caps-style")
-        if all_caps_style == 0:
-            style_fcn = _upper
-        elif all_caps_style == 1:
-            style_fcn = _fake_small_caps
-        elif all_caps_style == 2:
-            style_fcn = lambda names, **kwargs: _fake_small_caps(names, petite_caps=True, **kwargs)
-        else:
-            if all_caps_style == 3:
-                style_tag = "b"
-            elif all_caps_style == 4:
-                style_tag = "i"
-            elif all_caps_style == 5:
-                style_tag = "u"
-            style_fcn = lambda names, **kwargs: [
-                f"<{style_tag}>"+name+f"</{style_tag}>"
-                for name in names
-                if len(name) > 0
-            ]
+        call_name_style = self.ftv._config.get("names.familytreeview-abbrev-name-call-name-style")
+        call_name_mode = self.ftv._config.get("names.familytreeview-abbrev-name-call-name-mode")
+        primary_surname_style = self.ftv._config.get("names.familytreeview-abbrev-name-primary-surname-style")
+        primary_surname_mode = self.ftv._config.get("names.familytreeview-abbrev-name-primary-surname-mode")
+
+        all_caps_style_fcn = get_style_fcn(all_caps_style, none_value="ignore", check_for_tags=True)
+        call_name_style_fcn = get_style_fcn(call_name_style)
+        primary_surname_style_fcn = get_style_fcn(primary_surname_style)
+
+        # TODO Maybe add style for patronymic surname. Special care is
+        # required if patronymic is primary.
+
+        if primary_surname_mode == "primary_surname":
+            primary_surname_part_types = ["primary-surname"]
+        else: # "primary_surname_prefix"
+            primary_surname_part_types = ["primary-surname", "primary-prefix"]
+
         name_str = ""
         for name_part in display_name_parts:
             if isinstance(name_part, str):
                 name_str += name_part
             else:
                 part_str = ""
-                for sub_part in name_part[2]:
+                for ii, sub_part in enumerate(name_part[2]):
                     if isinstance(sub_part, str):
                         part_str += sub_part
                     else:
-                        if sub_part[0].isupper():
-                            prefix_possible = sub_part[0].lower() in ["surname", "primary-surname", "famnick"]
-                            part_str += " ".join(
-                                "-".join(
-                                    "".join(style_fcn(
-                                        _split_name_at_capital_letter(
-                                            hysep_part,
-                                            expect_prefix=prefix_possible
-                                        ),
-                                        all_but_first=prefix_possible
-                                    ))
-                                    for hysep_part in spsep_part.split("-")
+                        sub_part_type = sub_part[0].lower()
+
+                        # conditions for applying call name style
+                        apply_call_name_function_only_to_first = False
+                        if call_name_mode in ["call_not_given0", "call_not_only_given"]:
+                            if sub_part_type == "call":
+                                apply_call_name_function = True
+                            elif sub_part_type == "given_call":
+                                if call_name_mode == "call_not_given0":
+                                    # Not the first given if there is a
+                                    # "given" before "given_call", i.e.
+                                    # index of "given_call" is not 0.
+                                    apply_call_name_function = ii > 0
+                                else: # "call_not_only_given"
+                                    # Not the only given if there are
+                                    # any "given" among this
+                                    # "given_call".
+                                    apply_call_name_function = any(
+                                        sub_part_type_[0].lower() == "given"
+                                        for sub_part_type_ in name_part[2]
+                                    )
+                            else:
+                                apply_call_name_function = False
+                        elif sub_part_type in ["call", "given_call"]:
+                            # "call" part in "call" and "call_or_given0"
+                            apply_call_name_function = True
+                        elif (
+                            sub_part_type in ["given", "given0"]
+                            and call_name_mode == "call_or_given0"
+                            and not any(
+                                sub_part_type_[0].lower() == "given_call"
+                                for sub_part_type_ in name_part[2]
+                            ) # only apply to first given if no call
+                        ):
+                            # "or_given0" part
+                            apply_call_name_function = True
+                            apply_call_name_function_only_to_first = True
+                        else:
+                            apply_call_name_function = False
+
+                        if apply_call_name_function:
+                            if apply_call_name_function_only_to_first:
+                                # apply if first space separated
+                                f_cn = (lambda names, spsep_index=None, **kwargs:
+                                    call_name_style_fcn(names, **kwargs)
+                                    if (
+                                        spsep_index is None
+                                        or spsep_index == 0
+                                    ) else
+                                    names
                                 )
-                                for spsep_part in sub_part[1].split()
+                            else:
+                                # always apply
+                                f_cn = call_name_style_fcn
+                        else:
+                            # never apply
+                            f_cn = lambda names, **kwargs: names
+
+                        if sub_part_type in primary_surname_part_types:
+                            f_sp = lambda names, **kwargs: primary_surname_style_fcn(f_cn(names, **kwargs), **kwargs)
+                        else:
+                            f_sp = f_cn
+
+                        # All caps style needs to the applied last, as
+                        # it works on name parts, not on sub-parts. It
+                        # also detects tags already applied to specific
+                        # sub-parts and skips if the formats cannot be
+                        # combined, see check_for_tags in get_style_fcn.
+                        if sub_part[0].isupper():
+                            f_ac = (lambda names, **kwargs:
+                                all_caps_style_fcn(f_sp(names, **kwargs), **kwargs)
                             )
                         else:
-                            part_str += sub_part[1]
+                            f_ac = f_sp
+
+                        prefix_possible = sub_part_type in ["surname", "primary-surname", "famnick"]
+                        sub_part_1 = " ".join(
+                            "-".join(
+                                "".join(f_ac(
+                                    _split_name_at_capital_letter(
+                                        hysep_part,
+                                        expect_prefix=prefix_possible
+                                    ),
+                                    all_but_first=prefix_possible,
+                                    spsep_index=j
+                                ))
+                                for hysep_part in spsep_part.split("-")
+                            )
+                            for j, spsep_part in enumerate(sub_part[1].split())
+                        )
+                        part_str += sub_part_1
                 if part_str.strip() != "":
                     # This is equivalent to ifNotEmpty in NameDisplay.
                     part_str = name_part[1] + part_str + name_part[3]
@@ -910,6 +983,77 @@ def _split_name_at_capital_letter(name, expect_prefix=True):
         return names
     return [prefix, *names]
 
+def get_style_fcn(style, none_value="none", check_for_tags=False):
+    if style == none_value:
+        style_fcn_raw = lambda names, **kwargs: names
+    elif style == "all_caps":
+        style_fcn_raw = _upper
+    elif style == "small_caps":
+        style_fcn_raw = _fake_small_caps
+    elif style == "petite_caps":
+        style_fcn_raw = lambda names, **kwargs: _fake_small_caps(names, petite_caps=True, **kwargs)
+    else:
+        if style == "bold":
+            style_tag = "b"
+        elif style == "italic":
+            style_tag = "i"
+        elif style == "underline":
+            style_tag = "u"
+        style_fcn_raw = lambda names, **kwargs: [
+            f"<{style_tag}>"+name+f"</{style_tag}>"
+            if len(name) > 0 else ""
+            for name in names
+        ]
+
+    if check_for_tags:
+        def handle_all_but_first(name, all_but_first, i, fcn, **kwargs):
+            add_fake_first = all_but_first and i > 0
+            if add_fake_first:
+                name_ = ["", name]
+            else:
+                name_ = [name]
+            styled_name = fcn(name_, all_but_first=all_but_first, **kwargs)
+            if add_fake_first and len(styled_name) > 0:
+                styled_name = styled_name[1:]
+            return styled_name
+
+        def style_fcn(names, all_but_first=True, **kwargs):
+            result = []
+            for i, name in enumerate(names):
+                if "<small>" in name:
+                    if style in ["all_caps", "small_caps", "petite_caps"]:
+                        # Different capitalization styles cannot be
+                        # combined. Don't format this name. The already
+                        # applied formatting is more specific (e.g.
+                        # primary surname).
+                        result.append(name)
+                    else:
+                        result.extend(handle_all_but_first(
+                            name, all_but_first, i,
+                            style_fcn_raw, **kwargs
+                        ))
+                elif "<" in name:
+                    # other tag, e.g. <b>
+                    # assumption: tag with only only letter
+                    name_orig = name
+                    result.append(name_orig[:3])
+                    name = name[3:-4]
+                    result.extend(handle_all_but_first(
+                        name, all_but_first, i,
+                        style_fcn_raw, **kwargs
+                    ))
+                    result.append(name_orig[-4:])
+                else:
+                    result.extend(handle_all_but_first(
+                        name, all_but_first, i,
+                        style_fcn_raw, **kwargs
+                    ))
+            return result
+    else:
+        style_fcn = style_fcn_raw
+
+    return style_fcn
+
 def _upper(names, all_but_first=True, **kwargs):
     if all_but_first:
         return [names[0], *(name.upper() for name in names[1:])]
@@ -923,6 +1067,7 @@ def _fake_small_caps(names, petite_caps=False, **kwargs):
     small_caps_names = []
     for name in names:
         if len(name) == 0:
+            small_caps_names.append("")
             continue
 
         # get char groups, equivalent to char_groups = re.findall(r'[^a-z]+|[a-z]+', name) but with all unicode Ll characters.

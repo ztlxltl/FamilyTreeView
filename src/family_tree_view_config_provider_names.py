@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 
 from gi.repository import Gtk, Pango
 
-from gramps.gen.display.name import displayer as name_displayer
+from gramps.gen.display.name import _F_FN, displayer as name_displayer
 from gramps.gen.lib import Name, Surname, NameOriginType
 from gramps.gen.utils.keyword import (
     get_keywords,
@@ -112,6 +112,7 @@ class FamilyTreeViewConfigProviderNames:
         def _cb_name_format_combo_changed(combo, constant):
             self.ftv._config.set(constant, name_format_options[combo.get_active()][0])
             self.ftv.emit("abbrev-rules-changed")
+            self._update_name_preview()
             self._fill_preview_model()
         name_format_combo = configdialog.add_combo(
             grid,
@@ -141,37 +142,236 @@ class FamilyTreeViewConfigProviderNames:
         )
 
         row += 1
+        label = Gtk.Label()
+        label.set_markup(_("<b>Custom formatting/emphasis for the tree</b>"))
+        label.set_halign(Gtk.Align.START)
+        label.set_margin_top(20)
+        grid.attach(label, 1, row, 1, 1)
+
+        row += 1
+        label = Gtk.Label(_("Display ALL CAPS name parts in the tree as:"))
+        label.set_halign(Gtk.Align.START)
+        grid.attach(label, 1, row, 1, 1)
         all_caps_style_options = [
-            (0, _("ALL CAPS (keep as defined)")),
+            ("ignore", _("Ignore all caps")),
+            ("all_caps", _("ALL CAPS (keep as defined)")),
             # Use <small> since proper small caps doesn't work with canvas zooming.
-            (1, _("S<small>MALL</small> C<small>APS</small>")),
-            (2, _("P<small><small>ETITE</small></small> C<small><small>APS</small></small>")),
-            (3, _("<b>Bold</b>")),
-            (4, _("<i>Italic</i>")),
-            (5, _("<u>Underline</u>")),
+            ("small_caps", _("S<small>MALL</small> C<small>APS</small>")),
+            ("petite_caps", _("P<small><small>ETITE</small></small> C<small><small>APS</small></small>")),
+            ("bold", _("<b>Bold</b>")),
+            ("italic", _("<i>Italic</i>")),
+            ("underline", _("<u>Underline</u>")),
         ]
-        def _cb_all_caps_combo_changed(combo, constant):
-            self.ftv._config.set(constant, combo.get_active())
+        all_caps_style_list_store = Gtk.ListStore(str, str)
+        for opt in all_caps_style_options:
+            all_caps_style_list_store.append(opt)
+        all_caps_combo = Gtk.ComboBox.new_with_model(all_caps_style_list_store)
+        renderer = Gtk.CellRendererText()
+        all_caps_combo.pack_start(renderer, True)
+        all_caps_combo.add_attribute(renderer, "markup", 1)
+        try:
+            active_index = [opt[0] for opt in all_caps_style_options].index(
+                self.ftv._config.get("names.familytreeview-abbrev-name-all-caps-style")
+            )
+        except ValueError:
+            active_index = 1 # all_caps
+        all_caps_combo.set_active(active_index)
+        def _cb_all_caps_combo_changed(combo):
+            self.ftv._config.set(
+                "names.familytreeview-abbrev-name-all-caps-style",
+                all_caps_style_options[combo.get_active()][0]
+            )
             self.ftv.emit("abbrev-rules-changed")
+            self._update_name_preview()
             self._fill_preview_model()
-        all_caps_combo = configdialog.add_combo(
-            grid,
-            _("Display ALL CAPS name parts in the tree as"),
-            row,
-            "names.familytreeview-abbrev-name-all-caps-style",
-            all_caps_style_options,
-            callback=_cb_all_caps_combo_changed,
-        )
-        cell = all_caps_combo.get_cells()[0]
-        all_caps_combo.clear_attributes(cell)
-        all_caps_combo.add_attribute(cell, "markup", 1)
-        combo_label = grid.get_child_at(1, row)
-        grid.remove(combo_label)
-        grid.remove(all_caps_combo)
-        grid.attach(combo_label, 1, row, 1, 1)
+        all_caps_combo.connect("changed", _cb_all_caps_combo_changed)
         grid.attach(all_caps_combo, 2, row, 2, 1)
 
+        row += 1
+        label = Gtk.Label(_("Emphasize call name in the tree with:"))
+        label.set_halign(Gtk.Align.START)
+        grid.attach(label, 1, row, 1, 1)
+        call_name_style_options = [
+            ("none", _("None")),
+            ("all_caps", _("ALL CAPS")),
+            # Use <small> since proper small caps doesn't work with canvas zooming.
+            ("small_caps", _("S<small>MALL</small> C<small>APS</small>")),
+            ("petite_caps", _("P<small><small>ETITE</small></small> C<small><small>APS</small></small>")),
+            ("bold", _("<b>Bold</b>")),
+            ("italic", _("<i>Italic</i>")),
+            ("underline", _("<u>Underline</u>")),
+        ]
+        call_name_style_list_store = Gtk.ListStore(str, str)
+        for opt in call_name_style_options:
+            call_name_style_list_store.append(opt)
+        call_name_style_combo = Gtk.ComboBox.new_with_model(call_name_style_list_store)
+        renderer = Gtk.CellRendererText()
+        call_name_style_combo.pack_start(renderer, True)
+        call_name_style_combo.add_attribute(renderer, "markup", 1)
+        try:
+            active_index = [opt[0] for opt in call_name_style_options].index(
+                self.ftv._config.get("names.familytreeview-abbrev-name-call-name-style")
+            )
+        except ValueError:
+            active_index = 0 # none
+        call_name_style_combo.set_active(active_index)
+        def _cb_call_name_style_combo_changed(combo):
+            self.ftv._config.set(
+                "names.familytreeview-abbrev-name-call-name-style",
+                call_name_style_options[combo.get_active()][0]
+            )
+            self.ftv.emit("abbrev-rules-changed")
+            self._update_name_preview()
+            self._fill_preview_model()
+        call_name_style_combo.connect("changed", _cb_call_name_style_combo_changed)
+        grid.attach(call_name_style_combo, 2, row, 2, 1)
+
+        row += 1
+        label = Gtk.Label(_("When emphasizing, consider as call name:"))
+        label.set_halign(Gtk.Align.START)
+        grid.attach(label, 1, row, 1, 1)
+        call_name_mode_options = [
+            ("call_not_given0", _("Call name if it's not the first given name")),
+            ("call_not_only_given", _("Call name if it's not the only given name")),
+            ("call", _("Call name")),
+            ("call_or_given0", _("Call name or first given name")),
+        ]
+        call_name_mode_list_store = Gtk.ListStore(str, str)
+        for opt in call_name_mode_options:
+            call_name_mode_list_store.append(opt)
+        call_name_mode_combo = Gtk.ComboBox.new_with_model(call_name_mode_list_store)
+        renderer = Gtk.CellRendererText()
+        call_name_mode_combo.pack_start(renderer, True)
+        call_name_mode_combo.add_attribute(renderer, "text", 1)
+        try:
+            active_index = [opt[0] for opt in call_name_mode_options].index(
+                self.ftv._config.get("names.familytreeview-abbrev-name-call-name-mode")
+            )
+        except ValueError:
+            active_index = 3 # call_or_given0
+        call_name_mode_combo.set_active(active_index)
+        def _cb_call_name_mode_combo_changed(combo):
+            self.ftv._config.set(
+                "names.familytreeview-abbrev-name-call-name-mode",
+                call_name_mode_options[combo.get_active()][0]
+            )
+            self.ftv.emit("abbrev-rules-changed")
+            self._update_name_preview()
+            self._fill_preview_model()
+        call_name_mode_combo.connect("changed", _cb_call_name_mode_combo_changed)
+        grid.attach(call_name_mode_combo, 2, row, 2, 1)
+
+        row += 1
+        label = Gtk.Label(_("Emphasize primary surname in the tree with:"))
+        label.set_halign(Gtk.Align.START)
+        grid.attach(label, 1, row, 1, 1)
+        primary_surname_style_options = [
+            ("none", _("None")),
+            ("all_caps", _("ALL CAPS")),
+            # Use <small> since proper small caps doesn't work with canvas zooming.
+            ("small_caps", _("S<small>MALL</small> C<small>APS</small>")),
+            ("petite_caps", _("P<small><small>ETITE</small></small> C<small><small>APS</small></small>")),
+            ("bold", _("<b>Bold</b>")),
+            ("italic", _("<i>Italic</i>")),
+            ("underline", _("<u>Underline</u>")),
+        ]
+        primary_surname_style_list_store = Gtk.ListStore(str, str)
+        for opt in primary_surname_style_options:
+            primary_surname_style_list_store.append(opt)
+        primary_surname_style_combo = Gtk.ComboBox.new_with_model(primary_surname_style_list_store)
+        renderer = Gtk.CellRendererText()
+        primary_surname_style_combo.pack_start(renderer, True)
+        primary_surname_style_combo.add_attribute(renderer, "markup", 1)
+        try:
+            active_index = [opt[0] for opt in primary_surname_style_options].index(
+                self.ftv._config.get("names.familytreeview-abbrev-name-primary-surname-style")
+            )
+        except ValueError:
+            active_index = 0 # none
+        primary_surname_style_combo.set_active(active_index)
+        def _cb_primary_surname_style_combo_changed(combo):
+            self.ftv._config.set(
+                "names.familytreeview-abbrev-name-primary-surname-style",
+                primary_surname_style_options[combo.get_active()][0]
+            )
+            self.ftv.emit("abbrev-rules-changed")
+            self._update_name_preview()
+            self._fill_preview_model()
+        primary_surname_style_combo.connect("changed", _cb_primary_surname_style_combo_changed)
+        grid.attach(primary_surname_style_combo, 2, row, 2, 1)
+
+        row += 1
+        label = Gtk.Label(_("When emphasizing, consider as primary surname:"))
+        label.set_halign(Gtk.Align.START)
+        grid.attach(label, 1, row, 1, 1)
+        primary_surname_mode_options = [
+            ("primary_surname", _("Primary surname")),
+            ("primary_surname_prefix", _("Primary surname and its prefix")),
+        ]
+        primary_surname_mode_list_store = Gtk.ListStore(str, str)
+        for opt in primary_surname_mode_options:
+            primary_surname_mode_list_store.append(opt)
+        primary_surname_mode_combo = Gtk.ComboBox.new_with_model(primary_surname_mode_list_store)
+        renderer = Gtk.CellRendererText()
+        primary_surname_mode_combo.pack_start(renderer, True)
+        primary_surname_mode_combo.add_attribute(renderer, "text", 1)
+        try:
+            active_index = [opt[0] for opt in primary_surname_mode_options].index(
+                self.ftv._config.get("names.familytreeview-abbrev-name-primary-surname-mode")
+            )
+        except ValueError:
+            active_index = 0 # none
+        primary_surname_mode_combo.set_active(active_index)
+        def _cb_primary_surname_mode_combo_changed(combo):
+            self.ftv._config.set(
+                "names.familytreeview-abbrev-name-primary-surname-mode",
+                primary_surname_mode_options[combo.get_active()][0]
+            )
+            self.ftv.emit("abbrev-rules-changed")
+            self._update_name_preview()
+            self._fill_preview_model()
+        primary_surname_mode_combo.connect("changed", _cb_primary_surname_mode_combo_changed)
+        grid.attach(primary_surname_mode_combo, 2, row, 2, 1)
+
+        row += 1
+        label = Gtk.Label(_("Example:"))
+        label.set_halign(Gtk.Align.START)
+        grid.attach(label, 1, row, 1, 1)
+
+        row += 1
+        label = Gtk.Label(_("Just the name format:"))
+        label.set_halign(Gtk.Align.START)
+        grid.attach(label, 1, row, 1, 1)
+
+        self.name_without_style_label = Gtk.Label()
+        self.name_without_style_label.set_halign(Gtk.Align.START)
+        grid.attach(self.name_without_style_label, 2, row, 1, 1)
+
+        row += 1
+        label = Gtk.Label(_("With custom formatting/emphasis:"))
+        label.set_halign(Gtk.Align.START)
+        grid.attach(label, 1, row, 1, 1)
+
+        self.name_with_style_label = Gtk.Label()
+        self.name_with_style_label.set_halign(Gtk.Align.START)
+        grid.attach(self.name_with_style_label, 2, row, 1, 1)
+
+        self._update_name_preview()
+
         return grid
+
+    def _update_name_preview(self):
+        example_name = self._get_example_name()
+        num = self.ftv.abbrev_name_display.get_num_for_name_abbrev(example_name)
+
+        # There is no display_name_format (only display_format for
+        # person).
+        text = name_displayer.name_formats[num][_F_FN](example_name)
+        self.name_without_style_label.set_text(text)
+
+        abbr_name_list = self.ftv.abbrev_name_display.get_abbreviated_names(example_name, num=num)
+        markup = abbr_name_list[0] # full name
+        self.name_with_style_label.set_markup(markup)
 
     def name_abbr_page(self, configdialog):
         grid = Gtk.Grid()
@@ -545,6 +745,20 @@ class FamilyTreeViewConfigProviderNames:
             return
 
         self.preview_model.clear()
+        example_name = self._get_example_name()
+
+        num = self.ftv.abbrev_name_display.get_num_for_name_abbrev(example_name)
+        abbr_name_list, step_descriptions = self.ftv.abbrev_name_display.get_abbreviated_names(example_name, num=num, return_step_description=True)
+        for abbrev_name, step_info in zip(abbr_name_list, step_descriptions):
+            self.preview_model.append([
+                abbrev_name,
+                "-" if step_info[0] is None else str(step_info[0]+1), # rule
+                "-" if step_info[1] is None else str(step_info[1]+1), # rule step
+                step_info[9], # description
+                ""
+            ])
+
+    def _get_example_name(self):
         example_name = Name()
         example_name.set_first_name("Edwin Jose")
         example_name.set_call_name("Jose")
@@ -572,13 +786,4 @@ class FamilyTreeViewConfigProviderNames:
 
         example_name.set_family_nick_name("Underhills")
 
-        num = self.ftv.abbrev_name_display.get_num_for_name_abbrev(example_name)
-        abbr_name_list, step_descriptions = self.ftv.abbrev_name_display.get_abbreviated_names(example_name, num=num, return_step_description=True)
-        for abbrev_name, step_info in zip(abbr_name_list, step_descriptions):
-            self.preview_model.append([
-                abbrev_name,
-                "-" if step_info[0] is None else str(step_info[0]+1), # rule
-                "-" if step_info[1] is None else str(step_info[1]+1), # rule step
-                step_info[9], # description
-                ""
-            ])
+        return example_name

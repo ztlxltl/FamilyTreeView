@@ -126,7 +126,11 @@ class FamilyTreeViewConfigProvider:
 
             ("names.familytreeview-abbrev-name-format-id", 0),
             ("names.familytreeview-abbrev-name-format-always", True),
-            ("names.familytreeview-abbrev-name-all-caps-style", 0),
+            ("names.familytreeview-abbrev-name-all-caps-style", "all_caps"),
+            ("names.familytreeview-abbrev-name-call-name-style", "none"),
+            ("names.familytreeview-abbrev-name-call-name-mode", "call"),
+            ("names.familytreeview-abbrev-name-primary-surname-style", "none"),
+            ("names.familytreeview-abbrev-name-primary-surname-mode", "primary_surname"),
             ("names.familytreeview-name-abbrev-rules", deepcopy(DEFAULT_ABBREV_RULES)),
 
             ("expanders.familytreeview-expander-types-shown", {
