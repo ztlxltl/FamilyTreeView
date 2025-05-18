@@ -125,6 +125,8 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         if cb_background is not None:
             self.canvas.get_root_item().connect("button-press-event", self.click_callback, cb_background)
 
+        self.scroll_mode = self.ftv._config.get("interaction.familytreeview-scroll-mode")
+
         # config connect to callbacks
         for key in [
             "interaction.familytreeview-zoom-level-default",
