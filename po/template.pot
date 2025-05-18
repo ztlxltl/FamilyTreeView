@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-17 20:53+0000\n"
+"POT-Creation-Date: 2025-05-18 13:52+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -119,7 +119,7 @@ msgstr ""
 #: FamilyTreeView/family_tree_view_tree_builder.py:171
 #: FamilyTreeView/family_tree_view.gpr.py:45
 #: FamilyTreeView/family_tree_view.py:196
-#: FamilyTreeView/family_tree_view_config_provider.py:430
+#: FamilyTreeView/family_tree_view_config_provider.py:434
 msgid "FamilyTreeView"
 msgstr ""
 
@@ -221,88 +221,169 @@ msgstr ""
 msgid "Default format (defined by Gramps preferences)"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:118
+#: FamilyTreeView/family_tree_view_config_provider_names.py:119
 msgid "Default name format for the tree"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:136
+#: FamilyTreeView/family_tree_view_config_provider_names.py:137
 msgid ""
 "Use always this name format in the tree (never name-specific \"Display as:\" "
 "name format)"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:145
+#: FamilyTreeView/family_tree_view_config_provider_names.py:146
+msgid "<b>Custom formatting/emphasis for the tree</b>"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_config_provider_names.py:152
+msgid "Display ALL CAPS name parts in the tree as:"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_config_provider_names.py:156
+msgid "Ignore all caps"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_config_provider_names.py:157
 msgid "ALL CAPS (keep as defined)"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:147
+#: FamilyTreeView/family_tree_view_config_provider_names.py:159
+#: FamilyTreeView/family_tree_view_config_provider_names.py:198
+#: FamilyTreeView/family_tree_view_config_provider_names.py:272
 msgid "S<small>MALL</small> C<small>APS</small>"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:148
+#: FamilyTreeView/family_tree_view_config_provider_names.py:160
+#: FamilyTreeView/family_tree_view_config_provider_names.py:199
+#: FamilyTreeView/family_tree_view_config_provider_names.py:273
 msgid "P<small><small>ETITE</small></small> C<small><small>APS</small></small>"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:149
+#: FamilyTreeView/family_tree_view_config_provider_names.py:161
+#: FamilyTreeView/family_tree_view_config_provider_names.py:200
+#: FamilyTreeView/family_tree_view_config_provider_names.py:274
 msgid "<b>Bold</b>"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:150
+#: FamilyTreeView/family_tree_view_config_provider_names.py:162
+#: FamilyTreeView/family_tree_view_config_provider_names.py:201
+#: FamilyTreeView/family_tree_view_config_provider_names.py:275
 msgid "<i>Italic</i>"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:151
+#: FamilyTreeView/family_tree_view_config_provider_names.py:163
+#: FamilyTreeView/family_tree_view_config_provider_names.py:202
+#: FamilyTreeView/family_tree_view_config_provider_names.py:276
 msgid "<u>Underline</u>"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:159
-msgid "Display ALL CAPS name parts in the tree as"
+#: FamilyTreeView/family_tree_view_config_provider_names.py:191
+msgid "Emphasize call name in the tree with:"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:186
-#: FamilyTreeView/family_tree_view_config_provider.py:402
+#: FamilyTreeView/family_tree_view_config_provider_names.py:195
+#: FamilyTreeView/family_tree_view_config_provider_names.py:269
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:174
+msgid "None"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_config_provider_names.py:196
+#: FamilyTreeView/family_tree_view_config_provider_names.py:270
+msgid "ALL CAPS"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_config_provider_names.py:230
+msgid "When emphasizing, consider as call name:"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_config_provider_names.py:234
+msgid "Call name if it's not the first given name"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_config_provider_names.py:235
+msgid "Call name if it's not the only given name"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_config_provider_names.py:236
+msgid "Call name"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_config_provider_names.py:237
+msgid "Call name or first given name"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_config_provider_names.py:265
+msgid "Emphasize primary surname in the tree with:"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_config_provider_names.py:304
+msgid "When emphasizing, consider as primary surname:"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_config_provider_names.py:308
+msgid "Primary surname"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_config_provider_names.py:309
+msgid "Primary surname and its prefix"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_config_provider_names.py:337
+msgid "Example:"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_config_provider_names.py:342
+msgid "Just the name format:"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_config_provider_names.py:351
+msgid "With custom formatting/emphasis:"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view_config_provider_names.py:386
+#: FamilyTreeView/family_tree_view_config_provider.py:406
 msgid "Name Abbreviation"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:194
+#: FamilyTreeView/family_tree_view_config_provider_names.py:394
 msgid "Specify the rules for name abbreviation below"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:200
+#: FamilyTreeView/family_tree_view_config_provider_names.py:400
 msgid "Reset abbreviation rules to default"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:252
+#: FamilyTreeView/family_tree_view_config_provider_names.py:452
 msgid "No."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:257
-#: FamilyTreeView/family_tree_view_config_provider_names.py:524
+#: FamilyTreeView/family_tree_view_config_provider_names.py:457
+#: FamilyTreeView/family_tree_view_config_provider_names.py:724
 msgid "abbreviate"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:258
-#: FamilyTreeView/family_tree_view_config_provider_names.py:526
+#: FamilyTreeView/family_tree_view_config_provider_names.py:458
+#: FamilyTreeView/family_tree_view_config_provider_names.py:726
 msgid "remove"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:278
+#: FamilyTreeView/family_tree_view_config_provider_names.py:478
 msgid "Action"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:283
+#: FamilyTreeView/family_tree_view_config_provider_names.py:483
 msgid "Name Part Types"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:306
+#: FamilyTreeView/family_tree_view_config_provider_names.py:506
 msgid "Start at End of Name"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:443
+#: FamilyTreeView/family_tree_view_config_provider_names.py:643
 msgid "Name Part"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider_names.py:469
+#: FamilyTreeView/family_tree_view_config_provider_names.py:669
 msgid "Use in selected Rule"
 msgstr ""
 
@@ -341,7 +422,7 @@ msgid "Any files"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_badge_manager.py:184
-#: FamilyTreeView/family_tree_view_config_provider.py:1217
+#: FamilyTreeView/family_tree_view_config_provider.py:1221
 msgid "Sidebar filter"
 msgstr ""
 
@@ -374,7 +455,7 @@ msgstr ""
 
 #: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:47
 #: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:172
-#: FamilyTreeView/family_tree_view_config_provider.py:1099
+#: FamilyTreeView/family_tree_view_config_provider.py:1103
 msgid "Name"
 msgstr ""
 
@@ -499,7 +580,7 @@ msgid "Image of the family or avatar"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:66
-#: FamilyTreeView/family_tree_view_config_provider.py:401
+#: FamilyTreeView/family_tree_view_config_provider.py:405
 msgid "Names"
 msgstr ""
 
@@ -622,10 +703,6 @@ msgstr ""
 
 #: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:173
 msgid "Name and color"
-msgstr ""
-
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:174
-msgid "None"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:175
@@ -945,26 +1022,26 @@ msgid "Edit"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_widget_manager.py:948
-#: FamilyTreeView/family_tree_view_config_provider.py:759
+#: FamilyTreeView/family_tree_view_config_provider.py:763
 msgid "Set as home person"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_widget_manager.py:954
-#: FamilyTreeView/family_tree_view_config_provider.py:758
+#: FamilyTreeView/family_tree_view_config_provider.py:762
 msgid "Set as active person"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_widget_manager.py:960
 #: FamilyTreeView/family_tree_view_widget_manager.py:1074
-#: FamilyTreeView/family_tree_view_config_provider.py:755
-#: FamilyTreeView/family_tree_view_config_provider.py:764
+#: FamilyTreeView/family_tree_view_config_provider.py:759
+#: FamilyTreeView/family_tree_view_config_provider.py:768
 msgid "Open info box"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_widget_manager.py:966
 #: FamilyTreeView/family_tree_view_widget_manager.py:1080
-#: FamilyTreeView/family_tree_view_config_provider.py:756
-#: FamilyTreeView/family_tree_view_config_provider.py:765
+#: FamilyTreeView/family_tree_view_config_provider.py:760
+#: FamilyTreeView/family_tree_view_config_provider.py:769
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:355
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:363
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:393
@@ -1010,17 +1087,17 @@ msgid "Add a new person as child"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_widget_manager.py:1116
-#: FamilyTreeView/family_tree_view_config_provider.py:773
+#: FamilyTreeView/family_tree_view_config_provider.py:777
 msgid "Zoom in"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_widget_manager.py:1122
-#: FamilyTreeView/family_tree_view_config_provider.py:774
+#: FamilyTreeView/family_tree_view_config_provider.py:778
 msgid "Zoom out"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_widget_manager.py:1128
-#: FamilyTreeView/family_tree_view_config_provider.py:775
+#: FamilyTreeView/family_tree_view_config_provider.py:779
 msgid "Reset zoom"
 msgstr ""
 
@@ -1036,142 +1113,142 @@ msgstr ""
 msgid "Scroll to active family"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:397
+#: FamilyTreeView/family_tree_view_config_provider.py:401
 msgid "Appearance"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:398
+#: FamilyTreeView/family_tree_view_config_provider.py:402
 msgid "Interaction"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:399
+#: FamilyTreeView/family_tree_view_config_provider.py:403
 msgid "Mouse"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:400
+#: FamilyTreeView/family_tree_view_config_provider.py:404
 msgid "Boxes"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:403
+#: FamilyTreeView/family_tree_view_config_provider.py:407
 msgid "Expanders"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:404
+#: FamilyTreeView/family_tree_view_config_provider.py:408
 msgid "Badges"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:405
+#: FamilyTreeView/family_tree_view_config_provider.py:409
 msgid "Panel: Timeline"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:406
+#: FamilyTreeView/family_tree_view_config_provider.py:410
 msgid "Print/Export"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:407
+#: FamilyTreeView/family_tree_view_config_provider.py:411
 msgid "Experimental"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:446
+#: FamilyTreeView/family_tree_view_config_provider.py:450
 msgid "Default number of ancestor generations to show"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:455
+#: FamilyTreeView/family_tree_view_config_provider.py:459
 msgid "Default number of descendant generations to show"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:464
+#: FamilyTreeView/family_tree_view_config_provider.py:468
 msgid "Highlight the home person according to the active Gramps color scheme"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:473
+#: FamilyTreeView/family_tree_view_config_provider.py:477
 msgid "Highlight the root (active) person with a thick outline"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:482
+#: FamilyTreeView/family_tree_view_config_provider.py:486
 msgid "Show black ribbon for deceased persons"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:491
+#: FamilyTreeView/family_tree_view_config_provider.py:495
 msgid "Gray out people who do not match the sidebar filter"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:499
+#: FamilyTreeView/family_tree_view_config_provider.py:503
 msgid "Normal"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:500
+#: FamilyTreeView/family_tree_view_config_provider.py:504
 msgid "High"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:501
+#: FamilyTreeView/family_tree_view_config_provider.py:505
 msgid "Original"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:510
+#: FamilyTreeView/family_tree_view_config_provider.py:514
 msgid "Resolution of the images"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:521
+#: FamilyTreeView/family_tree_view_config_provider.py:525
 msgid "Person image filter"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:525
+#: FamilyTreeView/family_tree_view_config_provider.py:529
 msgid "No filter"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:526
+#: FamilyTreeView/family_tree_view_config_provider.py:530
 msgid "Apply grayscale to dead persons"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:527
+#: FamilyTreeView/family_tree_view_config_provider.py:531
 msgid "Apply grayscale to all persons"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:532
+#: FamilyTreeView/family_tree_view_config_provider.py:536
 msgid "Default"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:542
+#: FamilyTreeView/family_tree_view_config_provider.py:546
 msgid "Place format in the tree"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:553
+#: FamilyTreeView/family_tree_view_config_provider.py:557
 msgid "Line width of boxes"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:565
+#: FamilyTreeView/family_tree_view_config_provider.py:569
 msgid "Line width of connections"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:576
+#: FamilyTreeView/family_tree_view_config_provider.py:580
 msgid "No dashed connections"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:577
+#: FamilyTreeView/family_tree_view_config_provider.py:581
 msgid "Dashed if at least one parent is non-birth"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:578
+#: FamilyTreeView/family_tree_view_config_provider.py:582
 msgid "Dashed only if both parents are non-birth"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:579
+#: FamilyTreeView/family_tree_view_config_provider.py:583
 msgid "Dashed on each side based on each parent"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:581
+#: FamilyTreeView/family_tree_view_config_provider.py:585
 msgid "Dashed connection lines:"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:612
+#: FamilyTreeView/family_tree_view_config_provider.py:616
 msgid ""
 "Dashed on each side based on each parent:\n"
 "<i>Each half of the connection is dashed if the parent on that side is non-"
 "birth (father: left half, mother: right half)</i>"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:634
+#: FamilyTreeView/family_tree_view_config_provider.py:638
 msgid ""
 "Prepend FamilyTreeView to the plugin list instead of appending it. (Requires "
 "restart.)\n"
@@ -1180,123 +1257,123 @@ msgid ""
 "Since FamilyTreeView is still in beta stage, be cautious with this option."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:649
+#: FamilyTreeView/family_tree_view_config_provider.py:653
 msgid "Default zoom level"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:664
+#: FamilyTreeView/family_tree_view_config_provider.py:668
 msgid "Set current zoom level as default zoom level"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:680
+#: FamilyTreeView/family_tree_view_config_provider.py:684
 msgid "Zoom level step size"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:692
+#: FamilyTreeView/family_tree_view_config_provider.py:696
 msgid ""
 "Show \"Set active\" button in family info box (it has no effect on "
 "FamilyTreeView)"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:698
+#: FamilyTreeView/family_tree_view_config_provider.py:702
 msgid "Menu to open with the person \"Add relatives\" button:"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:699
+#: FamilyTreeView/family_tree_view_config_provider.py:703
 msgid "Menu to open with the family \"Add relatives\" button:"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:701
-#: FamilyTreeView/family_tree_view_config_provider.py:708
+#: FamilyTreeView/family_tree_view_config_provider.py:705
+#: FamilyTreeView/family_tree_view_config_provider.py:712
 msgid "Context menu"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:702
-#: FamilyTreeView/family_tree_view_config_provider.py:709
+#: FamilyTreeView/family_tree_view_config_provider.py:706
+#: FamilyTreeView/family_tree_view_config_provider.py:713
 msgid "Overlay menu"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:703
+#: FamilyTreeView/family_tree_view_config_provider.py:707
 msgid "Overlay menu (only direct relationships)"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:704
+#: FamilyTreeView/family_tree_view_config_provider.py:708
 msgid "Overlay menu (only main relationships)"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:705
+#: FamilyTreeView/family_tree_view_config_provider.py:709
 msgid "Overlay menu (everything)"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:754
-#: FamilyTreeView/family_tree_view_config_provider.py:763
-#: FamilyTreeView/family_tree_view_config_provider.py:771
+#: FamilyTreeView/family_tree_view_config_provider.py:758
+#: FamilyTreeView/family_tree_view_config_provider.py:767
+#: FamilyTreeView/family_tree_view_config_provider.py:775
 msgid "Do nothing"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:757
+#: FamilyTreeView/family_tree_view_config_provider.py:761
 msgid "Edit person"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:760
-#: FamilyTreeView/family_tree_view_config_provider.py:768
+#: FamilyTreeView/family_tree_view_config_provider.py:764
 #: FamilyTreeView/family_tree_view_config_provider.py:772
+#: FamilyTreeView/family_tree_view_config_provider.py:776
 msgid "Open context menu"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:766
+#: FamilyTreeView/family_tree_view_config_provider.py:770
 msgid "Edit family"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:767
+#: FamilyTreeView/family_tree_view_config_provider.py:771
 msgid "Set as active family"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:776
+#: FamilyTreeView/family_tree_view_config_provider.py:780
 msgid "Move to active person"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:777
+#: FamilyTreeView/family_tree_view_config_provider.py:781
 msgid "Move to home person"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:778
+#: FamilyTreeView/family_tree_view_config_provider.py:782
 msgid "Move to active family"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:795
+#: FamilyTreeView/family_tree_view_config_provider.py:799
 msgid "Show advanced click options"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:816
+#: FamilyTreeView/family_tree_view_config_provider.py:820
 msgid "Primary mouse button (usually: left mouse button)"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:817
+#: FamilyTreeView/family_tree_view_config_provider.py:821
 msgid "Secondary mouse button (usually: right mouse button)"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:818
+#: FamilyTreeView/family_tree_view_config_provider.py:822
 msgid "Middle mouse button"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:830
+#: FamilyTreeView/family_tree_view_config_provider.py:834
 msgid "Person click action"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:831
+#: FamilyTreeView/family_tree_view_config_provider.py:835
 msgid "Family click action"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:832
+#: FamilyTreeView/family_tree_view_config_provider.py:836
 msgid "Background click action"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:880
+#: FamilyTreeView/family_tree_view_config_provider.py:884
 msgid "Timeout to wait for second click of double click in milliseconds"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:892
+#: FamilyTreeView/family_tree_view_config_provider.py:896
 msgid ""
 "Mouse wheel scroll mode\n"
 "<i>Map mode: scroll wheel zooms\n"
@@ -1304,15 +1381,15 @@ msgid ""
 "zoom)</i>"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:902
+#: FamilyTreeView/family_tree_view_config_provider.py:906
 msgid "Map mode"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:903
+#: FamilyTreeView/family_tree_view_config_provider.py:907
 msgid "Document mode"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:947
+#: FamilyTreeView/family_tree_view_config_provider.py:951
 msgid ""
 "The expansion of 'Other parents' is a mutually exclusive alternative to "
 "'Siblings' and to 'Other families'. You cannot set 'Other parents' to expand "
@@ -1320,195 +1397,195 @@ msgid ""
 "overlapping connections."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:962
+#: FamilyTreeView/family_tree_view_config_provider.py:966
 msgid "Parents"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:963
+#: FamilyTreeView/family_tree_view_config_provider.py:967
 msgid "Other parents"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:964
+#: FamilyTreeView/family_tree_view_config_provider.py:968
 msgid "Siblings"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:965
+#: FamilyTreeView/family_tree_view_config_provider.py:969
 msgid "Other families"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:966
+#: FamilyTreeView/family_tree_view_config_provider.py:970
 msgid "Other families of spouses"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:967
+#: FamilyTreeView/family_tree_view_config_provider.py:971
 #: FamilyTreeView/children_quick_report.py:45
 msgid "Children"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:995
+#: FamilyTreeView/family_tree_view_config_provider.py:999
 msgid "Expander type"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1035
+#: FamilyTreeView/family_tree_view_config_provider.py:1039
 msgid ""
 "Show expanders\n"
 "for subtrees\n"
 "visible by default"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1040
+#: FamilyTreeView/family_tree_view_config_provider.py:1044
 msgid ""
 "Show expanders\n"
 "for subtrees\n"
 "hidden by default"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1045
+#: FamilyTreeView/family_tree_view_config_provider.py:1049
 msgid ""
 "Expand subtrees\n"
 "by default"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1071
+#: FamilyTreeView/family_tree_view_config_provider.py:1075
 msgid "Choose which badges to display where:"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1118
+#: FamilyTreeView/family_tree_view_config_provider.py:1122
 msgid "Person box"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1118
+#: FamilyTreeView/family_tree_view_config_provider.py:1122
 msgid "Family box"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1164
+#: FamilyTreeView/family_tree_view_config_provider.py:1168
 msgid "Badges based on person filters:"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1166
+#: FamilyTreeView/family_tree_view_config_provider.py:1170
 msgid "Badges based on family filters:"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1198
+#: FamilyTreeView/family_tree_view_config_provider.py:1202
 msgid "Filter name"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1199
+#: FamilyTreeView/family_tree_view_config_provider.py:1203
 msgid "Active"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1200
+#: FamilyTreeView/family_tree_view_config_provider.py:1204
 msgid "Badge content"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1201
+#: FamilyTreeView/family_tree_view_config_provider.py:1205
 msgid "Text color"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1202
+#: FamilyTreeView/family_tree_view_config_provider.py:1206
 msgid "Background color"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1269
+#: FamilyTreeView/family_tree_view_config_provider.py:1273
 #, python-brace-format
 msgid "{name}: text color"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1282
+#: FamilyTreeView/family_tree_view_config_provider.py:1286
 #, python-brace-format
 msgid "{name}: background color"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1306
+#: FamilyTreeView/family_tree_view_config_provider.py:1310
 msgid "Default timeline mode in person panel"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1310
+#: FamilyTreeView/family_tree_view_config_provider.py:1314
 msgid "Primary own events"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1311
+#: FamilyTreeView/family_tree_view_config_provider.py:1315
 msgid "All own events"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1312
+#: FamilyTreeView/family_tree_view_config_provider.py:1316
 msgid "Primary own and relatives' events"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1313
+#: FamilyTreeView/family_tree_view_config_provider.py:1317
 msgid "All own and relatives' events"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1320
+#: FamilyTreeView/family_tree_view_config_provider.py:1324
 msgid "Default timeline mode in family panel"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1324
+#: FamilyTreeView/family_tree_view_config_provider.py:1328
 msgid "Family events"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1325
+#: FamilyTreeView/family_tree_view_config_provider.py:1329
 msgid "Family and parents' event"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1326
+#: FamilyTreeView/family_tree_view_config_provider.py:1330
 msgid "Family and children's events"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1327
+#: FamilyTreeView/family_tree_view_config_provider.py:1331
 msgid "Family, parents' and children's events"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1334
+#: FamilyTreeView/family_tree_view_config_provider.py:1338
 msgid ""
 "Use short age representation in timeline (much shorter for uncertain dates)"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1343
+#: FamilyTreeView/family_tree_view_config_provider.py:1347
 msgid ""
 "Select which event types should be visible in the timeline and for which to "
 "show the description for:"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1459
+#: FamilyTreeView/family_tree_view_config_provider.py:1463
 msgid ""
 "In order for an event to appear on the timeline, it must have a valid date, "
 "the selected timeline mode must allow it to be displayed, and it's type must "
 "be checked in the Visible column above."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1480
+#: FamilyTreeView/family_tree_view_config_provider.py:1484
 msgid ""
 "Printing: Scale down tree to fit on Letter and A4 paper. Uncheck to print at "
 "1:1 scale.\n"
 "Note that scaling down can cause distorted text on some systems."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1493
+#: FamilyTreeView/family_tree_view_config_provider.py:1497
 msgid "Hide expanders in prints and exports."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1513
+#: FamilyTreeView/family_tree_view_config_provider.py:1517
 msgid ""
 "These are experimental features. Only activate them after double checking "
 "your backup!"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1524
+#: FamilyTreeView/family_tree_view_config_provider.py:1528
 msgid "Use adaptive distances between ancestor generations"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1533
+#: FamilyTreeView/family_tree_view_config_provider.py:1537
 msgid ""
 "Double click one end of a connection to move to the person or family at the "
 "other end"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1542
+#: FamilyTreeView/family_tree_view_config_provider.py:1546
 msgid "Prune people who do not match the sidebar filter"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_provider.py:1551
+#: FamilyTreeView/family_tree_view_config_provider.py:1555
 msgid "Display progress dialog while building the tree"
 msgstr ""
 
