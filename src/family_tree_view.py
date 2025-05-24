@@ -31,6 +31,7 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 from gramps.cli.clidbman import CLIDbManager
 from gramps.gen.config import config
 from gramps.gen.const import CUSTOM_FILTERS
+from gramps.gen.db.dummydb import DummyDb
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.errors import HandleError, WindowActiveError
 from gramps.gen.lib import ChildRef, EventType, Family, FamilyRelType, Person, Surname
@@ -251,6 +252,8 @@ class FamilyTreeView(NavigationView, Callback):
         self.dbstate.connect("no-database", self._cb_db_closed)
         self.uistate.connect("nameformat-changed", self.rebuild_tree)
 
+        self.database_changed_by_proxy_update = False
+
         self.addons_registered_badges = False
 
         self.print_settings = None
@@ -347,7 +350,20 @@ class FamilyTreeView(NavigationView, Callback):
         # the view doesn't update and the previous tree (which was build
         # without or with a different proxy is still visible).
         if not self.dbstate.db.find_initial_person():
+            self.database_changed_by_proxy_update = False # reset for return below
             self.check_and_handle_special_db_cases()
+            return
+
+        if self.database_changed_by_proxy_update:
+            # don't cause infinite recursion
+            self.database_changed_by_proxy_update = False
+        elif not isinstance(db, DummyDb):
+            # Ensure that a proxy is used (if needed) after changing the
+            # db. Use GLib.idle_add to prevent other callbacks of
+            # "database-changed" with this (non-proxy) db after all
+            # callbacks of "database-changed" with the proxy db were
+            # called.
+            GLib.idle_add(self.update_proxy_db)
 
     def _cb_db_closed(self):
         # Clear the tree.
@@ -369,9 +385,11 @@ class FamilyTreeView(NavigationView, Callback):
         db_changed = False
         with suppress(IndexError):
             # self.dbstate.pop_proxy() but without emitting
-            # database-changed
-            self.dbstate.db = self.dbstate.stack.pop()
-            db_changed = True
+            # database-changed, and with checking for closed db.
+            db_pop = self.dbstate.stack.pop()
+            if db_pop.is_open():
+                self.dbstate.db = db_pop
+                db_changed = True
 
         db = self.dbstate.db
 
@@ -450,6 +468,7 @@ class FamilyTreeView(NavigationView, Callback):
         if db_changed:
             # Common part of self.dbstate.pop_proxy() and
             # self.dbstate.apply_proxy()
+            self.database_changed_by_proxy_update = True
             self.dbstate.emit("database-changed", (self.dbstate.db,))
 
         # Checking for readonly should be equivalent to checking whether
