@@ -28,6 +28,7 @@ from gramps.gen.config import config
 from gramps.gen.const import SIZE_LARGE, SIZE_NORMAL, USER_HOME
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.lib.eventtype import EventType
+from gramps.gen.proxy.living import LivingProxyDb
 from gramps.gui.utils import rgb_to_hex
 
 from family_tree_view_config_page_manager_boxes import BOX_ITEMS, PREDEF_BOXES_DEFS, FamilyTreeViewConfigPageManagerBoxes
@@ -121,6 +122,12 @@ class FamilyTreeViewConfigProvider:
             ("interaction.familytreeview-double-click-timeout-milliseconds", 200),
             ("interaction.familytreeview-scroll-mode", "map"),
 
+            ("presentation.familytreeview-presentation-active", False),
+            ("presentation.familytreeview-presentation-hide-private", False),
+            ("presentation.familytreeview-presentation-living-proxy-mode", LivingProxyDb.MODE_INCLUDE_ALL),
+            ("presentation.familytreeview-presentation-living-proxy-years-after-death", 0),
+            ("presentation.familytreeview-presentation-filter-person", ""), # empty, no filter
+
             ("boxes.familytreeview-boxes-custom-defs", {}),
             ("boxes.familytreeview-boxes-selected-def-key", "regular"),
 
@@ -179,6 +186,10 @@ class FamilyTreeViewConfigProvider:
     @staticmethod
     def config_connect(_config, cb_update_config):
         for config_name, *_ in FamilyTreeViewConfigProvider.get_config_settings():
+            if config_name.split(".")[0] == "presentation":
+                # Don't connect those signal. Db will be changed which
+                # will trigger a rebuild.
+                continue
             _config.connect(config_name, cb_update_config)
 
         FamilyTreeViewConfigProvider.ensure_valid_config(_config)
@@ -401,6 +412,7 @@ class FamilyTreeViewConfigProvider:
             ("appearance", None, _("Appearance"), self.appearance_page),
             ("interaction", None, _("Interaction"), self.interaction_page),
             ("mouse", "interaction", _("Mouse"), self.mouse_page),
+            ("presentation", None, _("Presentation Mode"), self.presentation_page),
             ("boxes", None, _("Boxes"), self.boxes_page),
             ("names", None, _("Names"), self.names_page),
             ("name_abbr", "names", _("Name Abbreviation"), self.name_abbr_page),
@@ -925,6 +937,232 @@ class FamilyTreeViewConfigProvider:
             )
         scroll_mode_combo_box.connect("changed", _cb_scroll_mode_changed)
         grid.attach(scroll_mode_combo_box, 2, row, 1, 1)
+
+        return grid
+
+    def presentation_page(self, configdialog):
+        grid = Gtk.Grid()
+        grid.set_border_width(12)
+        grid.set_column_spacing(6)
+        grid.set_row_spacing(6)
+        row = -1
+
+        row += 1
+        label = Gtk.Label(_(
+            "This presentation mode aims to disable database editing and hide "
+            "information according to the configurations below."
+        ))
+        label.set_line_wrap(True)
+        label.set_xalign(0)
+        grid.attach(label, 1, row, 2, 1)
+
+        row += 1
+        label = Gtk.Label()
+        label.set_markup("<b>" + _(
+            "This presentation mode is a best-effort feature and may not "
+            "prevent all forms of exposure of data intended to be hidden. It "
+            "is provided 'as is' and without any warranty. Use of this "
+            "feature is at your own risk. "
+            "See the GNU General Public License for more details."
+        ) + "</b>")
+        label.set_line_wrap(True)
+        label.set_xalign(0)
+        grid.attach(label, 1, row, 2, 1)
+
+        row += 1
+        label = Gtk.Label()
+        label.set_markup("<b>" + _(
+            "The presentation mode currently affects most, if not all, of "
+            "Gramps. This means that data that should be hidden according to "
+            "the configurations below shouldn't be revealed by changing the "
+            "view or opening a Gramplet. To modify the database or view all "
+            "of its data in other parts of Gramps, return to this page and "
+            "disable presentation mode."
+        ) + "</b>")
+        label.set_line_wrap(True)
+        label.set_xalign(0)
+        grid.attach(label, 1, row, 2, 1)
+
+        row += 1
+        grid.attach(Gtk.Box(), 1, row, 1, 1) # gap
+
+        row += 1
+        def cb_presentation_mode_toggled(checkbox):
+            active = checkbox.get_active()
+            private_checkbox.set_sensitive(active)
+            living_proxy_mode_combo.set_sensitive(active)
+            active_mode = living_proxy_mode_options[
+                living_proxy_mode_combo.get_active()
+            ][0]
+            years_after_death_spin_button.set_sensitive(
+                active and active_mode != LivingProxyDb.MODE_INCLUDE_ALL
+            )
+            person_filter_combo.set_sensitive(active)
+            self.ftv.update_proxy_db()
+        presentation_checkbox = configdialog.add_checkbox(
+            grid,
+            _("Activate presentation mode"),
+            row,
+            "presentation.familytreeview-presentation-active",
+            start=1,
+            stop=3,
+            extra_callback=cb_presentation_mode_toggled,
+        )
+
+        row += 1
+        label = Gtk.Label(_(
+            "In presentation mode, the database cannot be modified."
+        ))
+        label.set_line_wrap(True)
+        label.set_xalign(0)
+        grid.attach(label, 1, row, 2, 1)
+
+        row += 1
+        label = Gtk.Label()
+        label.set_margin_top(20)
+        label.set_markup("<b>" + _(
+            "Configure which data to hide:"
+        ) + "</b>")
+        label.set_line_wrap(True)
+        label.set_xalign(0)
+        grid.attach(label, 1, row, 2, 1)
+
+        row += 1
+        label = Gtk.Label(_(
+            "The configurations below are only available in presentation "
+            "mode. They can slow down building the tree, using the search etc."
+        ))
+        label.set_line_wrap(True)
+        label.set_xalign(0)
+        grid.attach(label, 1, row, 2, 1)
+
+        row += 1
+        grid.attach(Gtk.Box(), 1, row, 1, 1) # gap
+
+        row += 1
+        private_checkbox = configdialog.add_checkbox(
+            grid,
+            _("Hide data marked private"),
+            row,
+            "presentation.familytreeview-presentation-hide-private",
+            start=1,
+            stop=3,
+            extra_callback=self.ftv.update_proxy_db,
+        )
+        private_checkbox.set_sensitive(presentation_checkbox.get_active())
+
+        row += 1
+        grid.attach(Gtk.Box(), 1, row, 1, 1) # gap
+
+        row += 1
+        label = Gtk.Label(_("Hiding living people:"))
+        label.set_halign(Gtk.Align.START)
+        grid.attach(label, 1, row, 1, 1)
+        living_proxy_mode_options = [
+            (LivingProxyDb.MODE_INCLUDE_ALL, _("Don't hide living people")),
+            (LivingProxyDb.MODE_INCLUDE_FULL_NAME_ONLY, _("Hide data on living people except the name (full name is visible)")),
+            (LivingProxyDb.MODE_INCLUDE_LAST_NAME_ONLY, _("Hide data on living people except the surname (only surname is visible)")),
+            (LivingProxyDb.MODE_REPLACE_COMPLETE_NAME, _("Hide data on living people (full name is replaced)")),
+            (LivingProxyDb.MODE_EXCLUDE_ALL, _("Hide living people altogether")),
+        ]
+        living_proxy_mode_list_store = Gtk.ListStore(int, str)
+        for opt in living_proxy_mode_options:
+            living_proxy_mode_list_store.append(opt)
+        living_proxy_mode_combo = Gtk.ComboBox.new_with_model(living_proxy_mode_list_store)
+        renderer = Gtk.CellRendererText()
+        living_proxy_mode_combo.pack_start(renderer, True)
+        living_proxy_mode_combo.add_attribute(renderer, "markup", 1)
+        try:
+            active_index = [opt[0] for opt in living_proxy_mode_options].index(
+                self.ftv._config.get("presentation.familytreeview-presentation-living-proxy-mode")
+            )
+        except ValueError:
+            active_index = 0 # include all
+        living_proxy_mode_combo.set_active(active_index)
+        def cb_living_proxy_mode_combo_changed(combo):
+            active_mode = living_proxy_mode_options[combo.get_active()][0]
+            self.ftv._config.set(
+                "presentation.familytreeview-presentation-living-proxy-mode",
+                active_mode
+            )
+            years_after_death_spin_button.set_sensitive(
+                active_mode != LivingProxyDb.MODE_INCLUDE_ALL
+            )
+            self.ftv.update_proxy_db()
+        living_proxy_mode_combo.connect("changed", cb_living_proxy_mode_combo_changed)
+        living_proxy_mode_combo.set_sensitive(presentation_checkbox.get_active())
+        grid.attach(living_proxy_mode_combo, 2, row, 1, 1)
+
+        row += 1
+        def cb_living_proxy_year_after_death_value_changed(*args):
+            configdialog.update_spinner(*args)
+            self.ftv.update_proxy_db()
+        years_after_death_spin_button = configdialog.add_spinner(
+            grid,
+            _("Years after death for which to consider people as living in the above option"),
+            row,
+            "presentation.familytreeview-presentation-living-proxy-years-after-death",
+            (0, 100),
+            callback=cb_living_proxy_year_after_death_value_changed,
+        )
+        label = grid.get_child_at(1, row)
+        label.set_line_wrap(True)
+        label.set_xalign(0)
+        years_after_death_spin_button.set_valign(Gtk.Align.START) # don't expand with multi-line label
+        active_mode = self.ftv._config.get("presentation.familytreeview-presentation-living-proxy-mode")
+        years_after_death_spin_button.set_sensitive(
+            presentation_checkbox.get_active() and active_mode != LivingProxyDb.MODE_INCLUDE_ALL
+        )
+
+        row += 1
+        grid.attach(Gtk.Box(), 1, row, 1, 1) # gap
+
+        row += 1
+        label = Gtk.Label(_("Hide people not matching the filter:"))
+        label.set_halign(Gtk.Align.START)
+        grid.attach(label, 1, row, 1, 1)
+        custom_filter_list = get_reloaded_custom_filter_list()
+        person_filter_list = custom_filter_list.get_filters("Person")
+        person_filter_list = [("", _("No filter"))] + [
+            (person_filter.get_name(), person_filter.get_name())
+            for person_filter in person_filter_list
+        ]
+        person_filter_list_store = Gtk.ListStore(str, str)
+        for person_filter in person_filter_list:
+            person_filter_list_store.append(person_filter)
+        person_filter_combo = Gtk.ComboBox.new_with_model(person_filter_list_store)
+        renderer = Gtk.CellRendererText()
+        person_filter_combo.pack_start(renderer, True)
+        person_filter_combo.add_attribute(renderer, "markup", 1)
+        try:
+            active_index = [opt[0] for opt in person_filter_list].index(
+                self.ftv._config.get("presentation.familytreeview-presentation-filter-person")
+            )
+        except ValueError:
+            active_index = 0 # no filter, empty string
+        person_filter_combo.set_active(active_index)
+        def cb_person_filter_combo_changed(combo):
+            active_filter = person_filter_list[combo.get_active()][0]
+            self.ftv._config.set(
+                "presentation.familytreeview-presentation-filter-person",
+                active_filter
+            )
+            self.ftv.update_proxy_db()
+        person_filter_combo.connect("changed", cb_person_filter_combo_changed)
+        person_filter_combo.set_sensitive(presentation_checkbox.get_active())
+        grid.attach(person_filter_combo, 2, row, 1, 1)
+
+        row += 1
+        label = Gtk.Label(_(
+            "Unlike pruning the tree with a filter, this feature restricts "
+            "access to the data altogether and therefore affects the panel, "
+            "Gramplets, other views and other parts of Gramps as well."
+        ))
+        label.set_line_wrap(True)
+        label.set_xalign(0)
+        grid.attach(label, 1, row, 2, 1)
+
+        # TODO maybe something custom (e.g. only year for dates)
 
         return grid
 

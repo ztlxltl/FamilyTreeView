@@ -940,6 +940,8 @@ class FamilyTreeViewWidgetManager:
         self.menu = Gtk.Menu()
 
         menu_item = Gtk.MenuItem(label=_("Edit"))
+        menu_item.set_sensitive(not self.ftv.dbstate.db.readonly)
+        self.check_and_set_readonly_tooltip(menu_item)
         menu_item.connect("activate", lambda *_args:
             self.ftv.edit_person(person_handle)
         )
@@ -997,6 +999,8 @@ class FamilyTreeViewWidgetManager:
 
     def add_person_add_relatives_items_to_menu(self, person_handle, person):
         menu_item = Gtk.MenuItem(label=_("Add a new parent family (and parents)"))
+        menu_item.set_sensitive(not self.ftv.dbstate.db.readonly)
+        self.check_and_set_readonly_tooltip(menu_item)
         menu_item.connect("activate", lambda *_args:
             self.ftv.add_new_parent_family(person_handle)
         )
@@ -1042,6 +1046,8 @@ class FamilyTreeViewWidgetManager:
             else:
                 label = _("Add a new family (and spouse/children)")
             menu_item = Gtk.MenuItem(label=label)
+            menu_item.set_sensitive(not self.ftv.dbstate.db.readonly)
+            self.check_and_set_readonly_tooltip(menu_item)
             menu_item.connect("activate", lambda *_args:
                 self.ftv.add_new_family(person_handle, person_is_first=True)
             )
@@ -1066,6 +1072,8 @@ class FamilyTreeViewWidgetManager:
         self.menu = Gtk.Menu()
 
         menu_item = Gtk.MenuItem(label=_("Edit"))
+        menu_item.set_sensitive(not self.ftv.dbstate.db.readonly)
+        self.check_and_set_readonly_tooltip(menu_item)
         menu_item.connect("activate", lambda *_args:
             self.ftv.edit_family(family_handle)
         )
@@ -1091,6 +1099,8 @@ class FamilyTreeViewWidgetManager:
         father_handle = family.get_father_handle()
         if father_handle is None or len(father_handle) == 0:
             menu_item = Gtk.MenuItem(label=_("Add a new person as father"))
+            menu_item.set_sensitive(not self.ftv.dbstate.db.readonly)
+            self.check_and_set_readonly_tooltip(menu_item)
             menu_item.connect("activate", lambda *_args:
                 self.ftv.add_new_spouse(family_handle, new_spouse_is_first=True)
             )
@@ -1099,12 +1109,16 @@ class FamilyTreeViewWidgetManager:
         mother_handle = family.get_mother_handle()
         if mother_handle is None or len(mother_handle) == 0:
             menu_item = Gtk.MenuItem(label=_("Add a new person as mother"))
+            menu_item.set_sensitive(not self.ftv.dbstate.db.readonly)
+            self.check_and_set_readonly_tooltip(menu_item)
             menu_item.connect("activate", lambda *_args:
                 self.ftv.add_new_spouse(family_handle, new_spouse_is_first=False)
             )
             self.menu.append(menu_item)
 
         menu_item = Gtk.MenuItem(label=_("Add a new person as child"))
+        menu_item.set_sensitive(not self.ftv.dbstate.db.readonly)
+        self.check_and_set_readonly_tooltip(menu_item)
         menu_item.connect("activate", lambda *_args:
             self.ftv.add_new_child(family_handle)
         )
@@ -1191,6 +1205,9 @@ class FamilyTreeViewWidgetManager:
         self.menu.popup_at_widget(button, Gdk.Gravity.SOUTH_WEST, Gdk.Gravity.NORTH_WEST, new_event)
 
     def person_add_relative_clicked(self, button, person_handle, x_person, generation):
+        if self.ftv.check_readonly_and_notify():
+            return
+
         action = self.ftv._config.get("interaction.familytreeview-person-add-relative-action")
         if action == "context_menu":
             self.menu = Gtk.Menu()
@@ -1206,6 +1223,9 @@ class FamilyTreeViewWidgetManager:
             )
 
     def family_add_relative_clicked(self, button, family_handle, x_family, generation):
+        if self.ftv.check_readonly_and_notify():
+            return
+
         action = self.ftv._config.get("interaction.familytreeview-family-add-relative-action")
         if action == "context_menu":
             self.menu = Gtk.Menu()
@@ -1237,6 +1257,16 @@ class FamilyTreeViewWidgetManager:
         if self.close_tree_overlay_button is not None:
             self.close_tree_overlay_button.destroy()
             self.close_tree_overlay_button = None
+
+    def check_and_set_readonly_tooltip(self, widget):
+        if not self.ftv.dbstate.db.readonly:
+            return
+
+        if self.ftv._config.get("presentation.familytreeview-presentation-active"):
+            tooltip = _("Database cannot be modified in presentation mode")
+        else:
+            tooltip = _("Readonly database cannot be modified")
+        widget.set_tooltip_text(tooltip)
 
     def add_to_provider(self, s):
         self.provider_str += s

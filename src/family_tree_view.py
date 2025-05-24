@@ -28,11 +28,14 @@ import traceback
 import cairo
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
+from gramps.cli.clidbman import CLIDbManager
 from gramps.gen.config import config
 from gramps.gen.const import CUSTOM_FILTERS
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.errors import HandleError, WindowActiveError
 from gramps.gen.lib import ChildRef, EventType, Family, FamilyRelType, Person, Surname
+from gramps.gen.proxy import CacheProxyDb, FilterProxyDb, LivingProxyDb, PrivateProxyDb
+from gramps.gen.proxy.proxybase import ProxyDbBase
 from gramps.gen.utils.callback import Callback
 from gramps.gen.utils.file import find_file, media_path_full
 from gramps.gen.utils.symbols import Symbols
@@ -41,13 +44,12 @@ from gramps.gui.editors import EditFamily, EditPerson, FilterEditor
 from gramps.gui.pluginmanager import GuiPluginManager
 from gramps.gui.views.bookmarks import PersonBookmarks
 from gramps.gui.views.navigationview import NavigationView
-from gramps.cli.clidbman import CLIDbManager
 
 from abbreviated_name_display import AbbreviatedNameDisplay
 from family_tree_view_badge_manager import FamilyTreeViewBadgeManager
 from family_tree_view_config_provider import FamilyTreeViewConfigProvider
 from family_tree_view_icons import get_family_avatar_svg_data, get_person_avatar_svg_data
-from family_tree_view_utils import get_gettext
+from family_tree_view_utils import get_gettext, get_reloaded_custom_filter_list
 from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
 
@@ -291,6 +293,13 @@ class FamilyTreeView(NavigationView, Callback):
         self._add_action("FilterEditPerson", self.open_person_filter_editor)
         self._add_action("FilterEditFamily", self.open_family_filter_editor)
 
+        # define_actions is the first method in which self.fwd_action is
+        # not None. fwd_action is required by the
+        # NavigationView.enable_action_group() which is connected to the
+        # database-changed signal by PageView.__init__(). That signal is
+        # triggered by applying the proxy.
+        self.update_proxy_db()
+
     def config_connect(self):
         self.config_provider.config_connect(self._config, self.cb_update_config)
 
@@ -315,7 +324,8 @@ class FamilyTreeView(NavigationView, Callback):
         #   CLIManager._post_load_newdb_nongui())
         # - database-changed signal
         # - goto_handle() called by NavigationView.goto_active() called
-        #   indirectly by ViewManager._post_load_newdb_gui()
+        #   indirectly by ViewManager._post_load_newdb_gui() (it's not
+        #   called by the database-changed signal)
         # The call to goto_handle() due to the active-changed signal
         # caused by a db change is identified and ignored. The
         # database-changed signal is not used to rebuild the tree, only
@@ -327,6 +337,17 @@ class FamilyTreeView(NavigationView, Callback):
         # the no-database signal to handle this case.
 
         self._change_db(db)
+
+        # In case a proxy db is used and find_initial_person() returns
+        # None (default/home person and first person in db are removed
+        # by proxy), the first goto_handle call(s) listed above are not
+        # called (see History.clear() called by
+        # DisplayState.db_changed()), this is the only callback that is
+        # triggered by the database-changed signal. If not handled here,
+        # the view doesn't update and the previous tree (which was build
+        # without or with a different proxy is still visible).
+        if not self.dbstate.db.find_initial_person():
+            self.check_and_handle_special_db_cases()
 
     def _cb_db_closed(self):
         # Clear the tree.
@@ -340,6 +361,103 @@ class FamilyTreeView(NavigationView, Callback):
 
         self.widget_manager.reset_tree()
         self.widget_manager.canvas_manager.move_to_center()
+
+    def update_proxy_db(self, *args):
+        """custom combination of self.dbstate.pop_proxy() and
+        self.dbstate.apply_proxy()"""
+
+        db_changed = False
+        with suppress(IndexError):
+            # self.dbstate.pop_proxy() but without emitting
+            # database-changed
+            self.dbstate.db = self.dbstate.stack.pop()
+            db_changed = True
+
+        db = self.dbstate.db
+
+        proxy_used = False
+        if self._config.get("presentation.familytreeview-presentation-active"):
+            if self._config.get("presentation.familytreeview-presentation-hide-private"):
+                proxy_used = True
+                db = PrivateProxyDb(db)
+            living_proxy_mode = self._config.get("presentation.familytreeview-presentation-living-proxy-mode")
+            if living_proxy_mode != LivingProxyDb.MODE_INCLUDE_ALL:
+                proxy_used = True
+                years_after_death = self._config.get("presentation.familytreeview-presentation-living-proxy-years-after-death")
+                db = LivingProxyDb(db, living_proxy_mode, years_after_death=years_after_death)
+            person_filter_name = self._config.get("presentation.familytreeview-presentation-filter-person")
+            if len(person_filter_name) > 0:
+                custom_filter_list = get_reloaded_custom_filter_list()
+                person_filter_dict = custom_filter_list.get_filters_dict("Person")
+                try:
+                    person_filter = person_filter_dict[person_filter_name]
+                except KeyError:
+                    dialog = Gtk.MessageDialog(
+                        transient_for=self.uistate.window,
+                        flags=0,
+                        message_type=Gtk.MessageType.WARNING,
+                        buttons=Gtk.ButtonsType.OK,
+                        text=_("Presentation mode error"),
+                    )
+                    dialog.format_secondary_text(_(
+                        "The person filter '{person_filter_name}' was not "
+                        "found. Therefore, it cannot be applied and will not "
+                        "hide any data.\n"
+                        "Clicking OK may display data that is supposed to be "
+                        "hidden.\n\n"
+                        "Check your filters and the presentation mode "
+                        "settings."
+                    ).format(person_filter_name=person_filter_name))
+                    dialog.run()
+                    dialog.destroy()
+                else:
+                    if person_filter is not None and not person_filter.is_empty():
+                        proxy_used = True
+                        db = FilterProxyDb(
+                            db,
+                            person_filter=person_filter,
+                            user=self.uistate.viewmanager.user
+                        )
+
+            if not proxy_used:
+                # Make readonly and using the dbstate.stack to easily
+                # restore original.
+                db = ProxyDbBase(db)
+
+            # ProxyDbBase.close() doesn't accepts the kwargs of
+            # DbGeneric.close(), causing errors when those are passed.
+            db.close = db.basedb.close
+
+            # get_dbname raises NotImplementedError in DbReadBase
+            # (superclass of ProxyDbBase), and it's not implemented in
+            # ProxyDbBase. Use method from base db.
+            db.get_dbname = db.basedb.get_dbname
+
+            # This modifies the db, but it can be important for using
+            # FTV.
+            db.set_default_person_handle = db.basedb.set_default_person_handle
+
+            db_changed = True
+
+            # From self.dbstate.apply_proxy() 
+            self.dbstate.stack.append(self.dbstate.db)
+
+            # From self.dbstate.apply_proxy(), but using the given proxy
+            # db instead of applying a given db to a given proxy:
+            self.dbstate.db = db
+
+        if db_changed:
+            # Common part of self.dbstate.pop_proxy() and
+            # self.dbstate.apply_proxy()
+            self.dbstate.emit("database-changed", (self.dbstate.db,))
+
+        # Checking for readonly should be equivalent to checking whether
+        # a proxy is used.
+        if self.dbstate.db.readonly:
+            # CacheProxyDb can increase speed noticeably. It cannot be
+            # applied before emitting the database-changed signal as it
+            # hasn't the expected type (DbReadBase or ProxyDbBase).
+            self.dbstate.db = CacheProxyDb(self.dbstate.db)
 
     def build_widget(self):
         # Widget is built during __init__ and only returned here.
@@ -554,18 +672,30 @@ class FamilyTreeView(NavigationView, Callback):
 
         # A db with people is loaded.
 
-        no_active = len(self.get_active()) == 0 # returns handle str with length 0 if no active
-        no_home = self.dbstate.db.get_default_handle() is None # returns None if no home
+        active_person_handle = self.get_active()
+        home_person_handle = self.dbstate.db.get_default_handle()
+        no_active = len(active_person_handle) == 0 # returns handle str with length 0 if no active
+        no_home = home_person_handle is None # returns None if no home
         if no_active and no_home:
-            # neither an active nor a home person
-            # TODO Show some replacement text, e.g. 
-            # "No person selected to display the tree for. Please select a person."
+            # initial person is home or first in database. Home was
+            # checked so try the first in database.
+            initial_person = self.dbstate.db.find_initial_person()
+            if initial_person is not None:
+                self.set_home_person(initial_person.handle, also_set_active=True)
+            else:
+                # Apparently the only case this can happen is a proxy db
+                # that hides the active, home and first person in the
+                # database.
+                self.widget_manager.reset_tree()
+                # TODO Show some replacement text, e.g. 
+                # "No person selected to display the tree for. Please select a person."
+                self.widget_manager.canvas_manager.move_to_center()
             return True
         if no_active and not no_home:
-            self.set_active_person(self.dbstate.db.get_default_handle())
+            self.set_active_person(home_person_handle)
         elif no_home and not no_active:
-            self.set_home_person(self.get_active())
-        # If both are set, everything is alright.
+            self.set_home_person(active_person_handle)
+        # If both are set, everything is fine.
         return False
 
     def get_image_spec(self, obj, obj_type):
@@ -718,6 +848,9 @@ class FamilyTreeView(NavigationView, Callback):
     # editing windows: edit objects
 
     def edit_person(self, person_handle):
+        if self.check_readonly_and_notify():
+            return
+
         person = self.get_person_from_handle(person_handle)
         if person is None:
             return
@@ -726,6 +859,9 @@ class FamilyTreeView(NavigationView, Callback):
             EditPerson(self.dbstate, self.uistate, [], person)
 
     def edit_family(self, family_handle):
+        if self.check_readonly_and_notify():
+            return
+
         family = self.dbstate.db.get_family_from_handle(family_handle)
         if family is None:
             return
@@ -746,6 +882,9 @@ class FamilyTreeView(NavigationView, Callback):
     # editing windows: new objects
 
     def add_new_person(self, set_active=False, set_home=False):
+        if self.check_readonly_and_notify():
+            return
+
         person = Person()
         # The editor window requires a surname.
         person.primary_name.add_surname(Surname())
@@ -771,6 +910,9 @@ class FamilyTreeView(NavigationView, Callback):
             EditPerson(self.dbstate, self.uistate, [], person, callback)
 
     def add_new_parent_to_family(self, family_handle, is_first_spouse):
+        if self.check_readonly_and_notify():
+            return
+
         family = self.get_family_from_handle(family_handle)
         if family is None:
             return
@@ -786,6 +928,9 @@ class FamilyTreeView(NavigationView, Callback):
                     edit_window.add_mother_clicked(None)
 
     def add_new_parent_family(self, person_handle, add_parent=0, add_sibling=False):
+        if self.check_readonly_and_notify():
+            return
+
         person = self.get_person_from_handle(person_handle)
         if person is None:
             return
@@ -812,6 +957,10 @@ class FamilyTreeView(NavigationView, Callback):
         the person takes the first position, and the new spouse takes the second
         position.
         """
+
+        if self.check_readonly_and_notify():
+            return
+
         person = self.get_person_from_handle(person_handle)
         if person is None:
             return
@@ -834,6 +983,9 @@ class FamilyTreeView(NavigationView, Callback):
                     edit_window.child_list.add_button_clicked(None)
 
     def add_new_spouse(self, family_handle, new_spouse_is_first):
+        if self.check_readonly_and_notify():
+            return
+
         family = self.dbstate.db.get_family_from_handle(family_handle)
         with suppress(WindowActiveError):
             edit_window = EditFamily(self.dbstate, self.uistate, [], family)
@@ -844,6 +996,9 @@ class FamilyTreeView(NavigationView, Callback):
                     edit_window.add_mother_clicked(None)
 
     def add_new_child(self, family_handle):
+        if self.check_readonly_and_notify():
+            return
+
         family = self.dbstate.db.get_family_from_handle(family_handle)
         with suppress(WindowActiveError):
             edit_window = EditFamily(self.dbstate, self.uistate, [], family)
@@ -997,3 +1152,33 @@ class FamilyTreeView(NavigationView, Callback):
         finally:
             if hide_expanders:
                 self.widget_manager.canvas_manager.set_expander_visible(True)
+
+    # general message boxes
+
+    def check_readonly_and_notify(self):
+        if not self.dbstate.db.readonly:
+            return False
+
+        if self._config.get("presentation.familytreeview-presentation-active"):
+            text = _("Presentation mode")
+            secondary_text = _(
+                "You cannot modify the database in presentation mode."
+            )
+        else:
+            text = _("Readonly database")
+            secondary_text = _(
+                "You cannot modify a readonly database."
+            )
+
+        dialog = Gtk.MessageDialog(
+            transient_for=self.uistate.window,
+            flags=0,
+            message_type=Gtk.MessageType.INFO,
+            buttons=Gtk.ButtonsType.OK,
+            text=text,
+        )
+        dialog.format_secondary_text(secondary_text)
+        dialog.run()
+        dialog.destroy()
+
+        return True

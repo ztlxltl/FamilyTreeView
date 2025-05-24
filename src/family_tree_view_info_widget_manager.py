@@ -336,13 +336,15 @@ class FamilyTreeViewInfoWidgetManager:
         buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         edit_button = self.create_button(_("Edit"), icon="gtk-edit")
+        edit_button.set_sensitive(not self.ftv.dbstate.db.readonly)
+        self.widget_manager.check_and_set_readonly_tooltip(edit_button)
         edit_button.connect("clicked", lambda *_: self.ftv.edit_person(person_handle))
         buttons.pack_start(edit_button, False, False, 0)
 
         home_person = self.ftv.dbstate.db.get_default_person()
         set_home_button = self.create_button(_("Set home"), icon="go-home")
         if home_person is not None:
-            set_home_button.set_sensitive(home_person.handle!=person_handle)
+            set_home_button.set_sensitive(home_person.handle != person_handle)
         set_home_button.connect("clicked", lambda *_: self.ftv.set_home_person(person_handle, also_set_active=False))
         buttons.pack_start(set_home_button, False, False, 0)
 
@@ -367,6 +369,8 @@ class FamilyTreeViewInfoWidgetManager:
             buttons.pack_start(self.open_panel_button, False, False, 0)
 
         add_relative_button = self.create_button(_("Add relative"), icon="list-add")
+        add_relative_button.set_sensitive(not self.ftv.dbstate.db.readonly)
+        self.widget_manager.check_and_set_readonly_tooltip(add_relative_button)
         add_relative_button.connect("clicked",
             self.widget_manager.person_add_relative_clicked,
             person_handle, x_person, generation
@@ -380,6 +384,8 @@ class FamilyTreeViewInfoWidgetManager:
         buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
         edit_button = self.create_button(_("Edit"), icon="gtk-edit")
+        edit_button.set_sensitive(not self.ftv.dbstate.db.readonly)
+        self.widget_manager.check_and_set_readonly_tooltip(edit_button)
         edit_button.connect("clicked", lambda *_: self.ftv.edit_family(family_handle))
         buttons.pack_start(edit_button, False, False, 0)
 
@@ -405,6 +411,8 @@ class FamilyTreeViewInfoWidgetManager:
             buttons.pack_start(self.open_panel_button, False, False, 0)
 
         add_relative_button = self.create_button(_("Add relative"), icon="list-add")
+        add_relative_button.set_sensitive(not self.ftv.dbstate.db.readonly)
+        self.widget_manager.check_and_set_readonly_tooltip(add_relative_button)
         add_relative_button.connect("clicked",
             self.widget_manager.family_add_relative_clicked,
             family_handle, x_family, generation
