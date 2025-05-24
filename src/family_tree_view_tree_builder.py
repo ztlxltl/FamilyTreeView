@@ -80,7 +80,7 @@ class FamilyTreeViewTreeBuilder():
                 flags=0,
                 message_type=Gtk.MessageType.INFO,
                 buttons=Gtk.ButtonsType.OK,
-                text="FamilyTreeView",
+                text=_("FamilyTreeView"),
             )
             dialog.format_secondary_markup(_(
                 "<b>Failed to apply filter.</b>\n"

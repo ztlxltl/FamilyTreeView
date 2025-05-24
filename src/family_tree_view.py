@@ -1156,11 +1156,11 @@ class FamilyTreeView(NavigationView, Callback):
             flags=0,
             message_type=Gtk.MessageType.INFO,
             buttons=Gtk.ButtonsType.OK,
-            text="Export completed.",
+            text=_("Export completed."),
         )
-        dialog.format_secondary_text(
-            f"Tree was saved: {file_name}"
-        )
+        dialog.format_secondary_text(_(
+            "Tree was saved: {file_name}"
+        ).format(file_name=file_name))
         dialog.run()
         dialog.destroy()
 
