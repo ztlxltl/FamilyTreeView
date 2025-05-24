@@ -433,9 +433,10 @@ class FamilyTreeView(NavigationView, Callback):
             # ProxyDbBase. Use method from base db.
             db.get_dbname = db.basedb.get_dbname
 
-            # This modifies the db, but it can be important for using
-            # FTV.
-            db.set_default_person_handle = db.basedb.set_default_person_handle
+            with suppress(AttributeError): # DummyDb has no set_default_person_handle
+                # This modifies the db, but it can be important for
+                # using FTV.
+                db.set_default_person_handle = db.basedb.set_default_person_handle
 
             db_changed = True
 
@@ -756,7 +757,8 @@ class FamilyTreeView(NavigationView, Callback):
 
     def set_home_person(self, person_handle, also_set_active=False):
         if self.get_person_from_handle(person_handle) is not None:
-            self.dbstate.db.set_default_person_handle(person_handle)
+            with suppress(AttributeError): # DummyDb has no set_default_person_handle
+                self.dbstate.db.set_default_person_handle(person_handle)
             if also_set_active:
                 self.set_active_person(person_handle)
             else:
