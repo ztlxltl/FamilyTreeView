@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-24 19:45+0000\n"
+"POT-Creation-Date: 2025-05-25 10:45+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -104,7 +104,7 @@ msgstr ""
 #: FamilyTreeView/family_tree_view_tree_builder.py:83
 #: FamilyTreeView/family_tree_view_tree_builder.py:171
 #: FamilyTreeView/family_tree_view.gpr.py:45
-#: FamilyTreeView/family_tree_view.py:199
+#: FamilyTreeView/family_tree_view.py:200
 #: FamilyTreeView/family_tree_view_config_provider.py:446
 msgid "FamilyTreeView"
 msgstr ""
@@ -410,11 +410,11 @@ msgstr ""
 msgid "Charts"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:418
+#: FamilyTreeView/family_tree_view.py:419
 msgid "Presentation mode error"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:421
+#: FamilyTreeView/family_tree_view.py:422
 #, python-brace-format
 msgid ""
 "The person filter '{person_filter_name}' was not found. Therefore, it cannot "
@@ -424,40 +424,90 @@ msgid ""
 "Check your filters and the presentation mode settings."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1094
+#: FamilyTreeView/family_tree_view.py:676
+msgid ""
+"No database to load. Create a new database to add data manually or import "
+"data."
+msgstr ""
+
+#: FamilyTreeView/family_tree_view.py:679
+msgid "Create a database"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view.py:685
+msgid ""
+"No database loaded. Load a database or create a new one to add data manually "
+"or import data."
+msgstr ""
+
+#: FamilyTreeView/family_tree_view.py:688
+msgid "Create or load a database"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view.py:699
+msgid ""
+"No people in the loaded database. Create a new person manually or import "
+"data."
+msgstr ""
+
+#: FamilyTreeView/family_tree_view.py:702
+msgid "Add a new person"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view.py:703
+msgid "Import data"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view.py:732
+msgid ""
+"No valid person selected for whom the tree can be displayed. Use the search "
+"bar above to search, or select a person from the list of available people."
+msgstr ""
+
+#: FamilyTreeView/family_tree_view.py:738
+msgid ""
+"No valid person selected for whom the tree can be displayed. Select a person "
+"from the list of available people."
+msgstr ""
+
+#: FamilyTreeView/family_tree_view.py:744
+msgid "Select a person"
+msgstr ""
+
+#: FamilyTreeView/family_tree_view.py:1183
 msgid "Export tree as SVG"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1106
+#: FamilyTreeView/family_tree_view.py:1195
 msgid "SVG files"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1111
+#: FamilyTreeView/family_tree_view.py:1200
 msgid "Any files"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1159
+#: FamilyTreeView/family_tree_view.py:1248
 msgid "Export completed."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1162
+#: FamilyTreeView/family_tree_view.py:1251
 #, python-brace-format
 msgid "Tree was saved: {file_name}"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1184
+#: FamilyTreeView/family_tree_view.py:1273
 msgid "Presentation mode"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1186
+#: FamilyTreeView/family_tree_view.py:1275
 msgid "You cannot modify the database in presentation mode."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1189
+#: FamilyTreeView/family_tree_view.py:1278
 msgid "Readonly database"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1191
+#: FamilyTreeView/family_tree_view.py:1280
 msgid "You cannot modify a readonly database."
 msgstr ""
 
@@ -963,69 +1013,69 @@ msgstr ""
 msgid "Attributes"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:236
+#: FamilyTreeView/family_tree_view_canvas_manager.py:243
 msgid "Close the \"Add relatives\" overlay"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:403
-#: FamilyTreeView/family_tree_view_canvas_manager.py:707
+#: FamilyTreeView/family_tree_view_canvas_manager.py:410
+#: FamilyTreeView/family_tree_view_canvas_manager.py:714
 msgid "Add a new spouse¦Add new spouse¦Add spouse¦+ spouse¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:418
-#: FamilyTreeView/family_tree_view_canvas_manager.py:736
+#: FamilyTreeView/family_tree_view_canvas_manager.py:425
+#: FamilyTreeView/family_tree_view_canvas_manager.py:743
 msgid "Add a new child¦Add new child¦Add child¦+ child¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:449
+#: FamilyTreeView/family_tree_view_canvas_manager.py:456
 msgid "Add a new family¦Add new family¦Add family¦+ family¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:459
+#: FamilyTreeView/family_tree_view_canvas_manager.py:466
 msgid ""
 "Add a new family and a new spouse¦Add new family and new spouse¦Add family "
 "and spouse¦Add family, spouse¦+ family, spouse¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:489
+#: FamilyTreeView/family_tree_view_canvas_manager.py:496
 msgid ""
 "Add a new family and a new child¦Add new family and new child¦Add family and "
 "child¦Add family, child¦+ family, child¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:527
+#: FamilyTreeView/family_tree_view_canvas_manager.py:534
 msgid "Add a new father¦Add new father¦Add father¦+ father¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:545
+#: FamilyTreeView/family_tree_view_canvas_manager.py:552
 msgid "Add a new mother¦Add new mother¦Add mother¦+ mother¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:560
+#: FamilyTreeView/family_tree_view_canvas_manager.py:567
 msgid "Add a new sibling¦Add new sibling¦Add sibling¦+ sibling¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:595
+#: FamilyTreeView/family_tree_view_canvas_manager.py:602
 msgid ""
 "Add a new parent family¦Add new parent family¦Add parent family¦Add "
 "parents¦+ parents¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:606
+#: FamilyTreeView/family_tree_view_canvas_manager.py:613
 msgid ""
 "Add a new parent family and a new father¦Add new parent family and new "
 "father¦Add parent family and father¦Add parent family, father¦Add parents, "
 "father¦+ parents, father¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:618
+#: FamilyTreeView/family_tree_view_canvas_manager.py:625
 msgid ""
 "Add a new parent family and a new mother¦Add new parent family and new "
 "mother¦Add parent family and mother¦Add parent family, mother¦Add parents, "
 "mother¦+ parents, mother¦+"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_canvas_manager.py:654
+#: FamilyTreeView/family_tree_view_canvas_manager.py:661
 msgid ""
 "Add a new parent family and a new sibling¦Add new parent family and new "
 "sibling¦Add parent family and sibling¦Add parent family, sibling¦Add "
@@ -1054,32 +1104,32 @@ msgid ""
 "make the search available."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:942
-#: FamilyTreeView/family_tree_view_widget_manager.py:1074
+#: FamilyTreeView/family_tree_view_widget_manager.py:977
+#: FamilyTreeView/family_tree_view_widget_manager.py:1109
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:338
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:386
 msgid "Edit"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:950
+#: FamilyTreeView/family_tree_view_widget_manager.py:985
 #: FamilyTreeView/family_tree_view_config_provider.py:775
 msgid "Set as home person"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:956
+#: FamilyTreeView/family_tree_view_widget_manager.py:991
 #: FamilyTreeView/family_tree_view_config_provider.py:774
 msgid "Set as active person"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:962
-#: FamilyTreeView/family_tree_view_widget_manager.py:1082
+#: FamilyTreeView/family_tree_view_widget_manager.py:997
+#: FamilyTreeView/family_tree_view_widget_manager.py:1117
 #: FamilyTreeView/family_tree_view_config_provider.py:771
 #: FamilyTreeView/family_tree_view_config_provider.py:780
 msgid "Open info box"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:968
-#: FamilyTreeView/family_tree_view_widget_manager.py:1088
+#: FamilyTreeView/family_tree_view_widget_manager.py:1003
+#: FamilyTreeView/family_tree_view_widget_manager.py:1123
 #: FamilyTreeView/family_tree_view_config_provider.py:772
 #: FamilyTreeView/family_tree_view_config_provider.py:781
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:357
@@ -1089,75 +1139,75 @@ msgstr ""
 msgid "Open panel"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:981
+#: FamilyTreeView/family_tree_view_widget_manager.py:1016
 msgid "Set an associated person as active"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1001
+#: FamilyTreeView/family_tree_view_widget_manager.py:1036
 msgid "Add a new parent family (and parents)"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1043
+#: FamilyTreeView/family_tree_view_widget_manager.py:1078
 msgid ""
 "Add a new family (and spouse/children)\n"
 "with this person as the first spouse"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1047
-#: FamilyTreeView/family_tree_view_widget_manager.py:1063
+#: FamilyTreeView/family_tree_view_widget_manager.py:1082
+#: FamilyTreeView/family_tree_view_widget_manager.py:1098
 msgid "Add a new family (and spouse/children)"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1059
+#: FamilyTreeView/family_tree_view_widget_manager.py:1094
 msgid ""
 "Add a new family (and spouse/children)\n"
 "with this person as the second spouse"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1101
+#: FamilyTreeView/family_tree_view_widget_manager.py:1136
 msgid "Add a new person as father"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1111
+#: FamilyTreeView/family_tree_view_widget_manager.py:1146
 msgid "Add a new person as mother"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1119
+#: FamilyTreeView/family_tree_view_widget_manager.py:1154
 msgid "Add a new person as child"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1130
+#: FamilyTreeView/family_tree_view_widget_manager.py:1165
 #: FamilyTreeView/family_tree_view_config_provider.py:789
 msgid "Zoom in"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1136
+#: FamilyTreeView/family_tree_view_widget_manager.py:1171
 #: FamilyTreeView/family_tree_view_config_provider.py:790
 msgid "Zoom out"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1142
+#: FamilyTreeView/family_tree_view_widget_manager.py:1177
 #: FamilyTreeView/family_tree_view_config_provider.py:791
 msgid "Reset zoom"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1148
+#: FamilyTreeView/family_tree_view_widget_manager.py:1183
 msgid "Scroll to active person"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1154
+#: FamilyTreeView/family_tree_view_widget_manager.py:1189
 msgid "Scroll to home person"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1166
+#: FamilyTreeView/family_tree_view_widget_manager.py:1201
 msgid "Scroll to active family"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1266
+#: FamilyTreeView/family_tree_view_widget_manager.py:1301
 msgid "Database cannot be modified in presentation mode"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1268
+#: FamilyTreeView/family_tree_view_widget_manager.py:1303
 msgid "Readonly database cannot be modified"
 msgstr ""
 
