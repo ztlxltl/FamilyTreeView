@@ -734,6 +734,41 @@ class FamilyTreeViewWidgetManager:
         # else event_type_visualization_type == "none"
         return ""
 
+    # replacement for empty db etc.
+
+    def add_replacement_message(self, x, y, msg, buttons):
+        y_text = y - 50
+        y_button = y
+
+        self.canvas_manager.add_text(
+            x, y_text, msg, self.canvas_manager.repl_msg_width
+        )
+
+        background_color, border_color = self.get_colors_for_missing()
+        button_width = self.canvas_manager.repl_button_width
+        button_sep = self.canvas_manager.repl_button_sep
+        button_row_width = (
+            len(buttons) * button_width + (len(buttons)-1) * button_sep
+        )
+        for i, button_info in enumerate(buttons):
+            x_button = (
+                x - button_row_width/2 + button_width/2
+                + i*(button_width + button_sep)
+            )
+            def button_callback(callback):
+                def cb(*args):
+                    self.canvas_manager.ignore_this_mouse_button_press()
+                    if callback is not None:
+                        callback()
+                return cb
+            self.canvas_manager.add_button(
+                x_button, y_button,
+                background_color, border_color,
+                button_info["icon"],
+                button_info["label"],
+                button_callback(button_info["callback"])
+            )
+
     # callbacks
 
     def _cb_person_clicked(self, person_handle, event, x, person_generation, alignment):

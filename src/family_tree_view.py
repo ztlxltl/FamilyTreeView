@@ -43,6 +43,7 @@ from gramps.gen.utils.symbols import Symbols
 from gramps.gen.utils.thumbnails import get_thumbnail_path
 from gramps.gui.editors import EditFamily, EditPerson, FilterEditor
 from gramps.gui.pluginmanager import GuiPluginManager
+from gramps.gui.selectors.selectperson import SelectPerson
 from gramps.gui.views.bookmarks import PersonBookmarks
 from gramps.gui.views.navigationview import NavigationView
 
@@ -51,7 +52,7 @@ from family_tree_view_badge_manager import FamilyTreeViewBadgeManager
 from family_tree_view_config_provider import FamilyTreeViewConfigProvider
 from family_tree_view_icons import get_family_avatar_svg_data, get_person_avatar_svg_data
 from family_tree_view_utils import get_gettext, get_reloaded_custom_filter_list
-from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
+from family_tree_view_widget_manager import FamilyTreeViewWidgetManager, search_widget_available
 
 
 _ = get_gettext()
@@ -670,23 +671,42 @@ class FamilyTreeView(NavigationView, Callback):
             self.widget_manager.reset_tree()
             if len(CLIDbManager(self.dbstate).current_names) == 0: # TODO This condition has not been tested yet!
                 # no db to load
-                # TODO Show some replacement text, e.g. 
-                # "No database to load. Create or import one."
-                # (where import creates one first).
-                pass
+                self.show_empty_tree_info(
+                    _(
+                        "No database to load. Create a new database to add "
+                        "data manually or import data."
+                    ),
+                    db_manager=_("Create a database")
+                )
             else:
                 # no db loaded but can be loaded
-                # TODO Show some replacement text, e.g. 
-                # "No database loaded. Load, create or import one."
-                # (where import creates one first).
-                pass
+                self.show_empty_tree_info(
+                    _(
+                        "No database loaded. Load a database or create a new "
+                        "one to add data manually or import data."
+                    ),
+                    db_manager=_("Create or load a database")
+                )
             self.widget_manager.canvas_manager.move_to_center()
             return True
         if self.dbstate.db.get_number_of_people() == 0:
             # There are no people in the database. show a missing
             # person.
             self.widget_manager.reset_tree()
-            self.widget_manager.add_missing_person(0, 0, "c", "root", None)
+
+            self.show_empty_tree_info(
+                _(
+                    "No people in the loaded database. Create a new person "
+                    "manually or import data."
+                ),
+                create_person=_("Add a new person"),
+                import_data=_("Import data")
+            )
+
+            # # This is an alternative to the above, showing a missing
+            # # person similar to a missing spouse.
+            # self.widget_manager.add_missing_person(0, 0, "c", "root", None)
+
             self.widget_manager.canvas_manager.move_to_center()
             return True
 
@@ -707,8 +727,22 @@ class FamilyTreeView(NavigationView, Callback):
                 # that hides the active, home and first person in the
                 # database.
                 self.widget_manager.reset_tree()
-                # TODO Show some replacement text, e.g. 
-                # "No person selected to display the tree for. Please select a person."
+                if search_widget_available:
+                    msg = _(
+                        "No valid person selected for whom the tree can be "
+                        "displayed. Use the search bar above to search, or "
+                        "select a person from the list of available people."
+                    )
+                else:
+                    msg = _(
+                        "No valid person selected for whom the tree can be "
+                        "displayed. Select a person from the list of "
+                        "available people."
+                    )
+                self.show_empty_tree_info(
+                    msg,
+                    select_person=_("Select a person")
+                )
                 self.widget_manager.canvas_manager.move_to_center()
             return True
         if no_active and not no_home:
@@ -717,6 +751,61 @@ class FamilyTreeView(NavigationView, Callback):
             self.set_home_person(active_person_handle)
         # If both are set, everything is fine.
         return False
+
+    def show_empty_tree_info(
+        self, msg,
+        db_manager=None, create_person=None, import_data=None,
+        select_person=None,
+    ):
+        buttons = []
+
+        if db_manager is not None:
+            cb_open_db_manager = None
+            for action in self.uistate.viewmanager.fileactions.actionlist:
+                name, cb = action[:2]
+                if name == "Open":
+                    cb_open_db_manager = cb
+                    break
+            buttons.append({
+                "icon": "gramps",
+                "label": db_manager,
+                "callback": lambda *args: cb_open_db_manager(None, None)
+            })
+
+        # TODO new options: db_new and db_new_import: How to click "New"
+        # programmatically once the db manager opened?
+        # TODO db_new_import: call ViewManager.import_data() after db is
+        # created
+
+        if create_person is not None:
+            buttons.append({
+                "icon": "gtk-add",
+                "label": create_person,
+                "callback": lambda *args: self.add_new_person(True, True)
+            })
+
+        if import_data is not None:
+            buttons.append({
+                "icon": "document-import",
+                "label": import_data,
+                "callback": lambda *args: self.uistate.viewmanager.import_data()
+            })
+
+        if select_person is not None:
+            def cb_select_person(*args):
+                selector = SelectPerson(
+                    self.dbstate, self.uistate, title=select_person
+                )
+                person = selector.run()
+                if person is not None:
+                    self.set_active_person(person.handle)
+            buttons.append({
+                "icon": "gtk-index",
+                "label": select_person,
+                "callback": cb_select_person
+            })
+
+        self.widget_manager.add_replacement_message(0, 0, msg, buttons)
 
     def get_image_spec(self, obj, obj_type):
         if obj_type == "person":

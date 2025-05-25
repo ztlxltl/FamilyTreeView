@@ -26,7 +26,7 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango
 
 from gramps.gen.const import GRAMPS_LOCALE
 from gramps.gen.lib import Person
-from gramps.gui.utils import get_contrast_color, rgb_to_hex
+from gramps.gui.utils import get_contrast_color, hex_to_rgb_float, rgb_to_hex
 
 from family_tree_view_canvas_manager_base import FamilyTreeViewCanvasManagerBase
 from family_tree_view_utils import get_gettext, import_GooCanvas, make_hashable
@@ -99,6 +99,13 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.other_families_sep = sep_for_two_expanders # horizontal space between families with sharing a spouse
         self.ancestor_sep = sep_for_two_expanders
         self.other_parent_families_sep = sep_for_two_expanders
+
+        # replacement message
+        self.repl_msg_width = 500
+        self.repl_button_width = 150
+        self.repl_button_height = 100
+        self.repl_button_corner_radius = 5
+        self.repl_button_sep = 20
 
         # visibility threshold
         # Set the offset to positive a number for testing, or to a
@@ -1361,6 +1368,85 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                 data=data,
                 stroke_color=rgb_to_hex(fg_color),
             ).rotate(ang, x, y)
+
+    def add_text(self, x, y, text, max_width):
+        style_context = self.canvas_container.get_style_context()
+        font_desc = style_context.get_font(Gtk.StateFlags.NORMAL)
+
+        bg_color_found, bg_color = self.canvas.get_style_context().lookup_color("theme_bg_color")
+        if bg_color_found:
+            bg_color = tuple(bg_color)[:3]
+        else:
+            bg_color = (1, 1, 1)
+        contrast_color = rgb_to_hex(get_contrast_color(bg_color))
+
+        GooCanvas.CanvasText(
+            parent=self.canvas.get_root_item(),
+            x=x,
+            y=y,
+            text=text,
+            alignment=Pango.Alignment.CENTER,
+            anchor=GooCanvas.CanvasAnchorType.CENTER,
+            width=max_width,
+            font_desc=font_desc,
+            fill_color=contrast_color,
+        )
+
+    def add_button(self, x, y, background_color, border_color, icon_name, label, click_callback):
+        group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
+        group.connect("button-press-event", self.click_callback, click_callback)
+        parent = group
+
+        # background
+        GooCanvas.CanvasRect(
+            parent=parent,
+            x=x-self.repl_button_width/2,
+            y=y,
+            width=self.repl_button_width,
+            height=self.repl_button_height,
+            radius_x=self.repl_button_corner_radius,
+            radius_y=self.repl_button_corner_radius,
+            fill_color=background_color,
+            stroke_color=border_color,
+        )
+
+        # icon
+        icon_theme = Gtk.IconTheme.get_default()
+        icon_size = 32
+        try:
+            pixbuf = icon_theme.load_icon(icon_name, icon_size, 0)
+        except GLib.Error:
+            pass
+        else:
+            # Create a GooCanvas.Image from the pixbuf
+            GooCanvas.CanvasImage(
+                parent=parent,
+                pixbuf=pixbuf,
+                x=x-icon_size/2,
+                y=y+10,
+                width=icon_size,
+                height=icon_size,
+                scale_to_fit=True,
+            )
+
+        # text
+        style_context = self.canvas_container.get_style_context()
+        font_desc = style_context.get_font(Gtk.StateFlags.NORMAL)
+        contrast_color = rgb_to_hex(get_contrast_color(
+            hex_to_rgb_float(background_color)
+        ))
+        GooCanvas.CanvasText(
+            parent=parent,
+            x=x,
+            y=y+self.repl_button_height-10-2*self.line_height_px,
+            text=label,
+            alignment=Pango.Alignment.CENTER,
+            anchor=GooCanvas.CanvasAnchorType.NORTH,
+            width=self.repl_button_width-10,
+            height=2*self.line_height_px + self.line_height_px/2,
+            font_desc=font_desc,
+            fill_color=contrast_color,
+        )
 
     def add_from_image_spec(self, parent, image_spec, x, y, max_width, max_height, color=None, grayscale=False, tooltip=None):
         if image_spec[0] in ["path", "svg_path", "pixbuf"]:
