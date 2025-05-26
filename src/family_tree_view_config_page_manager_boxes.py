@@ -484,7 +484,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
         return s[:-2] # remove last ", "
 
     def _item_list_changed(self, box_type, select_path=None):
-        # Use GLib.idle_add to prevent segemntation fault on macOS.
+        # Use GLib.idle_add to prevent segmentation fault on macOS.
         GLib.idle_add(self._update_item_list, box_type, select_path)
 
     def _update_item_list(self, box_type, select_path=None):
@@ -895,7 +895,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
             item_def_idx = int(selection.get_selected_rows()[1][0].to_string())
             box_content_item_defs.insert(item_def_idx+1, box_content_item_defs.pop(item_def_idx))
             self._set_box_content_item_defs(box_type, box_content_item_defs)
-            self._item_list_changed(box_type, str(item_def_idx-1))
+            self._item_list_changed(box_type, str(item_def_idx+1))
 
     def _cb_remove_item_def_button_clicked(self, button, box_type):
         self._duplicate_def_if_predef()
