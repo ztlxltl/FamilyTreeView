@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-25 10:45+0000\n"
+"POT-Creation-Date: 2025-05-26 17:17+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -888,15 +888,15 @@ msgstr ""
 msgid "Parameters for selected family box item definition"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:540
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:547
 msgid "Select an item definition on the left to modify its parameters."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:595
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:602
 msgid "You can change the place format on the 'Appearance' page."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:622
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:629
 msgid ""
 "Enter a positive number to get the n-th event.\n"
 "If the number is negative, it's counted from the last item.\n"
@@ -907,21 +907,21 @@ msgid ""
 "-2 -> the 2nd to last item (if there are at least two)\n"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:687
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:694
 msgid "Default format"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:704
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:711
 msgid ""
 "Tip: You can create a new name format in the Gramps preferences (e.g. "
 "'Surname' to display only the surnames) and use it here."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:965
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:963
 msgid "Content definition duplicated"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:968
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:966
 msgid ""
 "You edited a predefined boxes definition which cannot be changed by the "
 "user. A copy was created and selected. The change will be applied to that "
