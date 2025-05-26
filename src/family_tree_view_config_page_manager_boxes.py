@@ -2,7 +2,7 @@
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
-from gi.repository import Gtk, Pango
+from gi.repository import GLib, Gtk, Pango
 
 from gramps.gen.display.name import displayer as name_displayer
 from gramps.gen.lib.attrtype import AttributeType
@@ -483,11 +483,18 @@ class FamilyTreeViewConfigPageManagerBoxes:
             return s
         return s[:-2] # remove last ", "
 
-    def _item_list_changed(self, box_type):
+    def _item_list_changed(self, box_type, select_path=None):
+        # Use GLib.idle_add to prevent segemntation fault on macOS.
+        GLib.idle_add(self._update_item_list, box_type, select_path)
+
+    def _update_item_list(self, box_type, select_path=None):
         self.item_defs_tree_views[box_type].get_selection().unselect_all()
         self._fill_item_defs_list_store_from_config(box_type)
 
         self.ftv.cb_update_config(None, None, None, None)
+
+        if select_path is not None:
+            self.item_defs_tree_views[box_type].get_selection().select_path(select_path)
 
     def _cb_item_def_selection_changed(self, selection, box_type):
         for child in self.item_def_type_params_boxes[box_type].get_children():
@@ -785,8 +792,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
         self._set_box_content_item_defs(box_type, box_content_item_types)
         item_type_description_label.set_text(item_type_description)
         self._create_item_def_params(box_type, item_i)
-        self._item_list_changed(box_type)
-        self.item_defs_tree_views[box_type].get_selection().select_path(str(item_i))
+        self._item_list_changed(box_type, str(item_i))
 
     def _cb_param_check_button_toggled(self, check_button, box_type, item_i, item_param):
         self._duplicate_def_if_predef()
@@ -794,8 +800,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
         box_content_item_types[item_i][1][item_param] = check_button.get_active()
         self._set_box_content_item_defs(box_type, box_content_item_types)
 
-        self._item_list_changed(box_type)
-        self.item_defs_tree_views[box_type].get_selection().select_path(str(item_i))
+        self._item_list_changed(box_type, str(item_i))
 
     def _cb_param_spin_button_value_changed(self, spin_button, box_type, item_i, item_param):
         self._duplicate_def_if_predef()
@@ -810,8 +815,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
         if item_param == "lines":
             # TODO also check if current is name or alt_name
             self.ftv.widget_manager.canvas_manager.reset_abbrev_names()
-        self._item_list_changed(box_type)
-        self.item_defs_tree_views[box_type].get_selection().select_path(str(item_i))
+        self._item_list_changed(box_type, str(item_i))
 
     def _cb_param_monitored_data_type_set(self, val, box_type, item_i, item_param):
         self._duplicate_def_if_predef()
@@ -827,8 +831,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
         box_content_item_types = self._get_box_content_item_defs(box_type)
         box_content_item_types[item_i][1][item_param] = new_value
         self._set_box_content_item_defs(box_type, box_content_item_types)
-        self._item_list_changed(box_type)
-        self.item_defs_tree_views[box_type].get_selection().select_path(str(item_i))
+        self._item_list_changed(box_type, str(item_i))
 
     def _cb_param_combo_box_changed(self, combo_box, box_type, item_i, item_param):
         # Extract info from combo before rebuilding due to duplication.
@@ -839,8 +842,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
         new_value = param_model[active_iter][0] # 0: non-translated
         box_content_item_types[item_i][1][item_param] = new_value
         self._set_box_content_item_defs(box_type, box_content_item_types)
-        self._item_list_changed(box_type)
-        self.item_defs_tree_views[box_type].get_selection().select_path(str(item_i))
+        self._item_list_changed(box_type, str(item_i))
 
     # item def button callbacks
 
@@ -862,8 +864,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
             item_def_idx = int(selection.get_selected_rows()[1][0].to_string())+1
         box_content_item_defs.insert(item_def_idx, new_item_def)
         self._set_box_content_item_defs(box_type, box_content_item_defs)
-        self._item_list_changed(box_type)
-        selection.select_path(str(item_def_idx))
+        self._item_list_changed(box_type, str(item_def_idx))
 
     def _cb_duplicate_item_def_button_clicked(self, button, box_type):
         self._duplicate_def_if_predef()
@@ -874,8 +875,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
             new_item_def = deepcopy(box_content_item_defs[item_def_idx])
             box_content_item_defs.insert(item_def_idx, new_item_def)
             self._set_box_content_item_defs(box_type, box_content_item_defs)
-            self._item_list_changed(box_type)
-            selection.select_path(str(item_def_idx+1))
+            self._item_list_changed(box_type, str(item_def_idx+1))
 
     def _cb_up_item_def_button_clicked(self, button, box_type):
         self._duplicate_def_if_predef()
@@ -885,8 +885,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
             item_def_idx = int(selection.get_selected_rows()[1][0].to_string())
             box_content_item_defs.insert(item_def_idx-1, box_content_item_defs.pop(item_def_idx))
             self._set_box_content_item_defs(box_type, box_content_item_defs)
-            self._item_list_changed(box_type)
-            selection.select_path(str(item_def_idx-1))
+            self._item_list_changed(box_type, str(item_def_idx-1))
 
     def _cb_down_item_def_button_clicked(self, button, box_type):
         self._duplicate_def_if_predef()
@@ -896,8 +895,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
             item_def_idx = int(selection.get_selected_rows()[1][0].to_string())
             box_content_item_defs.insert(item_def_idx+1, box_content_item_defs.pop(item_def_idx))
             self._set_box_content_item_defs(box_type, box_content_item_defs)
-            self._item_list_changed(box_type)
-            selection.select_path(str(item_def_idx+1))
+            self._item_list_changed(box_type, str(item_def_idx-1))
 
     def _cb_remove_item_def_button_clicked(self, button, box_type):
         self._duplicate_def_if_predef()
