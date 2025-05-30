@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-30 16:48+0000\n"
+"POT-Creation-Date: 2025-05-30 17:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -394,7 +394,7 @@ msgstr ""
 
 #: FamilyTreeView/family_tree_view.gpr.py:45
 #: FamilyTreeView/family_tree_view_tree_builder.py:83
-#: FamilyTreeView/family_tree_view_tree_builder.py:171
+#: FamilyTreeView/family_tree_view_tree_builder.py:178
 #: FamilyTreeView/family_tree_view_config_provider.py:446
 #: FamilyTreeView/family_tree_view.py:200
 msgid "FamilyTreeView"
@@ -664,15 +664,15 @@ msgid ""
 "the filter rules. No filter is applied."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_tree_builder.py:130
+#: FamilyTreeView/family_tree_view_tree_builder.py:137
 msgid "Preparing badges..."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_tree_builder.py:137
+#: FamilyTreeView/family_tree_view_tree_builder.py:144
 msgid "Building tree..."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_tree_builder.py:177
+#: FamilyTreeView/family_tree_view_tree_builder.py:184
 msgid ""
 "<b>Failed to build the tree.</b>\n"
 "An error occurred while building the tree visualization.\n"
@@ -682,31 +682,31 @@ msgid ""
 "\n"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_tree_builder.py:382
-#: FamilyTreeView/family_tree_view_tree_builder.py:678
+#: FamilyTreeView/family_tree_view_tree_builder.py:389
+#: FamilyTreeView/family_tree_view_tree_builder.py:685
 msgid "Building families and descendants..."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_tree_builder.py:394
+#: FamilyTreeView/family_tree_view_tree_builder.py:401
 msgid "Preparing to build ancestors..."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_tree_builder.py:406
+#: FamilyTreeView/family_tree_view_tree_builder.py:413
 msgid "Building ancestors..."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_tree_builder.py:565
+#: FamilyTreeView/family_tree_view_tree_builder.py:572
 msgid ""
 "The children of this family cannot be displayed. Set a person more closely "
 "related to this family as the active person to be able to display the "
 "children."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_tree_builder.py:630
+#: FamilyTreeView/family_tree_view_tree_builder.py:637
 msgid "Preparing to build descendants..."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_tree_builder.py:654
+#: FamilyTreeView/family_tree_view_tree_builder.py:661
 msgid "Building descendants..."
 msgstr ""
 
@@ -1207,7 +1207,7 @@ msgstr ""
 #: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:1057
 msgid ""
 "You edited a predefined boxes content profile, which cannot be changed by "
-"the user. A copy was created and selected. The change are applied to that "
+"the user. A copy was created and selected. The changes are applied to that "
 "copy."
 msgstr ""
 
@@ -1814,70 +1814,70 @@ msgstr ""
 msgid "Create or load a database"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:699
+#: FamilyTreeView/family_tree_view.py:701
 msgid ""
 "No people in the loaded database. Create a new person manually or import "
 "data."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:702
+#: FamilyTreeView/family_tree_view.py:704
 msgid "Add a new person"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:703
+#: FamilyTreeView/family_tree_view.py:705
 msgid "Import data"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:732
+#: FamilyTreeView/family_tree_view.py:736
 msgid ""
 "No valid person selected for whom the tree can be displayed. Use the search "
 "bar above to search, or select a person from the list of available people."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:738
+#: FamilyTreeView/family_tree_view.py:742
 msgid ""
 "No valid person selected for whom the tree can be displayed. Select a person "
 "from the list of available people."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:744
+#: FamilyTreeView/family_tree_view.py:748
 msgid "Select a person"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1183
+#: FamilyTreeView/family_tree_view.py:1189
 msgid "Export tree as SVG"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1195
+#: FamilyTreeView/family_tree_view.py:1201
 msgid "SVG files"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1200
+#: FamilyTreeView/family_tree_view.py:1206
 msgid "Any files"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1248
+#: FamilyTreeView/family_tree_view.py:1254
 msgid "Export completed."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1251
+#: FamilyTreeView/family_tree_view.py:1257
 #, python-brace-format
 msgid "Tree was saved: {file_name}"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1273
+#: FamilyTreeView/family_tree_view.py:1279
 msgid "Presentation mode"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1275
+#: FamilyTreeView/family_tree_view.py:1281
 msgid "You cannot modify the database in presentation mode."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1278
+#: FamilyTreeView/family_tree_view.py:1284
 msgid "Readonly database"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1280
+#: FamilyTreeView/family_tree_view.py:1286
 msgid "You cannot modify a readonly database."
 msgstr ""
 
