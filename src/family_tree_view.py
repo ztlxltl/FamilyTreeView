@@ -687,7 +687,9 @@ class FamilyTreeView(NavigationView, Callback):
                     ),
                     db_manager=_("Create or load a database")
                 )
-            self.widget_manager.canvas_manager.move_to_center()
+            self.uistate.modify_statusbar(self.dbstate)
+            self.widget_manager.canvas_manager.reset_zoom()
+            self.widget_manager.canvas_manager.move_to_center(0, 0)
             return True
         if self.dbstate.db.get_number_of_people() == 0:
             # There are no people in the database. show a missing
@@ -707,7 +709,9 @@ class FamilyTreeView(NavigationView, Callback):
             # # person similar to a missing spouse.
             # self.widget_manager.add_missing_person(0, 0, "c", "root", None)
 
-            self.widget_manager.canvas_manager.move_to_center()
+            self.uistate.modify_statusbar(self.dbstate)
+            self.widget_manager.canvas_manager.reset_zoom()
+            self.widget_manager.canvas_manager.move_to_center(0, 0)
             return True
 
         # A db with people is loaded.
@@ -743,7 +747,9 @@ class FamilyTreeView(NavigationView, Callback):
                     msg,
                     select_person=_("Select a person")
                 )
-                self.widget_manager.canvas_manager.move_to_center()
+                self.uistate.modify_statusbar(self.dbstate)
+                self.widget_manager.canvas_manager.reset_zoom()
+                self.widget_manager.canvas_manager.move_to_center(0, 0)
             return True
         if no_active and not no_home:
             self.set_active_person(home_person_handle)
