@@ -95,6 +95,13 @@ class FamilyTreeViewTreeBuilder():
 
     def build_tree(self, root_person_handle, reset=True):
 
+        # Cancel using progress meter default function.
+        # This prevents parallel building the tree (in most cases TODO).
+        if self.progress_meter is not None:
+            self.progress_meter.handle_cancel()
+            self.progress_meter.close()
+            self.progress_meter = None
+
         # TODO This is a workaround that fixes a bug that in some cases
         # (observed on Windows, cause unknown) causes the measured line
         # height to be incorrect the first time it is calculated.
