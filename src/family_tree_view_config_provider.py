@@ -31,7 +31,7 @@ from gramps.gen.lib.eventtype import EventType
 from gramps.gen.proxy.living import LivingProxyDb
 from gramps.gui.utils import rgb_to_hex
 
-from family_tree_view_config_page_manager_boxes import BOX_ITEMS, PREDEF_BOXES_DEFS, FamilyTreeViewConfigPageManagerBoxes
+from family_tree_view_config_page_manager_boxes import BOX_ITEMS, PREDEF_BOXES_CONTENT_PROFILES, FamilyTreeViewConfigPageManagerBoxes
 from family_tree_view_config_provider_names import DEFAULT_ABBREV_RULES, FamilyTreeViewConfigProviderNames
 from family_tree_view_utils import get_gettext, get_reloaded_custom_filter_list
 if TYPE_CHECKING:
@@ -128,8 +128,8 @@ class FamilyTreeViewConfigProvider:
             ("presentation.familytreeview-presentation-living-proxy-years-after-death", 0),
             ("presentation.familytreeview-presentation-filter-person", ""), # empty, no filter
 
-            ("boxes.familytreeview-boxes-custom-defs", {}),
-            ("boxes.familytreeview-boxes-selected-def-key", "regular"),
+            ("boxes.familytreeview-boxes-custom-defs", {}), # TODO rename familytreeview-boxes-custom-content-profiles
+            ("boxes.familytreeview-boxes-selected-def-key", "regular"), # TODO rename familytreeview-boxes-selected-content-profile
 
             ("names.familytreeview-abbrev-name-format-id", 0),
             ("names.familytreeview-abbrev-name-format-always", True),
@@ -240,11 +240,11 @@ class FamilyTreeViewConfigProvider:
                     try:
                         v[1] = int(v[1])
                     except ValueError:
-                        v[1] = deepcopy(PREDEF_BOXES_DEFS["regular"][1])
+                        v[1] = deepcopy(PREDEF_BOXES_CONTENT_PROFILES["regular"][1])
                     v_changed = True
                 for i, box_type in [(2, "person"), (3, "family")]:
                     if not isinstance(v[i], list):
-                        v[i] = deepcopy(PREDEF_BOXES_DEFS["regular"][i])
+                        v[i] = deepcopy(PREDEF_BOXES_CONTENT_PROFILES["regular"][i])
                         v_changed = True
                         continue
 

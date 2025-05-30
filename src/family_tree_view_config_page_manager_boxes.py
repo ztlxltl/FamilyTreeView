@@ -52,7 +52,7 @@ BOX_ITEMS = {
         ("event", _("Event"), _("Different information of the first event of the specified type"), {"event_type": "Birth", "lines": 1, "index": 0, **EVENT_PARAMS}),
         ("relationship", _("Relationship"), _("Relationship to the specified person"), {"rel_base": "active", "lines": 1}),
         ("attribute", _("Attribute"), _("The value of the attribute of the specified type"), {"attribute_type": "Nickname", "lines": 1}),
-        ("gender", _("Gender"), _("The gender of the person"), {"word_or_symbol": "Word"}), # TODO are the symbols always available?
+        ("gender", _("Gender"), _("The gender of the person"), {"word_or_symbol": "word"}), # TODO are the symbols always available?
         ("gramps_id", _("Gramps ID"), _("The Gramps ID of the person"), {"lines": 1}),
         ("generation_num", _("Generation number"), _("The number of the generation of the person"), {"lines": 1}),
         ("genealogical_num", _("Ahnentafel number"), _("The Ahnentafel number of the person"), {"lines": 1}),
@@ -75,7 +75,7 @@ BOX_ITEMS = {
     ],
 }
 
-PREDEF_BOXES_DEFS = {
+PREDEF_BOXES_CONTENT_PROFILES = {
     "minimal": (
         "Minimal",
         125,
@@ -185,114 +185,151 @@ class FamilyTreeViewConfigPageManagerBoxes:
         self.config_provider = config_provider
         self.ftv = self.config_provider.ftv
 
+        self.current_content_profile = None
+
     def boxes_page(self, configdialog):
         self.config_dialog = configdialog
-        main_grid = Gtk.Grid()
-        main_grid.set_border_width(12)
-        main_grid.set_column_spacing(6)
-        main_grid.set_row_spacing(6)
+        grid = Gtk.Grid()
+        grid.set_border_width(12)
+        grid.set_column_spacing(6)
+        grid.set_row_spacing(6)
         row = -1
 
         row += 1
-        label = Gtk.Label(_("Boxes definition used in the tree chart:"))
+        label = Gtk.Label(_("Boxes content profile used in the tree chart:"))
         label.set_halign(Gtk.Align.START)
-        main_grid.attach(label, 1, row, 2, 1)
-        self.boxes_defs = [
+        grid.attach(label, 1, row, 2, 1)
+        content_profile_button_box = Gtk.ButtonBox()
+        content_profile_button_box.set_layout(Gtk.ButtonBoxStyle.EXPAND)
+        content_profile_button_box.set_homogeneous(False)
+        self.content_profiles = [
             (k, _(v[0]))
-            for k, v in PREDEF_BOXES_DEFS.items()
+            for k, v in PREDEF_BOXES_CONTENT_PROFILES.items()
         ] + [
             (k, v[0])
             for k, v in self.ftv._config.get("boxes.familytreeview-boxes-custom-defs").items()
         ]
-        self.content_def_list_store = Gtk.ListStore(str, str)
-        for content_def in self.boxes_defs:
-            self.content_def_list_store.append(content_def)
-        self.content_def_combo = Gtk.ComboBox(model=self.content_def_list_store)
-        self.content_def_combo.set_hexpand(True)
+        self.content_profile_list_store = Gtk.ListStore(str, str)
+        for content_profile in self.content_profiles:
+            self.content_profile_list_store.append(content_profile)
+        self.content_profile_combo = Gtk.ComboBox(model=self.content_profile_list_store)
+        self.content_profile_combo.set_hexpand(True)
         renderer = Gtk.CellRendererText()
-        self.content_def_combo.pack_start(renderer, True)
-        self.content_def_combo.add_attribute(renderer, "text", 1)
-        sel_def_key = self.ftv._config.get("boxes.familytreeview-boxes-selected-def-key")
+        self.content_profile_combo.pack_start(renderer, True)
+        self.content_profile_combo.add_attribute(renderer, "text", 1)
+        sel_profile = self.ftv._config.get("boxes.familytreeview-boxes-selected-def-key")
         try:
-            active_idx = [e[0] for e in self.boxes_defs].index(sel_def_key)
+            active_idx = [e[0] for e in self.content_profiles].index(sel_profile)
         except ValueError:
             active_idx = 2 # regular
-        self.content_def_combo.set_active(active_idx)
-        def _cb_boxes_def_combo_changed(combo):
+        self.content_profile_combo.set_active(active_idx)
+        def _cb_content_profile_combo_changed(combo):
             self.ftv._config.set(
                 "boxes.familytreeview-boxes-selected-def-key",
-                self.boxes_defs[combo.get_active()][0]
+                self.content_profiles[combo.get_active()][0]
             )
+            _update_content_profile_buttons()
+            self.ftv.cb_update_config(None, None, None, None)
+        self.content_profile_combo.connect("changed", _cb_content_profile_combo_changed)
+        content_profile_button_box.add(self.content_profile_combo)
+        add_content_profile_button = Gtk.Button(image=Gtk.Image(icon_name="list-add"))
+        add_content_profile_button.set_tooltip_text(_(
+            "Add a new boxes content profile. It will be a copy of the "
+            "'Regular' profile. You can modify it using the edit button."
+        ))
+        def _cb_content_profile_add(button):
+            self._duplicate_content_profile("regular", show_message=False)
+        add_content_profile_button.connect("clicked", _cb_content_profile_add)
+        content_profile_button_box.pack_start(add_content_profile_button, False, False, 0)
+        duplicate_content_profile_button = Gtk.Button(image=Gtk.Image(icon_name="edit-copy"))
+        duplicate_content_profile_button.set_tooltip_text(_(
+            "Duplicate this boxes content profile. You can modify it using "
+            "the edit button."
+        ))
+        def _cb_content_profile_duplicate(button):
+            self._duplicate_content_profile(show_message=False)
+        duplicate_content_profile_button.connect("clicked", _cb_content_profile_duplicate)
+        content_profile_button_box.pack_start(duplicate_content_profile_button, False, False, 0)
+        edit_content_profile_button = Gtk.Button(image=Gtk.Image(icon_name="edit"))
+        edit_content_profile_button.set_tooltip_text(_("Edit this boxes content profile"))
+        def _cb_content_profile_edit(button):
+            key_to_edit = self.ftv._config.get("boxes.familytreeview-boxes-selected-def-key")
+            self._open_content_profile_edit_dialog(key_to_edit)
+        edit_content_profile_button.connect("clicked", _cb_content_profile_edit)
+        content_profile_button_box.pack_start(edit_content_profile_button, False, False, 0)
+        remove_content_profile_button = Gtk.Button(image=Gtk.Image(icon_name="list-remove"))
+        def _cb_content_profile_remove(button):
+            key_to_remove = self.ftv._config.get("boxes.familytreeview-boxes-selected-def-key")
+            if self._is_predef_content_profile(key_to_remove):
+                # Predefined content profile cannot be removed.
+                return
+            active_idx = self.content_profile_combo.get_active()
+            active_iter = self.content_profile_combo.get_active_iter()
+            self.content_profile_list_store.remove(active_iter)
+            self.content_profile_combo.set_active(active_idx-1)
+            self.content_profiles.pop(active_idx)
+            self._remove_content_profile(key_to_remove)
+        remove_content_profile_button.connect("clicked", _cb_content_profile_remove)
+        content_profile_button_box.pack_start(remove_content_profile_button, False, False, 0)
+        grid.attach(content_profile_button_box, 3, row, 2, 1)
 
-            # Disconnect the signals temporarily before changing the
-            # content to not trigger creating a copy of predefined
-            # boxes definition.
-            self.boxes_def_name_entry.disconnect_by_func(_cb_boxes_def_name_changed)
-            self.boxes_def_name_entry.set_text(self._get_content_def_name())
-            self.boxes_def_name_entry.connect("changed", _cb_boxes_def_name_changed)
+        def _update_content_profile_buttons():
+            is_predef = self._is_predef_content_profile()
+            remove_content_profile_button.set_sensitive(not is_predef)
+            if is_predef:
+                remove_tooltip = _(
+                    "This boxes content profile cannot be removed because it "
+                    "is predefined"
+                )
+            else:
+                remove_tooltip = _("Remove this boxes config profile")
+            remove_content_profile_button.set_tooltip_text(remove_tooltip)
+        _update_content_profile_buttons()
 
-            remove_def_button.set_sensitive(not self._is_predef_boxes_def())
+        return grid
 
-            self.person_width_spin_button.disconnect_by_func(_cb_person_box_width_changed)
-            self.person_width_spin_button.set_value(self._get_person_width())
-            self.person_width_spin_button.connect("value-changed", _cb_person_box_width_changed)
+    def _open_content_profile_edit_dialog(self, content_profile_key):
+        if self._is_predef_content_profile():
+            self.current_content_profile = list(deepcopy(PREDEF_BOXES_CONTENT_PROFILES[content_profile_key]))
+        else:
+            custom_defs = self.ftv._config.get("boxes.familytreeview-boxes-custom-defs")
+            self.current_content_profile = list(deepcopy(custom_defs[content_profile_key]))
 
-            self._fill_item_defs_list_store_from_config("person")
-            self._fill_item_defs_list_store_from_config("family")
-        self.content_def_combo.connect("changed", _cb_boxes_def_combo_changed)
-        main_grid.attach(self.content_def_combo, 3, row, 2, 1)
+        dialog = Gtk.Dialog(
+            title=_("Edit FTV Boxes Content Profile"),
+            transient_for=self.config_dialog.window
+        )
+
+        grid = Gtk.Grid()
+        grid.set_border_width(12)
+        grid.set_column_spacing(6)
+        grid.set_row_spacing(6)
+        row = -1
 
         row += 1
-        label = Gtk.Label(_("Boxes definition name:"))
+        label = Gtk.Label()
+        label.set_markup("<i>"+_(
+            "A boxes content profile defines the contents of person and "
+            "family boxes."
+        )+"</i>")
         label.set_halign(Gtk.Align.START)
-        main_grid.attach(label, 1, row, 2, 1)
-        def_option_box = Gtk.ButtonBox()
-        def_option_box.set_layout(Gtk.ButtonBoxStyle.EXPAND)
-        def_option_box.set_homogeneous(False)
-        self.boxes_def_name_entry = Gtk.Entry()
-        self.boxes_def_name_entry.set_hexpand(True)
-        self.boxes_def_name_entry.set_text(self._get_content_def_name())
-        def _cb_boxes_def_name_changed(entry):
-            val = entry.get_text().strip()
-            def_key = self._duplicate_def_if_predef(name=val)
-            self._set_content_def_name(val)
-            for row in self.content_def_list_store:
-                if row[0] == def_key:
-                    row[1] = val
-                    # combo updates automatically
-                    break
-        self.boxes_def_name_entry.connect("changed", _cb_boxes_def_name_changed)
-        def_option_box.add(self.boxes_def_name_entry)
-        duplicate_def_button = Gtk.Button(image=Gtk.Image(icon_name="edit-copy"))
-        duplicate_def_button.set_tooltip_text(_("Duplicate this boxes definition"))
-        def _cb_boxes_def_duplicate(button):
-            self._duplicate_def(show_message=False)
-        duplicate_def_button.connect("clicked", _cb_boxes_def_duplicate)
-        def_option_box.pack_start(duplicate_def_button, False, False, 0)
-        remove_def_button = Gtk.Button(image=Gtk.Image(icon_name="list-remove"))
-        remove_def_button.set_tooltip_text(_("Remove this boxes definition"))
-        remove_def_button.set_sensitive(not self._is_predef_boxes_def())
-        def _cb_boxes_def_remove(button):
-            key_to_remove = self.ftv._config.get("boxes.familytreeview-boxes-selected-def-key")
-            if self._is_predef_boxes_def(key_to_remove):
-                # Predefined definitions cannot be removed.
-                return
-            active_idx = self.content_def_combo.get_active()
-            active_iter = self.content_def_combo.get_active_iter()
-            self.content_def_list_store.remove(active_iter)
-            self.content_def_combo.set_active(active_idx-1)
-            self.boxes_defs.pop(active_idx)
-            self._remove_boxes_def(key_to_remove)
-        remove_def_button.connect("clicked", _cb_boxes_def_remove)
-        def_option_box.pack_start(remove_def_button, False, False, 0)
-        main_grid.attach(def_option_box, 3, row, 2, 1)
+        grid.attach(label, 1, row, 4, 1)
+
+        row += 1
+        label = Gtk.Label(_("Name of this boxes content profile:"))
+        label.set_halign(Gtk.Align.START)
+        grid.attach(label, 1, row, 2, 1)
+        self.content_profile_name_entry = Gtk.Entry()
+        self.content_profile_name_entry.set_hexpand(True)
+        self.content_profile_name_entry.set_text(self._get_content_profile_name())
+        grid.attach(self.content_profile_name_entry, 3, row, 2, 1)
 
         row +=1
         person_width_label = Gtk.Label(_(
             "Width of each person box in the tree chart:"
         ))
         person_width_label.set_halign(Gtk.Align.START)
-        main_grid.attach(person_width_label, 1, row, 2, 1)
+        grid.attach(person_width_label, 1, row, 2, 1)
         adjustment = Gtk.Adjustment(
             value=self._get_person_width(),
             lower=70.0, # smaller is strange when there are expanders
@@ -303,26 +340,34 @@ class FamilyTreeViewConfigPageManagerBoxes:
         )
         self.person_width_spin_button = Gtk.SpinButton(adjustment=adjustment, climb_rate=0.0, digits=0)
         def _cb_person_box_width_changed(spin_button):
-            self._duplicate_def_if_predef()
-            self._set_person_width(int(spin_button.get_value()))
-
-            # TODO reduce image width
-            self.ftv.widget_manager.canvas_manager.reset_abbrev_names()
-
-            self.ftv.cb_update_config(None, None, None, None)
+            # TODO for all images in person and family boxes: reduce
+            # image width to box width without margins, if they are too
+            # wide
+            pass 
         self.person_width_spin_button.connect("value-changed", _cb_person_box_width_changed)
-        main_grid.attach(self.person_width_spin_button, 3, row, 2, 1)
+        grid.attach(self.person_width_spin_button, 3, row, 2, 1)
 
         row += 1
-        family_width_label = Gtk.Label(_(
-            "The width of family boxes is calculated based on the width of person boxes."
-        ))
+        family_width_label = Gtk.Label()
+        family_width_label.set_markup("<i>"+_(
+            "The width of family boxes is calculated based on the width of "
+            "person boxes."
+        )+"</i>")
         family_width_label.set_halign(Gtk.Align.START)
-        main_grid.attach(family_width_label, 1, row, 4, 1)
+        grid.attach(family_width_label, 1, row, 4, 1)
 
-        box_def_row = row + 1
-        boxes_def_grid = Gtk.Grid()
-        boxes_def_grid.set_row_homogeneous(True)
+        row += 1
+        label = Gtk.Label()
+        label.set_margin_top(20)
+        label.set_markup("<i>"+_(
+            "You can customize the contents of the person and family boxes "
+            "below."
+        )+"</i>")
+        label.set_halign(Gtk.Align.START)
+        grid.attach(label, 1, row, 4, 1)
+
+        notebook = Gtk.Notebook()
+        notebook_row = row + 1
 
         self.item_defs_list_stores = {}
         self.item_defs_tree_views = {}
@@ -333,23 +378,13 @@ class FamilyTreeViewConfigPageManagerBoxes:
         self.remove_item_def_buttons = {}
         self.item_def_type_params_boxes = {}
         self.item_def_type_params_grids = {}
-        box_def_i = -1
         for box_type in ["person", "family"]:
             box_type_def_grid = Gtk.Grid()
+            box_type_def_grid.set_border_width(12)
             box_type_def_grid.set_column_spacing(6)
             box_type_def_grid.set_row_spacing(6)
             box_type_def_grid.set_column_homogeneous(True)
             row = -1
-
-            row += 1
-            title_label = Gtk.Label()
-            if box_type == "person":
-                title = _("Person boxes")
-            else:
-                title = _("Family boxes")
-            title_label.set_markup("<b>%s</b>" % title)
-            title_label.set_margin_top(20)
-            box_type_def_grid.attach(title_label, 1, row, 2, 1)
 
             row += 1
             item_defs_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -388,43 +423,50 @@ class FamilyTreeViewConfigPageManagerBoxes:
             item_defs_hbox.set_spacing(6)
             item_defs_hbox.add(items_scrolled_window)
 
-            item_def_buttons_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            item_def_button_box = Gtk.ButtonBox(orientation=Gtk.Orientation.VERTICAL)
+            item_def_button_box.set_layout(Gtk.ButtonBoxStyle.EXPAND)
+            item_def_button_box.set_homogeneous(False)
 
             add_item_def_button = Gtk.Button(image=Gtk.Image(icon_name="list-add"))
+            add_item_def_button.set_halign(Gtk.Align.START) # prevent wide button
             add_item_def_button.set_tooltip_text(_("Add a new box item definition"))
             self.add_item_def_buttons[box_type] = add_item_def_button
             add_item_def_button.connect("clicked", self._cb_add_item_def_button_clicked, box_type)
-            item_def_buttons_box.add(add_item_def_button)
+            item_def_button_box.pack_start(add_item_def_button, False, False, 0)
 
             duplicate_item_def_button = Gtk.Button(image=Gtk.Image(icon_name="edit-copy"))
+            duplicate_item_def_button.set_halign(Gtk.Align.START)
             duplicate_item_def_button.set_tooltip_text(_("Duplicate the selected item definition"))
             self.duplicate_item_def_buttons[box_type] = duplicate_item_def_button
             duplicate_item_def_button.set_sensitive(False)
             duplicate_item_def_button.connect("clicked", self._cb_duplicate_item_def_button_clicked, box_type)
-            item_def_buttons_box.add(duplicate_item_def_button)
+            item_def_button_box.pack_start(duplicate_item_def_button, False, False, 0)
 
             up_item_def_button = Gtk.Button(image=Gtk.Image(icon_name="go-up-symbolic"))
+            up_item_def_button.set_halign(Gtk.Align.START)
             up_item_def_button.set_tooltip_text(_("Move the selected item definition up"))
             self.up_item_def_buttons[box_type] = up_item_def_button
             up_item_def_button.set_sensitive(False)
             up_item_def_button.connect("clicked", self._cb_up_item_def_button_clicked, box_type)
-            item_def_buttons_box.add(up_item_def_button)
+            item_def_button_box.pack_start(up_item_def_button, False, False, 0)
 
             down_item_def_button = Gtk.Button(image=Gtk.Image(icon_name="go-down-symbolic"))
+            down_item_def_button.set_halign(Gtk.Align.START)
             down_item_def_button.set_tooltip_text(_("Move the selected item definition down"))
             self.down_item_def_buttons[box_type] = down_item_def_button
             down_item_def_button.set_sensitive(False)
             down_item_def_button.connect("clicked", self._cb_down_item_def_button_clicked, box_type)
-            item_def_buttons_box.add(down_item_def_button)
+            item_def_button_box.pack_start(down_item_def_button, False, False, 0)
 
             remove_item_def_button = Gtk.Button(image=Gtk.Image(icon_name="list-remove"))
+            remove_item_def_button.set_halign(Gtk.Align.START)
             remove_item_def_button.set_tooltip_text(_("Remove the selected item definition"))
             self.remove_item_def_buttons[box_type] = remove_item_def_button
             remove_item_def_button.set_sensitive(False)
             remove_item_def_button.connect("clicked", self._cb_remove_item_def_button_clicked, box_type)
-            item_def_buttons_box.add(remove_item_def_button)
+            item_def_button_box.pack_start(remove_item_def_button, False, False, 0)
 
-            item_defs_hbox.add(item_def_buttons_box)
+            item_defs_hbox.add(item_def_button_box)
             item_defs_vbox.add(item_defs_hbox)
             box_type_def_grid.attach(item_defs_vbox, 1, row, 1, 1)
 
@@ -452,11 +494,62 @@ class FamilyTreeViewConfigPageManagerBoxes:
             outer_item_def_type_params_hbox.add(separator)
             outer_item_def_type_params_hbox.add(outer_item_def_type_params_vbox)
             box_type_def_grid.attach(outer_item_def_type_params_hbox, 2, row, 1, 1)
-            box_def_i += 1
-            boxes_def_grid.attach(box_type_def_grid, 1, box_def_i, 1, 1)
 
-        main_grid.attach(boxes_def_grid, 1, box_def_row, 4, 1)
-        return main_grid
+            if box_type == "person":
+                title = _("Person boxes")
+            else:
+                title = _("Family boxes")
+            notebook.append_page(box_type_def_grid, Gtk.Label(label=title))
+
+        grid.attach(notebook, 1, notebook_row, 4, 1)
+        dialog.get_content_area().add(grid)
+        dialog.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_OK, Gtk.ResponseType.OK,
+        )
+
+        dialog.show_all()
+        response = dialog.run()
+
+        if response == Gtk.ResponseType.OK:
+            # save definition
+
+            # name
+            name = self.content_profile_name_entry.get_text().strip()
+            new_content_profile_key = self._duplicate_content_profile_if_predef(name=name)
+            if new_content_profile_key != content_profile_key:
+                # name may have changed: "(copy)". The duplicate
+                # function stored it.
+                name = self._get_content_profile_name()
+            else:
+                # Otherwise, name from _get_content_profile_name is not
+                # based on the entry and we keep the value from the
+                # entry. The value needs to be stored.
+                self._set_content_profile_name(name)
+
+            # Update the list store for combo in main config window.
+            for row in self.content_profile_list_store:
+                if row[0] == new_content_profile_key:
+                    row[1] = name
+                    # combo updates automatically
+                    break
+
+            # width
+            self._set_person_width(int(self.person_width_spin_button.get_value()))
+
+            # content items
+            custom_defs = self.ftv._config.get("boxes.familytreeview-boxes-custom-defs")
+            custom_defs[new_content_profile_key] = tuple(self.current_content_profile)
+            self.ftv._config.set("boxes.familytreeview-boxes-custom-defs", custom_defs)
+
+            # general
+            self.ftv.widget_manager.canvas_manager.reset_abbrev_names() # due to person width # TODO make this conditional
+            self.ftv.cb_update_config(None, None, None, None)
+
+        # Ignore response == Gtk.ResponseType.CANCEL, discard changes.
+        self.current_content_profile = None
+
+        dialog.close()
 
     def _fill_item_defs_list_store_from_config(self, box_type):
         self.item_defs_list_stores[box_type].clear()
@@ -490,8 +583,6 @@ class FamilyTreeViewConfigPageManagerBoxes:
     def _update_item_list(self, box_type, select_path=None):
         self.item_defs_tree_views[box_type].get_selection().unselect_all()
         self._fill_item_defs_list_store_from_config(box_type)
-
-        self.ftv.cb_update_config(None, None, None, None)
 
         if select_path is not None:
             self.item_defs_tree_views[box_type].get_selection().select_path(select_path)
@@ -560,6 +651,10 @@ class FamilyTreeViewConfigPageManagerBoxes:
     def _create_item_def_params(self, box_type, item_i):
         for child in self.item_def_type_params_grids[box_type].get_children():
             self.item_def_type_params_grids[box_type].remove(child)
+        scrolled_window = self.item_def_type_params_grids[box_type].get_parent()
+        def propagate_to_scrolled_window(widget, event):
+            Gtk.propagate_event(scrolled_window, event)
+            return True # don't propagate further
         box_content_item_types = self._get_box_content_item_defs(box_type)
         item_params = box_content_item_types[item_i][1]
         row = -1
@@ -647,6 +742,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
                 spin_button = Gtk.SpinButton(adjustment=adjustment, climb_rate=0.0, digits=0)
                 spin_button.connect("value-changed", self._cb_param_spin_button_value_changed, box_type, item_i, item_param)
                 spin_button.set_hexpand(True)
+                spin_button.connect("scroll-event", propagate_to_scrolled_window) # prevent scrolling
                 self.item_def_type_params_grids[box_type].attach(spin_button, 2, row, 1, 1)
             elif item_param in ["event_type", "attribute_type"]:
                 combo_box = Gtk.ComboBox(has_entry=True)
@@ -681,6 +777,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
                     self.ftv.dbstate.db.readonly,
                     custom_values=custom_values
                 )
+                combo_box.connect("scroll-event", propagate_to_scrolled_window) # prevent scrolling
                 self.item_def_type_params_grids[box_type].attach(combo_box, 2, row, 1, 1)
             elif item_param in ["name_format", "tag_visualization", "word_or_symbol", "event_type_visualization", "rel_base"]:
                 combo_box = Gtk.ComboBox()
@@ -761,6 +858,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
                     active_index = options.index(param_value)
                 combo_box.set_active(active_index)
                 combo_box.connect("changed", self._cb_param_combo_box_changed, box_type, item_i, item_param)
+                combo_box.connect("scroll-event", propagate_to_scrolled_window) # prevent scrolling
                 self.item_def_type_params_grids[box_type].attach(combo_box, 2, row, 1, 1)
 
             if tip is not None:
@@ -776,7 +874,6 @@ class FamilyTreeViewConfigPageManagerBoxes:
     # item def option/param callbacks
 
     def _cb_item_def_type_changed(self, combo, box_type, item_type_description_label, item_i):
-        self._duplicate_def_if_predef()
         active_iter = combo.get_active_iter()
         if active_iter is None:
             return
@@ -795,7 +892,6 @@ class FamilyTreeViewConfigPageManagerBoxes:
         self._item_list_changed(box_type, str(item_i))
 
     def _cb_param_check_button_toggled(self, check_button, box_type, item_i, item_param):
-        self._duplicate_def_if_predef()
         box_content_item_types = self._get_box_content_item_defs(box_type)
         box_content_item_types[item_i][1][item_param] = check_button.get_active()
         self._set_box_content_item_defs(box_type, box_content_item_types)
@@ -803,7 +899,6 @@ class FamilyTreeViewConfigPageManagerBoxes:
         self._item_list_changed(box_type, str(item_i))
 
     def _cb_param_spin_button_value_changed(self, spin_button, box_type, item_i, item_param):
-        self._duplicate_def_if_predef()
         box_content_item_types = self._get_box_content_item_defs(box_type)
         val = int(spin_button.get_value())
         if item_param == "index" and val > 0:
@@ -818,7 +913,6 @@ class FamilyTreeViewConfigPageManagerBoxes:
         self._item_list_changed(box_type, str(item_i))
 
     def _cb_param_monitored_data_type_set(self, val, box_type, item_i, item_param):
-        self._duplicate_def_if_predef()
         if isinstance(val, tuple):
             # event
             if val[0] == -1:
@@ -837,7 +931,6 @@ class FamilyTreeViewConfigPageManagerBoxes:
         # Extract info from combo before rebuilding due to duplication.
         param_model = combo_box.get_model()
         active_iter = combo_box.get_active_iter()
-        self._duplicate_def_if_predef()
         box_content_item_types = self._get_box_content_item_defs(box_type)
         new_value = param_model[active_iter][0] # 0: non-translated
         box_content_item_types[item_i][1][item_param] = new_value
@@ -847,7 +940,6 @@ class FamilyTreeViewConfigPageManagerBoxes:
     # item def button callbacks
 
     def _cb_add_item_def_button_clicked(self, button, box_type):
-        self._duplicate_def_if_predef()
         box_content_item_defs = self._get_box_content_item_defs(box_type)
         new_item_def_type = "gutter"
         new_item_def_params = {}
@@ -867,7 +959,6 @@ class FamilyTreeViewConfigPageManagerBoxes:
         self._item_list_changed(box_type, str(item_def_idx))
 
     def _cb_duplicate_item_def_button_clicked(self, button, box_type):
-        self._duplicate_def_if_predef()
         selection = self.item_defs_tree_views[box_type].get_selection()
         if selection.count_selected_rows() > 0:
             box_content_item_defs = self._get_box_content_item_defs(box_type)
@@ -878,7 +969,6 @@ class FamilyTreeViewConfigPageManagerBoxes:
             self._item_list_changed(box_type, str(item_def_idx+1))
 
     def _cb_up_item_def_button_clicked(self, button, box_type):
-        self._duplicate_def_if_predef()
         selection = self.item_defs_tree_views[box_type].get_selection()
         if selection.count_selected_rows() > 0:
             box_content_item_defs = self._get_box_content_item_defs(box_type)
@@ -888,7 +978,6 @@ class FamilyTreeViewConfigPageManagerBoxes:
             self._item_list_changed(box_type, str(item_def_idx-1))
 
     def _cb_down_item_def_button_clicked(self, button, box_type):
-        self._duplicate_def_if_predef()
         selection = self.item_defs_tree_views[box_type].get_selection()
         if selection.count_selected_rows() > 0:
             box_content_item_defs = self._get_box_content_item_defs(box_type)
@@ -898,7 +987,6 @@ class FamilyTreeViewConfigPageManagerBoxes:
             self._item_list_changed(box_type, str(item_def_idx+1))
 
     def _cb_remove_item_def_button_clicked(self, button, box_type):
-        self._duplicate_def_if_predef()
         selection = self.item_defs_tree_views[box_type].get_selection()
         if selection.count_selected_rows() > 0:
             box_content_item_defs = self._get_box_content_item_defs(box_type)
@@ -909,48 +997,51 @@ class FamilyTreeViewConfigPageManagerBoxes:
 
     # predef handling
 
-    def _duplicate_def_if_predef(self, name=None):
-        selected_def_key = self.ftv._config.get("boxes.familytreeview-boxes-selected-def-key")
-        if not self._is_predef_boxes_def(selected_def_key):
-            return selected_def_key
-        return self._duplicate_def(selected_def_key, name=name)
+    def _duplicate_content_profile_if_predef(self, name=None):
+        selected_content_profile_key = self.ftv._config.get("boxes.familytreeview-boxes-selected-def-key")
+        if not self._is_predef_content_profile(selected_content_profile_key):
+            return selected_content_profile_key
+        return self._duplicate_content_profile(selected_content_profile_key, name=name)
 
-    def _duplicate_def(self, selected_def_key=None, name=None, show_message=True):
-        if selected_def_key is None:
-            selected_def_key = self.ftv._config.get("boxes.familytreeview-boxes-selected-def-key")
+    def _duplicate_content_profile(self, selected_content_profile_key=None, name=None, show_message=True):
+        if selected_content_profile_key is None:
+            selected_content_profile_key = self.ftv._config.get("boxes.familytreeview-boxes-selected-def-key")
 
         custom_defs = self.ftv._config.get("boxes.familytreeview-boxes-custom-defs")
         custom_keys = custom_defs.keys()
         custom_keys = [int(key) for key in custom_keys if key.isdigit()]
         try:
-            new_def_key = max(custom_keys)+1
+            new_profile_key = max(custom_keys)+1
         except ValueError:
-            new_def_key = 0
-        new_def_key = str(new_def_key)
+            new_profile_key = 0
+        new_profile_key = str(new_profile_key)
 
-        if self._is_predef_boxes_def(selected_def_key):
-            content_def = list(deepcopy(PREDEF_BOXES_DEFS[selected_def_key]))
+        if self.current_content_profile is not None:
+            content_profile = self.current_content_profile
         else:
-            content_def = list(deepcopy(custom_defs[selected_def_key]))
-        if name is None or name == content_def[0]:
-            new_name = content_def[0] + " (copy)"
+            if self._is_predef_content_profile(selected_content_profile_key):
+                content_profile = list(deepcopy(PREDEF_BOXES_CONTENT_PROFILES[selected_content_profile_key]))
+            else:
+                content_profile = list(deepcopy(custom_defs[selected_content_profile_key]))
+        if name is None or name == content_profile[0]:
+            new_name = content_profile[0] + " (copy)"
             copy_num = 1
-            while new_name in [d[1] for d in self.boxes_defs]:
+            while new_name in [d[1] for d in self.content_profiles]:
                 copy_num += 1
-                new_name = content_def[0] + f" (copy {copy_num})"
+                new_name = content_profile[0] + f" (copy {copy_num})"
         else:
             # e.g. the name was edited
             new_name = name
-        content_def[0] = new_name
+        content_profile[0] = new_name
 
-        custom_defs[new_def_key] = tuple(content_def)
+        custom_defs[new_profile_key] = tuple(content_profile)
         self.ftv._config.set("boxes.familytreeview-boxes-custom-defs", custom_defs)
 
-        self.ftv._config.set("boxes.familytreeview-boxes-selected-def-key", new_def_key)
+        self.ftv._config.set("boxes.familytreeview-boxes-selected-def-key", new_profile_key)
 
-        self.boxes_defs.append((new_def_key, content_def[0]))
-        self.content_def_list_store.append((new_def_key, content_def[0]))
-        self.content_def_combo.set_active(len(self.boxes_defs)-1)
+        self.content_profiles.append((new_profile_key, content_profile[0]))
+        self.content_profile_list_store.append((new_profile_key, content_profile[0]))
+        self.content_profile_combo.set_active(len(self.content_profiles)-1)
         # Person width spin button value doesn't change, since it's a
         # copy.
 
@@ -960,84 +1051,79 @@ class FamilyTreeViewConfigPageManagerBoxes:
                 flags=0,
                 message_type=Gtk.MessageType.INFO,
                 buttons=Gtk.ButtonsType.OK,
-                text=_("Content definition duplicated"),
+                text=_("Boxes content profile duplicated"),
             )
             dialog.format_secondary_text(_(
-                "You edited a predefined boxes definition which cannot be "
-                "changed by the user. A copy was created and selected. The "
-                "change will be applied to that copy."
+                "You edited a predefined boxes content profile, which cannot "
+                "be changed by the user. A copy was created and selected. The "
+                "change are applied to that copy."
             ))
             dialog.run()
             dialog.destroy()
 
-        return new_def_key
+        return new_profile_key
 
-    # boxes definition getters and setters
+    # boxes content profiles getters and setters
 
-    def _is_predef_boxes_def(self, def_key=None):
+    def _is_predef_content_profile(self, def_key=None):
         if def_key is None:
             def_key = self.ftv._config.get("boxes.familytreeview-boxes-selected-def-key")
-        return def_key in PREDEF_BOXES_DEFS
+        return def_key in PREDEF_BOXES_CONTENT_PROFILES
 
-    def _get_content_def_name(self):
-        name = self._get_boxes_def_element(0)
+    def _get_content_profile_name(self):
+        name = self._get_content_profile_element(0)
         if name is not None:
-            if self._is_predef_boxes_def():
+            if self._is_predef_content_profile():
                 return _(name)
             # custom def
             return name
         selected_def_key = self.ftv._config.get("boxes.familytreeview-boxes-selected-def-key")
         return selected_def_key
 
-    def _set_content_def_name(self, name):
-        self._set_boxes_def_element(0, name)
+    def _set_content_profile_name(self, name):
+        self._set_content_profile_element(0, name)
 
     def _get_person_width(self):
-        return self._get_boxes_def_element(1)
+        return self._get_content_profile_element(1)
 
     def _set_person_width(self, person_width):
-        self._set_boxes_def_element(1, person_width)
+        self._set_content_profile_element(1, person_width)
 
     def _get_box_content_item_defs(self, box_type):
         if box_type == "person":
             i = 2
         else:
             i = 3
-        return self._get_boxes_def_element(i)
+        return self._get_content_profile_element(i)
 
     def _set_box_content_item_defs(self, box_type, content_types):
         if box_type == "person":
             i = 2
         else:
             i = 3
-        self._set_boxes_def_element(i, content_types)
+        self._set_content_profile_element(i, content_types)
 
-    def _set_boxes_def_element(self, i, val):
-        selected_def_key = self.ftv._config.get("boxes.familytreeview-boxes-selected-def-key")
-        if self._is_predef_boxes_def(selected_def_key):
-            # Predefined definitions cannot be modified.
-            return
-        custom_defs = self.ftv._config.get("boxes.familytreeview-boxes-custom-defs")
-        custom_defs.setdefault(selected_def_key, deepcopy(PREDEF_BOXES_DEFS["regular"]))
-        content_def = list(custom_defs[selected_def_key])
-        content_def[i] = val
-        custom_defs[selected_def_key] = tuple(content_def)
-        self.ftv._config.set("boxes.familytreeview-boxes-custom-defs", custom_defs)
+    def _set_content_profile_element(self, i, val):
+        self.current_content_profile[i] = val
 
-    def _get_boxes_def_element(self, i):
+    def _get_content_profile_element(self, i):
+        if self.current_content_profile is not None:
+            return deepcopy(self.current_content_profile[i])
+
+        # called before opening the dialog
         selected_def_key = self.ftv._config.get("boxes.familytreeview-boxes-selected-def-key")
-        if self._is_predef_boxes_def(selected_def_key):
-            content_types = PREDEF_BOXES_DEFS[selected_def_key]
+        if self._is_predef_content_profile(selected_def_key):
+            content_types = PREDEF_BOXES_CONTENT_PROFILES[selected_def_key]
         else:
             custom_defs = self.ftv._config.get("boxes.familytreeview-boxes-custom-defs")
             if selected_def_key in custom_defs:
                 content_types = custom_defs[selected_def_key]
             else:
-                content_types = PREDEF_BOXES_DEFS["regular"]
+                content_types = PREDEF_BOXES_CONTENT_PROFILES["regular"]
         return deepcopy(content_types[i])
 
-    def _remove_boxes_def(self, def_key):
-        if self._is_predef_boxes_def(def_key):
+    def _remove_content_profile(self, def_key):
+        if self._is_predef_content_profile(def_key):
             # Predefined definitions cannot be removed.
             return
         custom_defs = self.ftv._config.get("boxes.familytreeview-boxes-custom-defs")

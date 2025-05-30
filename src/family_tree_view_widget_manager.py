@@ -403,7 +403,7 @@ class FamilyTreeViewWidgetManager:
                             text = attr.get_value()
                             break
                 elif item[0] == "gender":
-                    if item[1]["word_or_symbol"] == "Word":
+                    if item[1]["word_or_symbol"] == "word":
                         text = format_gender([person.get_gender()]) # argument has to be an iterable
                     else:
                         if person.get_gender() == Person.FEMALE:
