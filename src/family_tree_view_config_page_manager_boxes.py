@@ -250,7 +250,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
             self._duplicate_content_profile(show_message=False)
         duplicate_content_profile_button.connect("clicked", _cb_content_profile_duplicate)
         content_profile_button_box.pack_start(duplicate_content_profile_button, False, False, 0)
-        edit_content_profile_button = Gtk.Button(image=Gtk.Image(icon_name="edit"))
+        edit_content_profile_button = Gtk.Button(image=Gtk.Image(icon_name="gtk-edit"))
         edit_content_profile_button.set_tooltip_text(_("Edit this boxes content profile"))
         def _cb_content_profile_edit(button):
             key_to_edit = self.ftv._config.get("boxes.familytreeview-boxes-selected-def-key")
@@ -1056,7 +1056,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
             dialog.format_secondary_text(_(
                 "You edited a predefined boxes content profile, which cannot "
                 "be changed by the user. A copy was created and selected. The "
-                "change are applied to that copy."
+                "changes are applied to that copy."
             ))
             dialog.run()
             dialog.destroy()
