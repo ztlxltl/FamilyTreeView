@@ -859,7 +859,37 @@ class FamilyTreeView(NavigationView, Callback):
                         selector_result = True
                     if not selector_result:
                         continue
-                # TODO maybe other selectors
+                if image_selector["media_ref_attr_type_sel"] != "": # empty: ignore
+                    attr_list = media_ref.get_attribute_list()
+                    attr_type_list = []
+                    attr_value_list = []
+                    for attr in attr_list:
+                        if attr is None:
+                            continue
+                        attr_type_list.append(attr.get_type())
+                        attr_value_list.append(attr.get_value())
+                    try:
+                        type_selector_result = get_selector_result(
+                            image_selector["media_ref_attr_type_sel_type"],
+                            image_selector["media_ref_attr_type_sel"],
+                            attr_type_list
+                        )
+                        value_selector_result = get_selector_result(
+                            image_selector["media_ref_attr_val_sel_type"],
+                            image_selector["media_ref_attr_val_sel"],
+                            attr_value_list
+                        )
+                    except (re.error, ValueError):
+                        # TODO Maybe show an error message (at least for
+                        # regex error), but don't show it dozens of
+                        # times for each person when building the tree.
+                        type_selector_result = True
+                        value_selector_result = True
+                    if (
+                        not type_selector_result
+                        or not value_selector_result
+                    ):
+                        continue
             rectangle = media_ref.get_rectangle()
             path = media_path_full(self.dbstate.db, media.get_path())
             if image_resolution is None:

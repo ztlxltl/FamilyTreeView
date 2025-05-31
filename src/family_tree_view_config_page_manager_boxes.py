@@ -26,8 +26,12 @@ IMAGE_PARAMS = {
     "fallback_avatar": True,
     "resolution": "thumbnail_normal",
     "filter": "none",
-    "media_tag_sel_type": "starts_with",
+    "media_tag_sel_type": "exact_match",
     "media_tag_sel": "",
+    "media_ref_attr_type_sel_type": "exact_match",
+    "media_ref_attr_type_sel": "",
+    "media_ref_attr_val_sel_type": "exact_match",
+    "media_ref_attr_val_sel": "",
 }
 
 EVENT_PARAMS = {
@@ -160,8 +164,12 @@ BOX_ITEM_PARAMS = {
     "fallback_avatar": _("Fallback to avatar"),
     "resolution": _("Resolution"),
     "filter": _("Filter"),
-    "media_tag_sel_type": _("Only use images\nwith a tag that..."),
+    "media_tag_sel_type": _("Only use images with a tag that..."),
     "media_tag_sel": "", # for item param preview in item list
+    "media_ref_attr_type_sel_type": _("Only use image references with an attribute whose type..."),
+    "media_ref_attr_type_sel": "", # for item param preview in item list
+    "media_ref_attr_val_sel_type": _("...and whose value..."),
+    "media_ref_attr_val_sel": "", # for item param preview in item list
     "size": _("Size"),
     "lines": _("Number of lines"),
     "name_format": _("Name format"),
@@ -601,18 +609,25 @@ class FamilyTreeViewConfigPageManagerBoxes:
                     break
             p = p.replace("\n", " ")
             value = str(value)
-            if key == "media_tag_sel":
+            if key in ["media_tag_sel", "media_ref_attr_type_sel", "media_ref_attr_val_sel"]:
                 # a value from an entry
                 val = '"{}"'.format(value)
             else:
                 val = BOX_ITEM_PARAM_VALS.get(value, value)
-            if p.endswith("..."):
-                p = p[:-3] # remove "..."
+            if key in ["media_tag_sel_type", "media_ref_attr_type_sel_type", "media_ref_attr_val_sel_type"]:
+                if p.endswith("..."):
+                    p = p[:-3] # remove "..."
+                if key == "media_ref_attr_val_sel_type":
+                    s = s[:-2] # remove ", "
+                    if p.startswith("..."):
+                        p = " " + p[3:] # remove "..."
+                if val.endswith(":"): # e.g. "contains:"
+                    val = val[:-1] # remove ":"
                 s += "%s %s " % (p, val)
-                remove_if_last = 1
+                remove_if_last = 2
             elif len(p) == 0:
-                s += val
-                remove_if_last = 0
+                s += "%s, " % val
+                remove_if_last = 2
             else:
                 s += "%s: %s, " % (p, val)
                 remove_if_last = 2
@@ -729,7 +744,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
         item_params = box_content_item_types[item_i][1]
         row = -1
         for item_param, param_value in item_params.items():
-            if item_param == "media_tag_sel":
+            if item_param in ["media_tag_sel", "media_ref_attr_type_sel", "media_ref_attr_val_sel"]:
                 # was handled together with another param
                 continue
 
@@ -853,7 +868,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
                 )
                 combo_box.connect("scroll-event", propagate_to_scrolled_window) # prevent scrolling
                 self.item_def_type_params_grids[box_type].attach(combo_box, 2, row, 1, 1)
-            elif item_param in ["resolution", "filter", "media_tag_sel_type", "name_format", "tag_visualization", "word_or_symbol", "event_type_visualization", "rel_base"]:
+            elif item_param in ["resolution", "filter", "media_tag_sel_type", "media_ref_attr_type_sel_type", "media_ref_attr_val_sel_type", "name_format", "tag_visualization", "word_or_symbol", "event_type_visualization", "rel_base"]:
                 combo_box = Gtk.ComboBox()
                 options_include_label = False # for most cases
                 if item_param == "name_format":
@@ -935,7 +950,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
                             "none",
                             "grayscale_all",
                         ]
-                elif item_param == "media_tag_sel_type":
+                elif item_param in ["media_tag_sel_type", "media_ref_attr_type_sel_type", "media_ref_attr_val_sel_type"]:
                     first_col_type = str
                     options = [
                         "contains",
@@ -944,10 +959,19 @@ class FamilyTreeViewConfigPageManagerBoxes:
                         "exact_match",
                         "regex_match",
                     ]
-                    tip = _(
-                        "Leave the entry box on the right empty to use any "
-                        "image."
-                    )
+                    if item_param == "media_tag_sel_type":
+                        tip = _(
+                            "Leave the entry box on the right empty to ignore "
+                            "this rule."
+                        )
+                    elif item_param == "media_ref_attr_val_sel_type":
+                        # Display info about attribute type below the
+                        # attribute value row to keep both together.
+                        tip = _(
+                            "Leave the entry box on the right of the "
+                            "attribute's type empty to ignore this rule."
+                        )
+                    # no additional tip below attribute type
                 list_store = Gtk.ListStore(first_col_type, str)
                 for opt in options:
                     if options_include_label:
@@ -969,17 +993,22 @@ class FamilyTreeViewConfigPageManagerBoxes:
                 combo_box.set_active(active_index)
                 combo_box.connect("changed", self._cb_param_combo_box_changed, box_type, item_i, item_param)
                 combo_box.connect("scroll-event", propagate_to_scrolled_window) # prevent scrolling
-                if item_param != "media_tag_sel_type": # will be used below
+                if item_param not in ["media_tag_sel_type", "media_ref_attr_type_sel_type", "media_ref_attr_val_sel_type"]: # will be used below
                     self.item_def_type_params_grids[box_type].attach(combo_box, 2, row, 1, 1)
-            if item_param == "media_tag_sel_type": # also processes media_tag_sel
+            if item_param in ["media_tag_sel_type", "media_ref_attr_type_sel_type", "media_ref_attr_val_sel_type"]: # sel (without _type)
+                sel_param = item_param[:-5] # remove "_type"
                 button_box = Gtk.ButtonBox()
                 button_box.set_layout(Gtk.ButtonBoxStyle.EXPAND)
                 button_box.set_homogeneous(False)
+                # Bottom aligned since labels of first (attribute type)
+                # can be multiple lines long and should continue the
+                # sentence (should be closer to last line of label).
+                button_box.set_valign(Gtk.Align.END)
                 button_box.pack_start(combo_box, False, False, 0)
                 entry = Gtk.Entry()
                 entry.set_width_chars(1) # this can get very small, dropdown should not shrink
-                entry.set_text(item_params["media_tag_sel"])
-                entry.connect("changed", self._cb_param_entry_changed, box_type, item_i, "media_tag_sel")
+                entry.set_text(item_params[sel_param])
+                entry.connect("changed", self._cb_param_entry_changed, box_type, item_i, sel_param)
                 button_box.add(entry)
                 self.item_def_type_params_grids[box_type].attach(button_box, 2, row, 1, 1)
 

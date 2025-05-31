@@ -323,7 +323,7 @@ class FamilyTreeViewWidgetManager:
 
         content_items = self.ftv.config_provider.get_person_content_item_defs()
 
-        # TODO Add an option to hide an item in an item is empty  for a
+        # TODO Add an option to hide an item in an item is empty for a
         # whole generation (especially images).
 
         for i_item, item in enumerate(content_items):
@@ -332,8 +332,13 @@ class FamilyTreeViewWidgetManager:
             if item[0] == "gutter":
                 pass
             elif item[0] == "image":
-                image_selector_keys = ["media_tag_sel", "media_tag_sel_type"]
-                image_selector = {k: item[1][k] for k in image_selector_keys if k in item[1]}
+                image_selector_keys = ["media_tag_sel", "media_ref_attr_type_sel", "media_ref_attr_val_sel"]
+                image_selector = {
+                    k_: item[1][k_]
+                    for k in image_selector_keys
+                    for k_ in [k, k + "_type"]
+                    if k in item[1]
+                }
                 image_spec = self.ftv.get_image_spec(
                     person, "person",
                     fallback_avatar=item[1]["fallback_avatar"],
@@ -518,8 +523,13 @@ class FamilyTreeViewWidgetManager:
             if item[0] == "gutter":
                 item_type = item[0]
             elif item[0] == "image":
-                image_selector_keys = ["media_tag_sel", "media_tag_sel_type"]
-                image_selector = {k: item[1][k] for k in image_selector_keys if k in item[1]}
+                image_selector_keys = ["media_tag_sel", "media_ref_attr_type_sel", "media_ref_attr_val_sel"]
+                image_selector = {
+                    k_: item[1][k_]
+                    for k in image_selector_keys
+                    for k_ in [k, k + "_type"]
+                    if k in item[1]
+                }
                 image_spec = self.ftv.get_image_spec(
                     family, "family",
                     fallback_avatar=item[1]["fallback_avatar"],
