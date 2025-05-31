@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-30 17:15+0000\n"
+"POT-Creation-Date: 2025-05-31 09:36+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1127,59 +1127,59 @@ msgstr ""
 msgid "You can customize the contents of the person and family boxes below."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:394
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:395
 msgid "List of person box item definitions"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:396
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:397
 msgid "List of family box item definitions"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:432
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:433
 msgid "Add a new box item definition"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:439
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:440
 msgid "Duplicate the selected item definition"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:447
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:448
 msgid "Move the selected item definition up"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:455
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:456
 msgid "Move the selected item definition down"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:463
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:464
 msgid "Remove the selected item definition"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:476
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:477
 msgid "Parameters for selected person box item definition"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:478
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:479
 msgid "Parameters for selected family box item definition"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:499
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:502
 msgid "Person boxes"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:501
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:504
 msgid "Family boxes"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:638
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:667
 msgid "Select an item definition on the left to modify its parameters."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:697
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:726
 msgid "You can change the place format on the 'Appearance' page."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:724
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:753
 msgid ""
 "Enter a positive number to get the n-th event.\n"
 "If the number is negative, it's counted from the last item.\n"
@@ -1190,21 +1190,21 @@ msgid ""
 "-2 -> the 2nd to last item (if there are at least two)\n"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:791
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:820
 msgid "Default format"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:808
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:837
 msgid ""
 "Tip: You can create a new name format in the Gramps preferences (e.g. "
 "'Surname' to display only the surnames) and use it here."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:1054
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:1083
 msgid "Boxes content profile duplicated"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:1057
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:1086
 msgid ""
 "You edited a predefined boxes content profile, which cannot be changed by "
 "the user. A copy was created and selected. The changes are applied to that "
