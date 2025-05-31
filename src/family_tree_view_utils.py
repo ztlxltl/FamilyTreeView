@@ -20,6 +20,7 @@
 
 
 import os
+import re
 
 from gi import require_version
 from gi.repository import Pango
@@ -75,6 +76,21 @@ def get_reloaded_custom_filter_list():
     custom_filter_list = FilterList(CUSTOM_FILTERS)
     custom_filter_list.load()
     return custom_filter_list
+
+def get_selector_result(selector_type, selector_str, values):
+    """if values is empty, False is returned"""
+    if selector_type == "contains":
+        return any(selector_str in val for val in values)
+    elif selector_type == "starts_with":
+        return any(val.startswith(selector_str) for val in values)
+    elif selector_type == "ends_with":
+        return any(val.endswith(selector_str) for val in values)
+    elif selector_type == "exact_match":
+        return any(selector_str == val for val in values)
+    elif selector_type == "regex_match":
+        return any(re.fullmatch(selector_str, val) is not None for val in values)
+    else:
+        raise ValueError(f"Unknown selector_type: '{selector_type}'")
 
 def get_contrast_color(color):
     """

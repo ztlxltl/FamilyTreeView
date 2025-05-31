@@ -20,6 +20,16 @@ if TYPE_CHECKING:
 
 _ = get_gettext()
 
+IMAGE_PARAMS = {
+    "max_height": 80,
+    "max_width": 80,
+    "fallback_avatar": True,
+    "resolution": "thumbnail_normal",
+    "filter": "none",
+    "media_tag_sel_type": "starts_with",
+    "media_tag_sel": "",
+}
+
 EVENT_PARAMS = {
     "event_type_visualization": "symbol",
     "date": True,
@@ -43,7 +53,7 @@ BIRTH_DEATH_PARAMS = dict(
 BOX_ITEMS = {
     "person": [
         ("gutter", _("Gutter"), _("Space between other elements of specified size"), {"size": 5}),
-        ("image", _("Image"), _("Image of the person or avatar"), {"max_height": 80, "max_width": 80}), # TODO maybe move image options here?
+        ("image", _("Image"), _("Image associated with the person"), {**IMAGE_PARAMS}), # TODO maybe move image options here? # TODO once available: ref_type_sel, ref_tag_sel
         ("name", _("Name"), _("The preferred name of the person"), {"lines": 2}),
         ("alt_name", _("Alternative name"), _("The first alternative name of the person"), {"lines": 2}),
         ("birth_or_fallback", _("Birth or fallback"), _("Different information of birth or fallback"), {"lines": 1, **EVENT_PARAMS}),
@@ -62,7 +72,7 @@ BOX_ITEMS = {
     "family": [
         ("gutter", _("Gutter"), _("Space between other elements of specified size"), {"size": 5}),
         ("rel_type", _("Relationship type of the family"), _("The type of the family"), {"lines": 1}),
-        ("image", _("Image"), _("Image of the family or avatar"), {"max_height": 80, "max_width": 160}),
+        ("image", _("Image"), _("Image associated with the family"), dict(IMAGE_PARAMS, **{"max_width": 160})),
         ("names", _("Names"), _("The preferred names of the spouses"), {"lines": 1, "name_format": 0}),
         ("marriage_or_fallback", _("Marriage or fallback"), _("Different information of marriage or fallback"), {"lines": 1, **EVENT_PARAMS}),
         ("divorce_or_fallback", _("Divorce or fallback"), _("Different information of divorce or fallback"), {"lines": 1, **EVENT_PARAMS}),
@@ -100,7 +110,7 @@ PREDEF_BOXES_CONTENT_PROFILES = {
         "Regular",
         125,
         [
-            ("image", {"max_height": 80, "max_width": 105}),
+            ("image", dict(IMAGE_PARAMS, **{"max_width": 105})),
             ("gutter", {"size": 5}),
             ("name", {"lines": 2}),
             ("gutter", {"size": 5}),
@@ -115,7 +125,7 @@ PREDEF_BOXES_CONTENT_PROFILES = {
         "Detailed",
         250,
         [
-            ("image", {"max_height": 100, "max_width": 200}),
+            ("image", dict(IMAGE_PARAMS, **{"max_height": 100, "max_width": 200})),
             ("gutter", {"size": 5}),
             ("name", {"lines": 2}),
             ("gutter", {"size": 5}),
@@ -131,7 +141,7 @@ PREDEF_BOXES_CONTENT_PROFILES = {
             ("tags", {"lines": 1, "tag_visualization": "text_colors_counted"}),
         ],
         [
-            ("image", {"max_height": 100, "max_width": 400}),
+            ("image", dict(IMAGE_PARAMS, **{"max_height": 100, "max_width": 400})),
             ("gutter", {"size": 5}),
             ("rel_type", {"lines": 1}),
             ("gutter", {"size": 5}),
@@ -147,6 +157,11 @@ PREDEF_BOXES_CONTENT_PROFILES = {
 BOX_ITEM_PARAMS = {
     "max_height": _("Max. height"),
     "max_width": _("Max. width"),
+    "fallback_avatar": _("Fallback to avatar"),
+    "resolution": _("Resolution"),
+    "filter": _("Filter"),
+    "media_tag_sel_type": _("Only use images\nwith a tag that..."),
+    "media_tag_sel": "", # for item param preview in item list
     "size": _("Size"),
     "lines": _("Number of lines"),
     "name_format": _("Name format"),
@@ -166,12 +181,22 @@ BOX_ITEM_PARAMS = {
 }
 
 BOX_ITEM_PARAM_VALS = {
+    "thumbnail_normal": _("Normal resolution"),
+    "thumbnail_large": _("High resolution"),
+    "contains": _("contains:"),
+    "starts_with": _("starts with:"),
+    "ends_with": _("ends with:"),
+    "exact_match": _("exactly matches:"),
+    "regex_match": _("matches regex:"),
+    "original": _("Original"),
+    "none": _("None"),
+    "grayscale_dead": _("Apply grayscale to dead people"),
+    "grayscale_all": _("Apply grayscale to all"),
     "text_colors_unique": _("Colors (unique)"),
     "text_colors_counted": _("Colors (unique, counted)"),
     "text_colors": _("Colors"),
     "text_names": _("Name"),
     "text_names_colors": _("Name and color"),
-    "none": _("None"),
     "symbol_only_if_empty": _("Symbol (only if no information to display)"),
     "symbol": _("Symbol"),
     "word_only_if_empty": _("Word (only if no information to display)"),
@@ -567,17 +592,33 @@ class FamilyTreeViewConfigPageManagerBoxes:
 
     def _get_item_def_params_str(self, params):
         s = ""
+        remove_if_last = 0
         for key, value in params.items():
             p = key # fallback
             for param, translated in BOX_ITEM_PARAMS.items():
                 if param == key:
                     p = translated
                     break
+            p = p.replace("\n", " ")
             value = str(value)
-            s += "%s: %s, " % (p, BOX_ITEM_PARAM_VALS.get(value, value))
-        if len(s) == 0:
+            if key == "media_tag_sel":
+                # a value from an entry
+                val = '"{}"'.format(value)
+            else:
+                val = BOX_ITEM_PARAM_VALS.get(value, value)
+            if p.endswith("..."):
+                p = p[:-3] # remove "..."
+                s += "%s %s " % (p, val)
+                remove_if_last = 1
+            elif len(p) == 0:
+                s += val
+                remove_if_last = 0
+            else:
+                s += "%s: %s, " % (p, val)
+                remove_if_last = 2
+        if len(s) == 0 or remove_if_last == 0:
             return s
-        return s[:-2] # remove last ", "
+        return s[:-remove_if_last] # remove last comma or space
 
     def _item_list_changed(self, box_type, select_index=None, item_def_type_changed=False):
         # Use GLib.idle_add to prevent segmentation fault on macOS.
@@ -688,6 +729,10 @@ class FamilyTreeViewConfigPageManagerBoxes:
         item_params = box_content_item_types[item_i][1]
         row = -1
         for item_param, param_value in item_params.items():
+            if item_param == "media_tag_sel":
+                # was handled together with another param
+                continue
+
             row += 1
             param_translation = item_param # fallback
             for param, translation in BOX_ITEM_PARAMS.items():
@@ -715,7 +760,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
 
             tip = None
 
-            if item_param in ["date", "place", "description", "tags"]:
+            if item_param in ["fallback_avatar", "date", "place", "description", "tags"]:
                 check_button = Gtk.CheckButton()
                 check_button.set_active(param_value)
                 check_button.connect("toggled", self._cb_param_check_button_toggled, box_type, item_i, item_param)
@@ -808,7 +853,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
                 )
                 combo_box.connect("scroll-event", propagate_to_scrolled_window) # prevent scrolling
                 self.item_def_type_params_grids[box_type].attach(combo_box, 2, row, 1, 1)
-            elif item_param in ["name_format", "tag_visualization", "word_or_symbol", "event_type_visualization", "rel_base"]:
+            elif item_param in ["resolution", "filter", "media_tag_sel_type", "name_format", "tag_visualization", "word_or_symbol", "event_type_visualization", "rel_base"]:
                 combo_box = Gtk.ComboBox()
                 options_include_label = False # for most cases
                 if item_param == "name_format":
@@ -870,6 +915,39 @@ class FamilyTreeViewConfigPageManagerBoxes:
                         "active",
                         "home",
                     ]
+                elif item_param == "resolution":
+                    first_col_type = str
+                    options = [
+                        "thumbnail_normal",
+                        "thumbnail_large",
+                        "original",
+                    ]
+                elif item_param == "filter":
+                    first_col_type = str
+                    if box_type == "person":
+                        options = [
+                            "none",
+                            "grayscale_dead",
+                            "grayscale_all",
+                        ]
+                    else: # family
+                        options = [
+                            "none",
+                            "grayscale_all",
+                        ]
+                elif item_param == "media_tag_sel_type":
+                    first_col_type = str
+                    options = [
+                        "contains",
+                        "starts_with",
+                        "ends_with",
+                        "exact_match",
+                        "regex_match",
+                    ]
+                    tip = _(
+                        "Leave the entry box on the right empty to use any "
+                        "image."
+                    )
                 list_store = Gtk.ListStore(first_col_type, str)
                 for opt in options:
                     if options_include_label:
@@ -881,14 +959,29 @@ class FamilyTreeViewConfigPageManagerBoxes:
                 renderer.set_property("ellipsize", Pango.EllipsizeMode.END)
                 combo_box.pack_start(renderer, True)
                 combo_box.add_attribute(renderer, "text", 1)
-                if options_include_label:
-                    active_index = [opt[0] for opt in options].index(param_value)
-                else:
-                    active_index = options.index(param_value)
+                try:
+                    if options_include_label:
+                        active_index = [opt[0] for opt in options].index(param_value)
+                    else:
+                        active_index = options.index(param_value)
+                except ValueError:
+                    active_index = 0 # fallback
                 combo_box.set_active(active_index)
                 combo_box.connect("changed", self._cb_param_combo_box_changed, box_type, item_i, item_param)
                 combo_box.connect("scroll-event", propagate_to_scrolled_window) # prevent scrolling
-                self.item_def_type_params_grids[box_type].attach(combo_box, 2, row, 1, 1)
+                if item_param != "media_tag_sel_type": # will be used below
+                    self.item_def_type_params_grids[box_type].attach(combo_box, 2, row, 1, 1)
+            if item_param == "media_tag_sel_type": # also processes media_tag_sel
+                button_box = Gtk.ButtonBox()
+                button_box.set_layout(Gtk.ButtonBoxStyle.EXPAND)
+                button_box.set_homogeneous(False)
+                button_box.pack_start(combo_box, False, False, 0)
+                entry = Gtk.Entry()
+                entry.set_width_chars(1) # this can get very small, dropdown should not shrink
+                entry.set_text(item_params["media_tag_sel"])
+                entry.connect("changed", self._cb_param_entry_changed, box_type, item_i, "media_tag_sel")
+                button_box.add(entry)
+                self.item_def_type_params_grids[box_type].attach(button_box, 2, row, 1, 1)
 
             if tip is not None:
                 row += 1
@@ -957,12 +1050,17 @@ class FamilyTreeViewConfigPageManagerBoxes:
         self._item_list_changed(box_type, item_i)
 
     def _cb_param_combo_box_changed(self, combo_box, box_type, item_i, item_param):
-        # Extract info from combo before rebuilding due to duplication.
         param_model = combo_box.get_model()
         active_iter = combo_box.get_active_iter()
         box_content_item_types = self._get_box_content_item_defs(box_type)
         new_value = param_model[active_iter][0] # 0: non-translated
         box_content_item_types[item_i][1][item_param] = new_value
+        self._set_box_content_item_defs(box_type, box_content_item_types)
+        self._item_list_changed(box_type, item_i)
+
+    def _cb_param_entry_changed(self, entry, box_type, item_i, item_param):
+        box_content_item_types = self._get_box_content_item_defs(box_type)
+        box_content_item_types[item_i][1][item_param] = entry.get_text()
         self._set_box_content_item_defs(box_type, box_content_item_types)
         self._item_list_changed(box_type, item_i)
 

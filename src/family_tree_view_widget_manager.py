@@ -332,7 +332,14 @@ class FamilyTreeViewWidgetManager:
             if item[0] == "gutter":
                 pass
             elif item[0] == "image":
-                image_spec = self.ftv.get_image_spec(person, "person")
+                image_selector_keys = ["media_tag_sel", "media_tag_sel_type"]
+                image_selector = {k: item[1][k] for k in image_selector_keys if k in item[1]}
+                image_spec = self.ftv.get_image_spec(
+                    person, "person",
+                    fallback_avatar=item[1]["fallback_avatar"],
+                    image_resolution=item[1]["resolution"],
+                    image_selector=image_selector
+                )
                 item_data["image_spec"] = image_spec
             elif item[0] in ["name", "alt_name"]:
                 if item[0] == "name":
@@ -511,7 +518,14 @@ class FamilyTreeViewWidgetManager:
             if item[0] == "gutter":
                 item_type = item[0]
             elif item[0] == "image":
-                image_spec = self.ftv.get_image_spec(family, "family")
+                image_selector_keys = ["media_tag_sel", "media_tag_sel_type"]
+                image_selector = {k: item[1][k] for k in image_selector_keys if k in item[1]}
+                image_spec = self.ftv.get_image_spec(
+                    family, "family",
+                    fallback_avatar=item[1]["fallback_avatar"],
+                    image_resolution=item[1]["resolution"],
+                    image_selector=image_selector
+                )
                 item_data["image_spec"] = image_spec
             elif item[0] == "names":
                 name1 = self.ftv.get_person_from_handle(family.get_father_handle()).get_primary_name()

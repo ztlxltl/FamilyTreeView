@@ -109,7 +109,7 @@ class FamilyTreeViewInfoWidgetManager:
             s += f"{self.ftv.get_symbol(death_or_fallback.type)} {get_date(death_or_fallback)}"
         return self.create_label_for_grid(s)
 
-    def create_image_widget(self, obj, img_width=100, img_height=100, obj_type="person", only_media=False):
+    def create_image_widget(self, obj, img_width=100, img_height=100, obj_type="person", only_media=False, grayscale=False):
         image_spec = self.ftv.get_image_spec(obj, obj_type)
         if image_spec[0] in ["path", "pixbuf"]:
             color = None
@@ -123,9 +123,9 @@ class FamilyTreeViewInfoWidgetManager:
             _, color = color_graph_box(alive, gender)
         else: # "family"
             color = "#000" # black
-        return self.create_image_from_image_spec(image_spec, img_width, img_height, color=color)
+        return self.create_image_from_image_spec(image_spec, img_width, img_height, color=color, grayscale=grayscale)
 
-    def create_image_from_image_spec(self, image_spec, img_width, img_height, color=None):
+    def create_image_from_image_spec(self, image_spec, img_width, img_height, color=None, grayscale=False):
         if image_spec[0] in ["path", "svg_path", "pixbuf"]:
             if image_spec[0] == "path":
                 pixbuf = GdkPixbuf.Pixbuf.new_from_file(image_spec[1])
@@ -143,7 +143,7 @@ class FamilyTreeViewInfoWidgetManager:
                 round(pixbuf.get_height() * scale),
                 GdkPixbuf.InterpType.BILINEAR
             )
-            image = Gtk.Image.new_from_pixbuf(pixbuf)
+
         else: # svg_data_callback
             data, width, height = image_spec[1](img_width, img_height)
             svg_code = """<svg xmlns="http://www.w3.org/2000/svg">"""
@@ -165,8 +165,10 @@ class FamilyTreeViewInfoWidgetManager:
                 pixbuf.fill(0xFFFFFFFF)
             else:
                 pixbuf = pixbuf_loader.get_pixbuf()
-            image = Gtk.Image.new_from_pixbuf(pixbuf)
 
+        if grayscale:
+            pixbuf.saturate_and_pixelate(pixbuf, 0, False)
+        image = Gtk.Image.new_from_pixbuf(pixbuf)
         return image
 
     def create_alt_names_widget(self, person):

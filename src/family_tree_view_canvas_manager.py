@@ -950,14 +950,18 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                 if image_spec is None:
                     pass # no image
                 else:
-                    image_filter = self.ftv._config.get("appearance.familytreeview-person-image-filter")
+                    image_filter = item[1]["filter"] 
+                    grayscale = (
+                        (image_filter == "grayscale_dead" and not alive)
+                        or image_filter == "grayscale_all"
+                    )
                     self.add_from_image_spec(
                         parent,
                         image_spec,
                         x-img_max_width/2,
                         y_item,
                         min(content_width, img_max_width), img_max_height,
-                        grayscale=(image_filter == 1 and not alive) or image_filter == 2,
+                        grayscale=grayscale,
                         color=avatar_color,
                     )
 

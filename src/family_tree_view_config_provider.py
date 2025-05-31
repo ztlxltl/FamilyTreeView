@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 from gi.repository import Gdk, Gtk
 
 from gramps.gen.config import config
-from gramps.gen.const import SIZE_LARGE, SIZE_NORMAL, USER_HOME
+from gramps.gen.const import USER_HOME
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.lib.eventtype import EventType
 from gramps.gen.proxy.living import LivingProxyDb
@@ -76,8 +76,8 @@ class FamilyTreeViewConfigProvider:
             ("appearance.familytreeview-highlight-root-person", True),
             ("appearance.familytreeview-show-deceased-ribbon", True),
             ("appearance.familytreeview-filter-person-gray-out", True),
-            ("appearance.familytreeview-person-image-resolution", 1),
-            ("appearance.familytreeview-person-image-filter", 0),
+            ("appearance.familytreeview-person-image-resolution", "thumbnail_large"), # TODO not only person
+            ("appearance.familytreeview-person-image-filter", "none"), # TODO not only person
             ("appearance.familytreeview-place-format", -1),
             ("appearance.familytreeview-box-line-width", 2.0),
             ("appearance.familytreeview-connections-line-width", 2.0),
@@ -511,38 +511,76 @@ class FamilyTreeViewConfigProvider:
         )
 
         row += 1
+        label = Gtk.Label(_(
+            "Resolution of the images in the info box and the panel:"
+        ))
+        label.set_halign(Gtk.Align.START)
+        label.set_xalign(0)
+        label.set_line_wrap(True)
+        grid.attach(label, 1, row, 1, 1)
         image_resolution_options = [
-            (SIZE_NORMAL, _("Normal")),
-            (SIZE_LARGE, _("High")),
-            (-1, _("Original")),
+            ("thumbnail_normal", _("Normal")),
+            ("thumbnail_large", _("High")),
+            ("original", _("Original")),
         ]
-        def _cb_image_resolution_combo_changed(combo, constant):
-            self.ftv._config.set(constant, image_resolution_options[combo.get_active()][0])
-        active_i = [opt[0] for opt in image_resolution_options].index(
-            self.ftv._config.get("appearance.familytreeview-person-image-resolution")
+        image_resolution_list_store = Gtk.ListStore(str, str)
+        for option_id, option_label in image_resolution_options:
+            image_resolution_list_store.append((option_id, option_label))
+        image_resolution_combo = Gtk.ComboBox(model=image_resolution_list_store)
+        renderer = Gtk.CellRendererText()
+        image_resolution_combo.pack_start(renderer, True)
+        image_resolution_combo.add_attribute(renderer, "text", 1)
+        active_option = self.ftv._config.get("appearance.familytreeview-person-image-resolution")
+        try:
+            active_index = [opt[0] for opt in image_resolution_options].index(active_option)
+        except ValueError:
+            active_index = 0 # normal
+        image_resolution_combo.set_active(
+            active_index
         )
-        configdialog.add_combo(
-            grid,
-            _("Resolution of the images"),
-            row,
-            "appearance.familytreeview-person-image-resolution",
-            image_resolution_options,
-            callback=_cb_image_resolution_combo_changed,
-            setactive=active_i,
-        )
+        def _cb_image_resolution_combo_changed(combo):
+            self.ftv._config.set(
+                "appearance.familytreeview-person-image-resolution",
+                image_resolution_options[combo.get_active()][0]
+            )
+        image_resolution_combo.connect("changed", _cb_image_resolution_combo_changed)
+        grid.attach(image_resolution_combo, 2, row, 1, 1)
 
         row += 1
-        configdialog.add_combo(
-            grid,
-            _("Person image filter"),
-            row,
-            "appearance.familytreeview-person-image-filter",
-            [
-                (0, _("No filter")),
-                (1, _("Apply grayscale to dead persons")),
-                (2, _("Apply grayscale to all persons")),
-            ]
+        label = Gtk.Label(_(
+            "Filter applied to the images in the info box and the panel:"
+        ))
+        label.set_halign(Gtk.Align.START)
+        label.set_xalign(0)
+        label.set_line_wrap(True)
+        grid.attach(label, 1, row, 1, 1)
+        image_filter_options = [
+            ("none", _("No filter")),
+            ("grayscale_dead", _("Apply grayscale to dead people")),
+            ("grayscale_all", _("Apply grayscale to all people")),
+        ]
+        image_filter_list_store = Gtk.ListStore(str, str)
+        for option_id, option_label in image_filter_options:
+            image_filter_list_store.append((option_id, option_label))
+        image_filter_combo = Gtk.ComboBox(model=image_filter_list_store)
+        renderer = Gtk.CellRendererText()
+        image_filter_combo.pack_start(renderer, True)
+        image_filter_combo.add_attribute(renderer, "text", 1)
+        active_option = self.ftv._config.get("appearance.familytreeview-person-image-filter")
+        try:
+            active_index = [opt[0] for opt in image_filter_options].index(active_option)
+        except ValueError:
+            active_index = 0 # none
+        image_filter_combo.set_active(
+            active_index
         )
+        def _cb_image_filter_combo_changed(combo):
+            self.ftv._config.set(
+                "appearance.familytreeview-person-image-filter",
+                image_filter_options[combo.get_active()][0]
+            )
+        image_filter_combo.connect("changed", _cb_image_filter_combo_changed)
+        grid.attach(image_filter_combo, 2, row, 1, 1)
 
         row += 1
         place_format_options = [(-1, _("Default"))]

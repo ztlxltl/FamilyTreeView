@@ -22,6 +22,7 @@
 from gi.repository import Gdk, GLib, Gtk
 
 from gramps.gen.display.name import displayer as name_displayer
+from gramps.gen.utils.alive import probably_alive
 
 from family_tree_view_info_widget_manager import FamilyTreeViewInfoWidgetManager
 
@@ -65,7 +66,12 @@ class FamilyTreeViewInfoBoxManager(FamilyTreeViewInfoWidgetManager):
 
         base_info = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         base_info.set_spacing(self.spacing)
-        image = self.create_image_widget(person)
+        image_filter = self.ftv._config.get("appearance.familytreeview-person-image-filter")
+        if image_filter == "grayscale_dead":
+            grayscale = not probably_alive(person, self.ftv.dbstate.db)
+        else:
+            grayscale = image_filter == "grayscale_all"
+        image = self.create_image_widget(person, grayscale=grayscale)
         if image is not None:
             base_info.add(image)
         base_data = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -107,7 +113,9 @@ class FamilyTreeViewInfoBoxManager(FamilyTreeViewInfoWidgetManager):
         base_info = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         base_info.set_spacing(self.spacing)
 
-        image = self.create_image_widget(family, obj_type="family", only_media=True)
+        image_filter = self.ftv._config.get("appearance.familytreeview-person-image-filter")
+        grayscale = image_filter == "grayscale_all"
+        image = self.create_image_widget(family, obj_type="family", only_media=True, grayscale=grayscale)
         if image is not None:
             base_info.add(image)
 

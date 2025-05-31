@@ -22,6 +22,7 @@
 from contextlib import suppress
 import inspect
 import os
+import re
 from sqlite3 import InterfaceError
 import traceback
 
@@ -30,7 +31,7 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from gramps.cli.clidbman import CLIDbManager
 from gramps.gen.config import config
-from gramps.gen.const import CUSTOM_FILTERS
+from gramps.gen.const import CUSTOM_FILTERS, SIZE_LARGE, SIZE_NORMAL
 from gramps.gen.db.dummydb import DummyDb
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.errors import HandleError, WindowActiveError
@@ -51,7 +52,7 @@ from abbreviated_name_display import AbbreviatedNameDisplay
 from family_tree_view_badge_manager import FamilyTreeViewBadgeManager
 from family_tree_view_config_provider import FamilyTreeViewConfigProvider
 from family_tree_view_icons import get_family_avatar_svg_data, get_person_avatar_svg_data
-from family_tree_view_utils import get_gettext, get_reloaded_custom_filter_list
+from family_tree_view_utils import get_gettext, get_reloaded_custom_filter_list, get_selector_result
 from family_tree_view_widget_manager import FamilyTreeViewWidgetManager, search_widget_available
 
 
@@ -813,27 +814,57 @@ class FamilyTreeView(NavigationView, Callback):
 
         self.widget_manager.add_replacement_message(0, 0, msg, buttons)
 
-    def get_image_spec(self, obj, obj_type):
-        if obj_type == "person":
-            data_callback = get_person_avatar_svg_data
+    def get_image_spec(self, obj, obj_type, fallback_avatar=False, image_resolution=None, image_selector=None):
+        if fallback_avatar:
+            if obj_type == "person":
+                data_callback = get_person_avatar_svg_data
+            else:
+                data_callback = get_family_avatar_svg_data
+            fallback = ("svg_data_callback", data_callback)
         else:
-            data_callback = get_family_avatar_svg_data
+            fallback = None # no image
 
         if obj is None:
-            return ("svg_data_callback", data_callback)
+            return fallback
 
-        media_list = obj.get_media_list()
-        if not media_list:
-            return ("svg_data_callback", data_callback)
+        media_ref_list = obj.get_media_list()
+        if not media_ref_list:
+            return fallback
 
-        media_handle = media_list[0].get_reference_handle()
-        media = self.dbstate.db.get_media_from_handle(media_handle)
-        media_mime_type = media.get_mime_type()
-        if media_mime_type[0:5] == "image":
-            rectangle = media_list[0].get_rectangle()
+        for media_ref in media_ref_list:
+            media_handle = media_ref.get_reference_handle()
+            media = self.dbstate.db.get_media_from_handle(media_handle)
+            media_mime_type = media.get_mime_type()
+            if media_mime_type[0:5] != "image":
+                continue
+            if image_selector is not None:
+                if image_selector["media_tag_sel"] != "": # empty: ignore
+                    tag_handle_list = media.get_tag_list()
+                    tag_name_list = []
+                    for tag_handle in tag_handle_list:
+                        tag = self.dbstate.db.get_tag_from_handle(tag_handle)
+                        if tag is None:
+                            continue
+                        tag_name_list.append(tag.get_name())
+                    try:
+                        selector_result = get_selector_result(
+                            image_selector["media_tag_sel_type"],
+                            image_selector["media_tag_sel"],
+                            tag_name_list
+                        )
+                    except (re.error, ValueError):
+                        # TODO Maybe show an error message (at least for
+                        # regex error), but don't show it dozens of
+                        # times for each person when building the tree.
+                        selector_result = True
+                    if not selector_result:
+                        continue
+                # TODO maybe other selectors
+            rectangle = media_ref.get_rectangle()
             path = media_path_full(self.dbstate.db, media.get_path())
-            image_resolution = self._config.get("appearance.familytreeview-person-image-resolution")
-            if image_resolution == -1:
+            if image_resolution is None:
+                image_resolution = self._config.get("appearance.familytreeview-person-image-resolution")
+            if image_resolution == "original":
                 pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
                 if rectangle is not None:
                     width = pixbuf.get_width()
@@ -850,11 +881,15 @@ class FamilyTreeView(NavigationView, Callback):
                         pixbuf = pixbuf.new_subpixbuf(sub_x, sub_y, sub_width, sub_height)
                 return ("pixbuf", pixbuf)
             else:
-                image_path = get_thumbnail_path(path, rectangle=rectangle, size=image_resolution)
+                if image_resolution == "thumbnail_normal":
+                    size = SIZE_NORMAL
+                else: # image_resolution == "thumbnail_large"
+                    size = SIZE_LARGE
+                image_path = get_thumbnail_path(path, rectangle=rectangle, size=size)
                 image_path = find_file(image_path)
                 return ("path", image_path)
 
-        return ("svg_data_callback", data_callback)
+        return fallback
 
     def get_place_name_without_limit(self, place_handle):
         """gramps.gen.utils.libformatting.get_place_name without character limit"""
