@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-06-01 12:25+0000\n"
+"POT-Creation-Date: 2025-06-01 12:39+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1862,90 +1862,90 @@ msgid ""
 "Check your filters and the presentation mode settings."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:677
+#: FamilyTreeView/family_tree_view.py:680
 msgid ""
 "No database to load. Create a new database to add data manually or import "
 "data."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:680
+#: FamilyTreeView/family_tree_view.py:683
 msgid "Create a database"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:686
+#: FamilyTreeView/family_tree_view.py:689
 msgid ""
 "No database loaded. Load a database or create a new one to add data manually "
 "or import data."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:689
+#: FamilyTreeView/family_tree_view.py:692
 msgid "Create or load a database"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:702
+#: FamilyTreeView/family_tree_view.py:705
 msgid ""
 "No people in the loaded database. Create a new person manually or import "
 "data."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:705
+#: FamilyTreeView/family_tree_view.py:708
 msgid "Add a new person"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:706
+#: FamilyTreeView/family_tree_view.py:709
 msgid "Import data"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:737
+#: FamilyTreeView/family_tree_view.py:740
 msgid ""
 "No valid person selected for whom the tree can be displayed. Use the search "
 "bar above to search, or select a person from the list of available people."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:743
+#: FamilyTreeView/family_tree_view.py:746
 msgid ""
 "No valid person selected for whom the tree can be displayed. Select a person "
 "from the list of available people."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:749
+#: FamilyTreeView/family_tree_view.py:752
 msgid "Select a person"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1254
+#: FamilyTreeView/family_tree_view.py:1257
 msgid "Export tree as SVG"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1266
+#: FamilyTreeView/family_tree_view.py:1269
 msgid "SVG files"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1271
+#: FamilyTreeView/family_tree_view.py:1274
 msgid "Any files"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1319
+#: FamilyTreeView/family_tree_view.py:1322
 msgid "Export completed."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1322
+#: FamilyTreeView/family_tree_view.py:1325
 #, python-brace-format
 msgid "Tree was saved: {file_name}"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1344
+#: FamilyTreeView/family_tree_view.py:1347
 msgid "Presentation mode"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1346
+#: FamilyTreeView/family_tree_view.py:1349
 msgid "You cannot modify the database in presentation mode."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1349
+#: FamilyTreeView/family_tree_view.py:1352
 msgid "Readonly database"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view.py:1351
+#: FamilyTreeView/family_tree_view.py:1354
 msgid "You cannot modify a readonly database."
 msgstr ""
 
