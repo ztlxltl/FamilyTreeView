@@ -665,6 +665,9 @@ class FamilyTreeView(NavigationView, Callback):
         if window is not None:
             self.widget_manager.main_container_stack.set_visible_child_name("actual")
 
+        if self.widget_manager.external_panel:
+            self.widget_manager.panel_manager.open_person_panel(root_person_handle, 0, 0)
+
     def check_and_handle_special_db_cases(self):
         """Returns True if special cases were handled (no tree should be built)."""
         if not self.dbstate.db.is_open():
