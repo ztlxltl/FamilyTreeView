@@ -22,17 +22,21 @@
 from math import atan, cos, pi, sin, sqrt
 from typing import TYPE_CHECKING
 
-from gi.repository import Gtk, GdkPixbuf, Pango
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango
 
-from gramps.gui.utils import get_contrast_color, rgb_to_hex
+from gramps.gen.const import GRAMPS_LOCALE
+from gramps.gen.lib import Person
+from gramps.gui.utils import get_contrast_color, hex_to_rgb_float, rgb_to_hex
 
 from family_tree_view_canvas_manager_base import FamilyTreeViewCanvasManagerBase
-from family_tree_view_utils import import_GooCanvas, make_hashable
+from family_tree_view_utils import get_gettext, import_GooCanvas, make_hashable
 if TYPE_CHECKING:
     from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
 
 GooCanvas = import_GooCanvas()
+
+_ = get_gettext()
 
 class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
     def __init__(
@@ -96,6 +100,22 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.ancestor_sep = sep_for_two_expanders
         self.other_parent_families_sep = sep_for_two_expanders
 
+        # replacement message
+        self.repl_msg_width = 500
+        self.repl_button_width = 150
+        self.repl_button_height = 100
+        self.repl_button_corner_radius = 5
+        self.repl_button_sep = 20
+
+        # visibility threshold
+        # Set the offset to positive a number for testing, or to a
+        # negative number for very high PPI screens.
+        # TODO Detect screen PPI/DPI and adjust this value.
+        visibility_threshold_offset = 0
+        self.visibility_threshold_expanders = 2**(-4+visibility_threshold_offset)
+        self.visibility_threshold_text = 2**(-5+visibility_threshold_offset)
+        self.visibility_threshold_badges = 2**(-5+visibility_threshold_offset)
+
         # defaults
         self.reset_zoom_values()
         self.reset_transform()
@@ -104,9 +124,15 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         self.reset_boxes()
         self.svg_pixbuf_cache = {}
 
+        # add relative overlay
+        self.overlay_group = None
+        self.overlay_background_group = None
+
         # clicks
         if cb_background is not None:
             self.canvas.get_root_item().connect("button-press-event", self.click_callback, cb_background)
+
+        self.scroll_mode = self.ftv._config.get("interaction.familytreeview-scroll-mode")
 
         # config connect to callbacks
         for key in [
@@ -196,10 +222,592 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                 h += item[1].get("lines", 1) * self.line_height_px
         return h
 
-    def add_person(self, x, generation, content_items, primary_color, secondary_color, alive, round_lower_corners, click_callback=None, badges=None):
+    def close_add_relative_overlay(self):
+        self.overlay_group.remove()
+        self.widget_manager.hide_close_tree_overlay_button()
+
+    def init_add_relative_overlay(self):
+        if self.overlay_group is not None:
+            self.close_add_relative_overlay()
+
+        self.widget_manager.info_box_manager.close_info_box()
+
+        self.overlay_group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
+        parent = self.overlay_group
+        self.overlay_background_group = GooCanvas.CanvasGroup(parent=parent)
+        # callback to close info box etc.
+        self.overlay_background_group.connect("button-press-event", self.click_callback)
+
+        self.widget_manager.show_close_tree_overlay_button(
+            lambda *args: self.close_add_relative_overlay(),
+            _("Close the \"Add relatives\" overlay")
+        )
+
+        bounds = self.canvas.get_bounds() # left top right bottom
+
+        GooCanvas.CanvasRect(
+            parent=self.overlay_background_group,
+            x=bounds[0],
+            y=bounds[1],
+            width=bounds[2]-bounds[0],
+            height=bounds[3]-bounds[1],
+            fill_color_gdk_rgba=Gdk.RGBA(red=0.5, green=0.5, blue=0.5, alpha=0.75),
+        )
+
+        self.overlay_margin_stroke_group = GooCanvas.CanvasGroup(parent=self.overlay_background_group)
+        self.overlay_margin_group = GooCanvas.CanvasGroup(parent=self.overlay_background_group)
+        self.overlay_connection_group = GooCanvas.CanvasGroup(parent=self.overlay_background_group)
+
+        self.overlay_margin = 35 # should not be slightly smaller or exactly the same as a common distance between boxes/lines
+        self.overlay_margin_stroke = self.overlay_margin + 2 # fake stroke
+
+        bg_color_found, bg_color = self.canvas.get_style_context().lookup_color("theme_bg_color")
+        if bg_color_found:
+            bg_color = tuple(bg_color)[:3]
+        else:
+            bg_color = (1, 1, 1)
+
+        # TODO Clean up color related code so we don't need each color
+        # in Gdk.RGBA and hex string.
+        self.overlay_margin_color_gdk_rgba = Gdk.RGBA(
+            red=bg_color[0],
+            green=bg_color[1],
+            blue=bg_color[2],
+            alpha=1
+        )
+        self.overlay_margin_color_hex = rgb_to_hex((
+            self.overlay_margin_color_gdk_rgba.red,
+            self.overlay_margin_color_gdk_rgba.green,
+            self.overlay_margin_color_gdk_rgba.blue
+        ))
+        self.overlay_margin_stroke_color_gdk_rgba = Gdk.RGBA(
+            red=0, green=0, blue=0, alpha=1
+        )
+        self.overlay_margin_stroke_color_hex = "#000"
+
+        max_person_lines = (
+            (self.person_height - 2*self.padding) / self.line_height_px
+        )
+        max_family_lines = (
+            (self.family_height - 2*self.padding) / self.line_height_px
+        )
+
+        return parent, max_person_lines, max_family_lines
+
+    def open_add_person_relative_overlay(self, person_handle, x_person, generation, action):
+        offset = self.get_center_in_units()
+        parent, max_person_lines, max_family_lines = self.init_add_relative_overlay()
+
+        # max with 1: We need at least one line (even though it can
+        # cause negative gutter where the text will protrude vertically
+        # into the padding).
+        person_lines = min(max(1, max_person_lines), 4)
+        family_lines = min(max(1, max_family_lines), 1) # always 1
+
+        show_add_other_family = action in ["overlay", "overlay_direct", "overlay_all"]
+        show_add_other_parent_family = action in ["overlay", "overlay_direct", "overlay_all"]
+        show_add_sibling_existing_parents = action in ["overlay", "overlay_main", "overlay_all"]
+        show_add_sibling_new_parents = action in ["overlay_main", "overlay_all"]
+        show_add_child_other_family = action == "overlay_all"
+
+        # person
+
+        person = self.ftv.get_person_from_handle(person_handle)
+
+        background_color, border_color = self.widget_manager.get_colors_for_missing()
+
+        person_gutter_size = (
+            self.person_height
+            - 2*self.padding
+            - person_lines*self.line_height_px
+        ) / 2
+        family_gutter_size = (
+            self.family_height
+            - 2*self.padding
+            - family_lines*self.line_height_px
+        ) / 2
+
+        # prominent family: The family the person is directly attached
+        # to in the tree or the main family of that person. They can be
+        # different e.g. if the person is the first spouse of a child of
+        # the active person but that child/spouse is the second spouse
+        # of the person.
+        try:
+            prominent_family_handle = self.widget_manager.tree_builder.tree_cache_persons[(x_person, generation)]["prominent_family"]
+        except KeyError:
+            prominent_family_handle = None
+        if prominent_family_handle is None:
+            # if no prominent family in tree, use main family
+            family_handle_list = person.get_family_handle_list()
+            if len(family_handle_list) > 0:
+                prominent_family_handle = family_handle_list[0]
+        has_family = prominent_family_handle is not None
+
+        # prominent parents: The parents the person is directly attached
+        # to in the tree or the main parents of that person. They can be
+        # different e.g. if the person is an adopted child of the active
+        # person but the active person is not in the person's main
+        # parent family (which may not be visible).
+        try:
+            prominent_parents_handle = self.widget_manager.tree_builder.tree_cache_persons[(x_person, generation)]["prominent_parents"]
+        except KeyError:
+            prominent_parents_handle = None
+        if prominent_parents_handle is None:
+            # if no prominent family in tree, use main family
+            parent_family_handle_list = person.get_parent_family_handle_list()
+            if len(parent_family_handle_list) > 0:
+                prominent_parents_handle = parent_family_handle_list[0]
+        has_parents = prominent_parents_handle is not None
+
+        alignment = "r" # fallback
+        if prominent_family_handle is not None:
+            prominent_family = self.ftv.get_family_from_handle(prominent_family_handle)
+            if person_handle == prominent_family.get_father_handle():
+                alignment = "r"
+            elif person_handle == prominent_family.get_mother_handle():
+                alignment = "l"
+        else:
+            if person.gender == Person.MALE:
+                alignment = "r"
+            elif person.gender == Person.FEMALE:
+                alignment = "l"
+        if alignment == "l":
+            m1 = -1
+        else:
+            m1 = 1
+
+        person_bounds = self.widget_manager.add_person(person_handle, x_person, generation, alignment, canvas_parent=parent)
+        self.add_overlay_margin(x_person, generation, "person")
+
+        # prominent family and spouse
+
+        if has_family:
+            prominent_family = self.ftv.get_family_from_handle(prominent_family_handle)
+            if person_handle == prominent_family.get_father_handle():
+                prominent_spouse_handle = prominent_family.get_mother_handle()
+                x_family = x_person + self.person_width/2 + self.spouse_sep/2
+                new_spouse_is_first = False
+            elif person_handle == prominent_family.get_mother_handle():
+                prominent_spouse_handle = prominent_family.get_father_handle()
+                x_family = x_person - self.person_width/2 - self.spouse_sep/2
+                new_spouse_is_first = True
+            else: # TODO is this fallback relevant?
+                prominent_spouse_handle = None
+                x_family = x_person + self.person_width/2 + self.spouse_sep/2
+                new_spouse_is_first = False
+
+            family_bounds = self.widget_manager.add_family(prominent_family_handle, x_family, generation, canvas_parent=parent)
+            self.add_overlay_margin(x_family, generation, "family")
+            self.add_overlay_connection(x_person, person_bounds["bx_b"], x_person, family_bounds["bx_t"], spouse_connection=True)
+
+            x_spouse = x_family + (x_family-x_person)
+            if prominent_spouse_handle is not None and len(prominent_spouse_handle) > 0:
+                spouse_bounds = self.widget_manager.add_person(prominent_spouse_handle, x_spouse, generation, alignment, canvas_parent=parent)
+            else:
+                spouse_content_items = [
+                    ("gutter", {"size": person_gutter_size}, {}),
+                    ("text_abbr", {"lines": person_lines}, {"abbr_texts": _(
+                        "Add a new spouse"
+                        "¦Add new spouse"
+                        "¦Add spouse"
+                        "¦+ spouse"
+                        "¦+"
+                    ).split("¦")})
+                ]
+                spouse_bounds = self.add_person(x_spouse, generation, spouse_content_items, background_color, border_color, True, False, click_callback=lambda *args, alignment=alignment: self.ftv.add_new_spouse(prominent_family_handle, new_spouse_is_first), parent=parent)
+            self.add_overlay_margin(x_spouse, generation, "person")
+            self.add_overlay_connection(x_spouse, spouse_bounds["bx_b"], x_spouse, family_bounds["bx_t"], spouse_connection=True)
+
+            x_new_child = x_family
+            child_content_items = [
+                ("gutter", {"size": person_gutter_size}, {}),
+                ("text_abbr", {"lines": person_lines}, {"abbr_texts": _(
+                    "Add a new child"
+                    "¦Add new child"
+                    "¦Add child"
+                    "¦+ child"
+                    "¦+"
+                ).split("¦")})
+            ]
+            child_bounds = self.add_person(x_new_child, generation-1, child_content_items, background_color, border_color, True, True, click_callback=lambda *args: self.ftv.add_new_child(prominent_family_handle), parent=parent)
+            self.add_overlay_margin(x_new_child, generation-1, "person")
+            self.add_overlay_connection(x_family, family_bounds["bx_b"], x_new_child, child_bounds["bx_t"])
+
+        # new family and spouse
+
+        if has_family:
+            if show_add_other_family:
+                # new family needs to be next to existing family
+                x_new_family = x_family - m1*(
+                    self.family_width/2
+                    + self.other_families_sep
+                    + self.family_width/2
+                )
+        else:
+            x_new_family = x_person + m1*(
+                self.person_width/2
+                + self.spouse_sep/2
+            )
+
+        if not has_family or show_add_other_family:
+            family_content_items = [
+                ("gutter", {"size": family_gutter_size}, {}),
+                ("text_abbr", {"lines": family_lines}, {"abbr_texts": _(
+                    "Add a new family"
+                    "¦Add new family"
+                    "¦Add family"
+                    "¦+ family"
+                    "¦+"
+                ).split("¦")})
+            ]
+            spouse_content_items = [
+                ("gutter", {"size": person_gutter_size}, {}),
+                ("text_abbr", {"lines": person_lines}, {"abbr_texts": _(
+                    "Add a new family and a new spouse"
+                    "¦Add new family and new spouse"
+                    "¦Add family and spouse"
+                    "¦Add family, spouse"
+                    "¦+ family, spouse"
+                    "¦+"
+                ).split("¦")})
+            ]
+
+            x_person2 = x_new_family - m1*(
+                self.spouse_sep/2
+                + self.person_width/2
+            )
+            x_new_spouse = x_new_family + m1*(
+                self.spouse_sep/2
+                + self.person_width/2
+            )
+
+            new_family_bounds = self.add_family(x_new_family, generation, family_content_items, background_color, border_color, click_callback=lambda *args: self.ftv.add_new_family(person_handle, alignment=="r"), parent=parent)
+            new_spouse_bounds = self.add_person(x_new_spouse, generation, spouse_content_items, background_color, border_color, True, False, click_callback=lambda *args: self.ftv.add_new_family(person_handle, alignment=="r", add_spouse=True), parent=parent)
+            self.add_overlay_margin(x_new_family, generation, "family")
+            self.add_overlay_margin(x_new_spouse, generation, "person")
+
+            self.add_overlay_connection(x_person, person_bounds["bx_b"], x_person2, new_family_bounds["bx_t"], spouse_connection=True)
+            self.add_overlay_connection(x_new_spouse, new_spouse_bounds["bx_b"], x_new_spouse, new_family_bounds["bx_t"], spouse_connection=True)
+
+            if show_add_child_other_family or not has_family:
+                child_content_items = [
+                    ("gutter", {"size": person_gutter_size}, {}),
+                    ("text_abbr", {"lines": person_lines}, {"abbr_texts": _(
+                        "Add a new family and a new child"
+                        "¦Add new family and new child"
+                        "¦Add family and child"
+                        "¦Add family, child"
+                        "¦+ family, child"
+                        "¦+"
+                    ).split("¦")})
+                ]
+                x_new_child = x_new_family
+                new_child_bounds = self.add_person(x_new_child, generation-1, child_content_items, background_color, border_color, True, True, click_callback=lambda *args: self.ftv.add_new_family(person_handle, alignment=="r", add_child=True), parent=parent)
+                self.add_overlay_margin(x_new_child, generation-1, "person")
+                self.add_overlay_connection(x_new_family, new_family_bounds["bx_b"], x_new_child, new_child_bounds["bx_t"])
+
+        if has_family and show_add_other_family:
+            # fill empty hole in overlay margin
+            self.add_overlay_margin(x_person2, generation, "person")
+
+        # prominent parents
+
+        if prominent_parents_handle is not None:
+            # TODO Maybe use actual parent position (if parents are in
+            # the tree) with a threshold for x difference as parents can
+            # be far away.
+            x_parents = x_person
+            parents_bounds = self.widget_manager.add_family(prominent_parents_handle, x_parents, generation+1, canvas_parent=parent)
+            self.add_overlay_margin(x_parents, generation+1, "family")
+            self.add_overlay_connection(x_person, parents_bounds["bx_b"], x_person, person_bounds["bx_t"])
+
+            prominent_parents = self.ftv.get_family_from_handle(prominent_parents_handle)
+            prominent_father_handle = prominent_parents.get_father_handle()
+            prominent_mother_handle = prominent_parents.get_mother_handle()
+            x_father = x_parents - self.spouse_sep/2 - self.person_width/2
+            if prominent_father_handle is not None and len(prominent_father_handle) > 0:
+                father_bounds = self.widget_manager.add_person(prominent_father_handle, x_father, generation+1, "l", canvas_parent=parent)
+            else:
+                father_content_items = [
+                    ("gutter", {"size": person_gutter_size}, {}),
+                    ("text_abbr", {"lines": person_lines}, {"abbr_texts": _(
+                        "Add a new father"
+                        "¦Add new father"
+                        "¦Add father"
+                        "¦+ father"
+                        "¦+"
+                    ).split("¦")})
+                ]
+                father_bounds = self.add_person(x_father, generation+1, father_content_items, background_color, border_color, True, False, click_callback=lambda *args: self.ftv.add_new_spouse(prominent_parents_handle, True), parent=parent)
+            self.add_overlay_margin(x_father, generation+1, "person")
+            self.add_overlay_connection(x_father, father_bounds["bx_b"], x_father, parents_bounds["bx_t"], spouse_connection=True)
+
+            x_mother = x_parents + self.spouse_sep/2 + self.person_width/2
+            if prominent_mother_handle is not None and len(prominent_mother_handle) > 0:
+                mother_bounds = self.widget_manager.add_person(prominent_mother_handle, x_mother, generation+1, "l", canvas_parent=parent)
+            else:
+                mother_content_items = [
+                    ("gutter", {"size": person_gutter_size}, {}),
+                    ("text_abbr", {"lines": person_lines}, {"abbr_texts": _(
+                        "Add a new mother"
+                        "¦Add new mother"
+                        "¦Add mother"
+                        "¦+ mother"
+                        "¦+"
+                    ).split("¦")})
+                ]
+                mother_bounds = self.add_person(x_mother, generation+1, mother_content_items, background_color, border_color, True, False, click_callback=lambda *args: self.ftv.add_new_spouse(prominent_parents_handle, False), parent=parent)
+            self.add_overlay_margin(x_mother, generation+1, "person")
+            self.add_overlay_connection(x_mother, mother_bounds["bx_b"], x_mother, parents_bounds["bx_t"], spouse_connection=True)
+
+            if show_add_sibling_existing_parents:
+                sibling_content_items = [
+                    ("gutter", {"size": person_gutter_size}, {}),
+                    ("text_abbr", {"lines": person_lines}, {"abbr_texts": _(
+                        "Add a new sibling"
+                        "¦Add new sibling"
+                        "¦Add sibling"
+                        "¦+ sibling"
+                        "¦+"
+                    ).split("¦")})
+                ]
+                x_new_sibling = x_person + m1*(
+                    self.person_width/2
+                    + self.spouse_sep
+                    + self.person_width
+                    + self.sibling_sep
+                    + self.person_width/2
+                )
+                new_sibling_bounds = self.add_person(x_new_sibling, generation, sibling_content_items, background_color, border_color, True, True, click_callback=lambda *args: self.ftv.add_new_child(prominent_parents_handle), parent=parent)
+                self.add_overlay_margin(x_new_sibling, generation, "person")
+                self.add_overlay_connection(x_parents, parents_bounds["bx_b"], x_new_sibling, new_sibling_bounds["bx_t"])
+
+        # new parents
+
+        if has_parents:
+            if show_add_other_parent_family:
+                # new parents need to be next to existing parents
+                x_new_parents = x_parents - m1*(
+                    self.family_width/2
+                    + self.other_parent_families_sep
+                    + self.family_width/2
+                )
+        else:
+            x_new_parents = x_person
+
+        if not has_parents or show_add_other_parent_family:
+            parents_content_items = [
+                ("gutter", {"size": family_gutter_size}, {}),
+                ("text_abbr", {"lines": family_lines}, {"abbr_texts": _(
+                    "Add a new parent family"
+                    "¦Add new parent family"
+                    "¦Add parent family"
+                    "¦Add parents"
+                    "¦+ parents"
+                    "¦+"
+                ).split("¦")})
+            ]
+            father_content_items = [
+                ("gutter", {"size": person_gutter_size}, {}),
+                ("text_abbr", {"lines": person_lines}, {"abbr_texts": _(
+                    "Add a new parent family and a new father"
+                    "¦Add new parent family and new father"
+                    "¦Add parent family and father"
+                    "¦Add parent family, father"
+                    "¦Add parents, father"
+                    "¦+ parents, father"
+                    "¦+"
+                ).split("¦")})
+            ]
+            mother_content_items = [
+                ("gutter", {"size": person_gutter_size}, {}),
+                ("text_abbr", {"lines": person_lines}, {"abbr_texts": _(
+                    "Add a new parent family and a new mother"
+                    "¦Add new parent family and new mother"
+                    "¦Add parent family and mother"
+                    "¦Add parent family, mother"
+                    "¦Add parents, mother"
+                    "¦+ parents, mother"
+                    "¦+"
+                ).split("¦")})
+            ]
+
+            x_new_father = (
+                x_new_parents
+                - self.spouse_sep/2
+                - self.person_width/2
+            )
+            x_new_mother = (
+                x_new_parents
+                + self.spouse_sep/2
+                + self.person_width/2
+            )
+
+            new_parents_bounds = self.add_family(x_new_parents, generation+1, parents_content_items, background_color, border_color, click_callback=lambda *args: self.ignore_this_mouse_button_press() or self.ftv.add_new_parent_family(person_handle), parent=parent)
+            new_father_bounds = self.add_person(x_new_father, generation+1, father_content_items, background_color, border_color, True, False, click_callback=lambda *args: self.ignore_this_mouse_button_press() or self.ftv.add_new_parent_family(person_handle, add_parent=1), parent=parent)
+            new_mother_bounds = self.add_person(x_new_mother, generation+1, mother_content_items, background_color, border_color, True, False, click_callback=lambda *args: self.ignore_this_mouse_button_press() or self.ftv.add_new_parent_family(person_handle, add_parent=2), parent=parent)
+            self.add_overlay_margin(x_new_parents, generation+1, "family")
+            self.add_overlay_margin(x_new_father, generation+1, "person")
+            self.add_overlay_margin(x_new_mother, generation+1, "person")
+
+            self.add_overlay_connection(x_new_parents, new_parents_bounds["bx_b"], x_person, person_bounds["bx_t"])
+            self.add_overlay_connection(x_new_father, new_father_bounds["bx_b"], x_new_father, new_parents_bounds["bx_t"], spouse_connection=True)
+            self.add_overlay_connection(x_new_mother, new_mother_bounds["bx_b"], x_new_mother, new_parents_bounds["bx_t"], spouse_connection=True)
+
+            if show_add_sibling_new_parents:
+                sibling_content_items = [
+                    ("gutter", {"size": person_gutter_size}, {}),
+                    ("text_abbr", {"lines": person_lines}, {"abbr_texts": _(
+                        "Add a new parent family and a new sibling"
+                        "¦Add new parent family and new sibling"
+                        "¦Add parent family and sibling"
+                        "¦Add parent family, sibling"
+                        "¦Add parents, sibling"
+                        "¦+ parents, sibling"
+                        "¦+"
+                    ).split("¦")})
+                ]
+                # New sibling needs to be placed next to the new or
+                # existing family.
+                if not has_family or show_add_other_family:
+                    x_outer_family = x_new_family
+                else:
+                    x_outer_family = x_person + m1*(
+                        self.person_width/2
+                        + self.spouse_sep/2
+                    )
+                x_new_sibling = x_outer_family - m1*(
+                    self.family_width/2
+                    + self.sibling_sep
+                    + self.person_width/2
+                )
+                new_sibling_bounds = self.add_person(x_new_sibling, generation, sibling_content_items, background_color, border_color, True, True, click_callback=lambda *args: self.ignore_this_mouse_button_press() or self.ftv.add_new_parent_family(person_handle, add_sibling=True), parent=parent)
+                self.add_overlay_margin(x_new_sibling, generation, "person")
+                self.add_overlay_connection(x_new_parents, new_parents_bounds["bx_b"], x_new_sibling, new_sibling_bounds["bx_t"])
+
+        self.move_to_center(*offset)
+
+    def open_add_family_relative_overlay(self, family_handle, x_family, generation):
+        offset = self.get_center_in_units()
+        parent, max_person_lines, max_family_lines = self.init_add_relative_overlay()
+
+        person_lines = max(min(4, max_person_lines), 1)
+
+        family = self.ftv.get_family_from_handle(family_handle)
+
+        background_color, border_color = self.widget_manager.get_colors_for_missing()
+
+        person_gutter_size = (
+            self.person_height
+            - 2*self.padding
+            - person_lines*self.line_height_px
+        ) / 2
+
+        family_bounds = self.widget_manager.add_family(family_handle, x_family, generation, canvas_parent=parent)
+        self.add_overlay_margin(x_family, generation, "family")
+
+        father_handle = family.get_father_handle()
+        mother_handle = family.get_mother_handle()
+        spouse_content_items = [
+            ("gutter", {"size": person_gutter_size}, {}),
+            ("text_abbr", {"lines": person_lines}, {"abbr_texts": _(
+                "Add a new spouse"
+                "¦Add new spouse"
+                "¦Add spouse"
+                "¦+ spouse"
+                "¦+"
+            ).split("¦")})
+        ]
+        for spouse_handle, alignment in [(father_handle, "l"), (mother_handle, "r")]:
+            if alignment == "l":
+                m1 = -1
+            else:
+                m1 = 1
+            x_spouse = x_family + m1*(
+                self.spouse_sep/2
+                + self.person_width/2
+            )
+            if spouse_handle is None or len(spouse_handle) == 0:
+                # alignment as kwarg to lambda since variable changes
+                # due to loop.
+                spouse_bounds = self.add_person(x_spouse, generation, spouse_content_items, background_color, border_color, True, False, click_callback=lambda *args, alignment=alignment: self.ftv.add_new_spouse(family_handle, alignment=="l"), parent=parent)
+            else:
+                spouse_bounds = self.widget_manager.add_person(spouse_handle, x_spouse, generation, alignment, canvas_parent=parent)
+            self.add_overlay_margin(x_spouse, generation, "person")
+            self.add_overlay_connection(x_spouse, spouse_bounds["bx_b"], x_spouse, family_bounds["bx_t"])
+
+        x_new_child = x_family
+        child_content_items = [
+            ("gutter", {"size": person_gutter_size}, {}),
+            ("text_abbr", {"lines": person_lines}, {"abbr_texts": _(
+                "Add a new child"
+                "¦Add new child"
+                "¦Add child"
+                "¦+ child"
+                "¦+"
+            ).split("¦")})
+        ]
+        child_bounds = self.add_person(x_new_child, generation-1, child_content_items, background_color, border_color, True, True, click_callback=lambda *args: self.ftv.add_new_child(family_handle), parent=parent)
+        self.add_overlay_margin(x_new_child, generation-1, "person")
+        self.add_overlay_connection(x_family, family_bounds["bx_b"], x_new_child, child_bounds["bx_t"])
+
+        self.move_to_center(*offset)
+
+    def add_overlay_margin(self, x, generation, box_type):
+        y = self.widget_manager.tree_builder.get_y_of_generation(generation)
+        if box_type == "person":
+            width = self.person_width
+            height = self.person_height
+            y -= self.person_height
+        else: # "family"
+            width = self.family_width
+            height = self.family_height
+            y += self.above_family_sep
+
+        bg_color_found, bg_color = self.canvas.get_style_context().lookup_color('theme_bg_color')
+        if bg_color_found:
+            bg_color = tuple(bg_color)[:3]
+        else:
+            bg_color = (1, 1, 1)
+
+        GooCanvas.CanvasRect(
+            parent=self.overlay_margin_group,
+            x=x-width/2-self.overlay_margin,
+            y=y-self.overlay_margin,
+            width=width+2*self.overlay_margin,
+            height=height+2*self.overlay_margin,
+            fill_color_gdk_rgba=self.overlay_margin_color_gdk_rgba,
+            stroke_color=None,
+        )
+
+        GooCanvas.CanvasRect(
+            parent=self.overlay_margin_stroke_group,
+            x=x-width/2-self.overlay_margin_stroke,
+            y=y-self.overlay_margin_stroke,
+            width=width+2*self.overlay_margin_stroke,
+            height=height+2*self.overlay_margin_stroke,
+            fill_color_gdk_rgba=self.overlay_margin_stroke_color_gdk_rgba,
+            stroke_color=None,
+        )
+
+    def add_overlay_connection(self, x1, y1, x2, y2, ym=None, m=None, dashed=False, spouse_connection=False):
+        if spouse_connection:
+            line_width = 2*self.overlay_margin - self.above_family_sep
+            line_width_stroke = 2*self.overlay_margin_stroke - self.above_family_sep
+        else:
+            line_width = 2*self.overlay_margin
+            line_width_stroke = 2*self.overlay_margin_stroke
+        self.add_connection(x1, y1, x2, y2, ym=ym, m=m, dashed=dashed, parent=self.overlay_connection_group)
+        self.add_connection(x1, y1, x2, y2, ym=ym, m=m, dashed=dashed, parent=self.overlay_margin_group, line_width=line_width, fg_color=self.overlay_margin_color_hex)
+        self.add_connection(x1, y1, x2, y2, ym=ym, m=m, dashed=dashed, parent=self.overlay_margin_stroke_group, line_width=line_width_stroke, fg_color=self.overlay_margin_stroke_color_hex)
+
+    def add_person(self, x, generation, content_items, primary_color, secondary_color, alive, round_lower_corners, click_callback=None, badges=None, parent=None):
 
         # group
-        group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
+        use_default_parent = parent is None
+        if use_default_parent:
+            parent = self.canvas.get_root_item()
+        group = GooCanvas.CanvasGroup(parent=parent)
         group.connect("button-press-event", self.click_callback, click_callback)
         parent = group
 
@@ -231,7 +839,11 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             """
 
         line_width = self.ftv._config.get("appearance.familytreeview-box-line-width")
-        if x == 0 and generation == 0 and self.ftv._config.get("appearance.familytreeview-highlight-root-person"):
+        if (
+            x == 0 and generation == 0
+            and use_default_parent # (0, 0) can be new child in overlay
+            and self.ftv._config.get("appearance.familytreeview-highlight-root-person")
+        ):
             # This is the root person.
             line_width = min(line_width + 2, line_width * 2)
 
@@ -276,10 +888,12 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             "bx_b": y
         }
 
-    def add_family(self, x, generation, content_items, primary_color, secondary_color, click_callback=None, badges=None):
+    def add_family(self, x, generation, content_items, primary_color, secondary_color, click_callback=None, badges=None, parent=None):
 
         # group
-        group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
+        if parent is None:
+            parent = self.canvas.get_root_item()
+        group = GooCanvas.CanvasGroup(parent=parent)
         group.connect("button-press-event", self.click_callback, click_callback)
         parent = group
 
@@ -336,20 +950,24 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                 if image_spec is None:
                     pass # no image
                 else:
-                    image_filter = self.ftv._config.get("appearance.familytreeview-person-image-filter")
+                    image_filter = item[1]["filter"] 
+                    grayscale = (
+                        (image_filter == "grayscale_dead" and not alive)
+                        or image_filter == "grayscale_all"
+                    )
                     self.add_from_image_spec(
                         parent,
                         image_spec,
                         x-img_max_width/2,
                         y_item,
                         min(content_width, img_max_width), img_max_height,
-                        grayscale=(image_filter == 1 and not alive) or image_filter == 2,
+                        grayscale=grayscale,
                         color=avatar_color,
                     )
 
                 y_item += img_max_height
 
-            elif item[0] in ["name", "names", "text"]:
+            elif item[0] in ["name", "names", "text", "text_abbr"]:
                 max_height = self.line_height_px * item[1].get("lines", 1)
                 if item[0] == "name":
                     if item[2]["name"] is None:
@@ -363,6 +981,12 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                     else:
                         # first item in list is combination of full names
                         text = item[2]["abbr_name_strs"][0]
+                elif item[0] == "text_abbr":
+                    if len(item[2]["abbr_texts"]) == 0:
+                        text = ""
+                    else:
+                        # first item in list is full sting
+                        text = item[2]["abbr_texts"][0]
                 else:
                     text = item[2]["text"]
 
@@ -380,18 +1004,21 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                     fill_color=contrast_color,
                     # ellipsize needs to be applied after abbreviation selection
                     wrap=Pango.WrapMode.WORD,
+                    visibility=GooCanvas.CanvasItemVisibility.VISIBLE_ABOVE_THRESHOLD,
+                    visibility_threshold=self.visibility_threshold_text,
                 )
 
                 if (
                     (item[0] == "name" and item[2]["name"] is not None)
                     or (item[0] == "names" and any(name is not None for name in item[2]["names"]))
+                    or (item[0] == "text_abbr" and len(item[2]["abbr_texts"]) > 0)
                 ):
                     # The hashes are valid for the name format returned by
                     # self.ftv.abbrev_name_display.get_num_for_name_abbrev
                     # for the names.
                     if item[0] == "name":
                         hashable_name = make_hashable(item[2]["name"].serialize())
-                    else:
+                    elif item[0] == "names":
                         hashable_name = make_hashable(tuple(
                             [item[2]["fmt_str"], item[1]["name_format"]] + [
                                 name
@@ -400,11 +1027,17 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                                 for name in item[2]["names"]
                             ]
                         ))
-                    if hashable_name in self.fitting_abbrev_names:
+                    else: # text_abbr
+                        hashable_name = None
+                    if hashable_name is not None and hashable_name in self.fitting_abbrev_names:
                         text_item.text_data.text = self.fitting_abbrev_names[hashable_name]
                     else:
                         line_height_px = self.line_height_px
-                        for abbr_name in item[2]["abbr_name_strs"][1:]: # skip full name used above
+                        if item[0] == "text_abbr":
+                            abbr_name_list = item[2]["abbr_texts"][1:] # skip full string used above
+                        else: # name or names
+                            abbr_name_list = item[2]["abbr_name_strs"][1:] # skip full name used above
+                        for abbr_name in abbr_name_list:
                             ink_extent_rect, logical_extent_rect = text_item.get_natural_extents()
 
                             # Check the height since too many lines
@@ -428,7 +1061,8 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                                 text_item.text_data.text = abbr_name
                             else:
                                 break
-                        self.fitting_abbrev_names[hashable_name] = text_item.text_data.text
+                        if hashable_name is not None:
+                            self.fitting_abbrev_names[hashable_name] = text_item.text_data.text
 
                 if item[1].get("lines", 1) == 1:
                     ellipsize = Pango.EllipsizeMode.END
@@ -439,14 +1073,34 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
 
                 y_item += max_height
 
-    def add_connection(self, x1, y1, x2, y2, ym=None, m=None, dashed=False, click_callback=None):
+    def add_connection(self, x1, y1, x2, y2, ym=None, m=None, dashed=False, click_callback=None, parent=None, line_width=None, fg_color=None):
+        # assuming y1 < y2 (e.g. y1 is ancestor)
+        if parent is None:
+            parent = self.connection_group
+
+        if line_width is None:
+            line_width = self.ftv._config.get("appearance.familytreeview-connections-line-width")
+        overlap = 0.1 # prevents thin gap due to anti-aliasing
+        offset = line_width/4 - overlap/2 # only used when dashed is list
+
         if ym is None:
             ym = (y1 + y2) / 2 # middle
+
+        data_list = []
         if x1 == x2:
-            data = f"""
-                M {x1} {y1}
-                L {x2} {y2}
-            """
+            if isinstance(dashed, list):
+                coords_list = [
+                    (x1-offset, x2-offset),
+                    (x1+offset, x2+offset)
+                ]
+            else:
+                coords_list = [(x1, x2)]
+            for x1_, x2_ in coords_list:
+                data = f"""
+                    M {x1} {y1}
+                    L {x2} {y2}
+                """
+                data_list.append(data)
         else:
             if m is not None:
                 # m[0] which line, 0-based, counted from top to bottom
@@ -471,52 +1125,76 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                 xDirSign = -1
 
             r = self.connection_radius
+
+            if isinstance(dashed, list):
+                if x1 < x2:
+                    m1 = -1
+                else:
+                    m1 = 1
+                coords_list = [
+                    (x1-offset, x2-offset, ym-m1*offset, r-m1*offset, r+m1*offset),
+                    (x1+offset, x2+offset, ym+m1*offset, r+m1*offset, r-m1*offset)
+                ]
+            else:
+                coords_list = [(x1, x2, ym, r, r)]
+            
             if abs(x1 - x2) < 2*r:
                 # The line between the two arcs is not horizontal.
                 Dx = abs(x1 - x2)/r
                 # angle of the line (Dx=2 -> alpha=0, Dx=0° -> alpha=90°)
                 alpha = pi/2 + 2*atan(Dx/(Dx-4))
-                data = f"""
-                    M {x1} {y1}
-                    V {ym + yDirSign*r}
-                    A {r} {r} 0 0 {sweepFlag1} {x1 + xDirSign*r*(1-sin(alpha))} {ym + yDirSign*r*(1-cos(alpha))}
-                    L {x2 - xDirSign*r*(1-sin(alpha))} {ym - yDirSign*r*(1-cos(alpha))}
-                    A {r} {r} 0 0 {sweepFlag2} {x2} {ym - yDirSign*r}
-                    V {y2}
-                """
+                for x1_, x2_, ym_, r1, r2 in coords_list:
+                    data_list.append(f"""
+                        M {x1_} {y1}
+                        V {ym_ + yDirSign*r1}
+                        A {r1} {r1} 0 0 {sweepFlag1} {x1_ + xDirSign*r1*(1-sin(alpha))} {ym_ + yDirSign*r1*(1-cos(alpha))}
+                        L {x2_ - xDirSign*r2*(1-sin(alpha))} {ym_ - yDirSign*r2*(1-cos(alpha))}
+                        A {r2} {r2} 0 0 {sweepFlag2} {x2_} {ym_ - yDirSign*r2}
+                        V {y2}
+                    """)
             else:
-                data = f"""
-                    M {x1} {y1}
-                    V {ym + yDirSign*r}
-                    A {r} {r} 0 0 {sweepFlag1} {x1 + xDirSign*r} {ym}
-                    H {x2 - xDirSign*r}
-                    A {r} {r} 0 0 {sweepFlag2} {x2} {ym - yDirSign*r}
-                    V {y2}
-                """
+                for x1_, x2_, ym_, r1, r2 in coords_list:
+                    data_list.append(f"""
+                        M {x1_} {y1}
+                        V {ym_ + yDirSign*r1}
+                        A {r1} {r1} 0 0 {sweepFlag1} {x1_ + xDirSign*r1} {ym_}
+                        H {x2_ - xDirSign*r2}
+                        A {r2} {r2} 0 0 {sweepFlag2} {x2_} {ym_ - yDirSign*r2}
+                        V {y2}
+                    """)
 
-        fg_color_found, fg_color = self.canvas.get_style_context().lookup_color('theme_fg_color')
-        if fg_color_found:
-            fg_color = rgb_to_hex(tuple(fg_color)[:3])
-        else:
-            fg_color = "black"
+        if fg_color is None:
+            fg_color_found, fg_color = self.canvas.get_style_context().lookup_color('theme_fg_color')
+            if fg_color_found:
+                fg_color = rgb_to_hex(tuple(fg_color)[:3])
+            else:
+                fg_color = "black"
 
+        line_width_ = line_width
         if dashed:
-            line_dash = GooCanvas.CanvasLineDash.newv([10, 5])
+            if isinstance(dashed, list):
+                line_dash_list = [
+                    GooCanvas.CanvasLineDash.newv([10, 5])
+                    if dashed_ else None
+                    for dashed_ in dashed
+                ]
+                line_width_ = line_width/2 + overlap
+            else:
+                line_dash_list = [GooCanvas.CanvasLineDash.newv([10, 5])]
         else:
-            line_dash = None
-
-        line_width = self.ftv._config.get("appearance.familytreeview-connections-line-width")
-        path = GooCanvas.CanvasPath(
-            parent=self.connection_group,
-            data=data,
-            stroke_color=fg_color,
-            line_width=line_width,
-            line_dash=line_dash
-        )
+            line_dash_list = [None]
+        for data, line_dash in zip(data_list, line_dash_list):
+            path = GooCanvas.CanvasPath(
+                parent=parent,
+                data=data,
+                stroke_color=fg_color,
+                line_width=line_width_,
+                line_dash=line_dash
+            )
         if line_width < 5:
             # add additional (invisible) path for larger clickable area
             path = GooCanvas.CanvasPath(
-                parent=self.connection_group,
+                parent=parent,
                 data=data,
                 line_width=5,
                 stroke_color=None
@@ -533,7 +1211,11 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         for badge_info in reversed(badges): # since they are added from right to left
             x -= self.badge_sep
             x_ = x
-            group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
+            group = GooCanvas.CanvasGroup(
+                parent=self.canvas.get_root_item(),
+                visibility=GooCanvas.CanvasItemVisibility.VISIBLE_ABOVE_THRESHOLD,
+                visibility_threshold=self.visibility_threshold_badges,
+            )
             if "click_callback" in badge_info:
                 # We can't tell if the pointer moves away from the badge while the mouse button is held down.
                 # item and target of button-release-event are the same whether the mouse stays on the badge or not.
@@ -576,6 +1258,8 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                         anchor=GooCanvas.CanvasAnchorType.EAST,
                         font_desc=font_desc,
                         tooltip=tooltip,
+                        visibility=GooCanvas.CanvasItemVisibility.VISIBLE_ABOVE_THRESHOLD,
+                        visibility_threshold=self.visibility_threshold_text,
                     )
                     ink_extent_rect, logical_extent_rect = badge_content_text.get_natural_extents()
                     Pango.extents_to_pixels(logical_extent_rect)
@@ -620,9 +1304,16 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             badge_rect.props.x = x
             badge_rect.props.width = w
 
-    def add_expander(self, x, y, ang, click_callback):
-        group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
-        group.connect("button-press-event", self.click_callback, click_callback)
+    def add_expander(self, x, y, ang, click_callback=None, unavailable=False, tooltip=None):
+        group = GooCanvas.CanvasGroup(
+            parent=self.canvas.get_root_item(),
+            visibility=GooCanvas.CanvasItemVisibility.VISIBLE_ABOVE_THRESHOLD,
+            visibility_threshold=self.visibility_threshold_expanders,
+        )
+        if click_callback is not None:
+            group.connect("button-press-event", self.click_callback, click_callback)
+        if tooltip is not None:
+            group.props.tooltip = tooltip
         self.expander_list.append(group)
         parent = group
 
@@ -650,19 +1341,116 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
             stroke_color=None,
         )
 
-        # Use path instead of pixbuf with icon as icon is pixelated.
-        # (tried Gtk.IconLookupFlags.FORCE_SVG, doesn't work)
-        l = 5
-        data = f"""
-            M {x-l/2} {y-l}
-            L {x+l/2} {y}
-            L {x-l/2} {y+l}
-        """
-        GooCanvas.CanvasPath(
+        if unavailable:
+            ang_rad = ang*pi/180
+            dots_unit = self.expander_size/12
+            for offset in [ # 3 dots
+                -3*dots_unit,
+                0,
+                3*dots_unit
+            ]:
+                GooCanvas.CanvasEllipse(
+                    parent=parent,
+                    center_x=x + offset*cos(ang_rad),
+                    center_y=y - offset*sin(ang_rad),
+                    radius_x=dots_unit,
+                    radius_y=dots_unit,
+                    fill_color=rgb_to_hex(fg_color),
+                    stroke_color=None,
+                )
+        else:
+            # Use path instead of pixbuf with icon as icon is pixelated.
+            # (tried Gtk.IconLookupFlags.FORCE_SVG, doesn't work)
+            l = 5
+            data = f"""
+                M {x-l/2} {y-l}
+                L {x+l/2} {y}
+                L {x-l/2} {y+l}
+            """
+            GooCanvas.CanvasPath(
+                parent=parent,
+                data=data,
+                stroke_color=rgb_to_hex(fg_color),
+            ).rotate(ang, x, y)
+
+    def add_text(self, x, y, text, max_width):
+        style_context = self.canvas_container.get_style_context()
+        font_desc = style_context.get_font(Gtk.StateFlags.NORMAL)
+
+        bg_color_found, bg_color = self.canvas.get_style_context().lookup_color("theme_bg_color")
+        if bg_color_found:
+            bg_color = tuple(bg_color)[:3]
+        else:
+            bg_color = (1, 1, 1)
+        contrast_color = rgb_to_hex(get_contrast_color(bg_color))
+
+        GooCanvas.CanvasText(
+            parent=self.canvas.get_root_item(),
+            x=x,
+            y=y,
+            text=text,
+            alignment=Pango.Alignment.CENTER,
+            anchor=GooCanvas.CanvasAnchorType.CENTER,
+            width=max_width,
+            font_desc=font_desc,
+            fill_color=contrast_color,
+        )
+
+    def add_button(self, x, y, background_color, border_color, icon_name, label, click_callback):
+        group = GooCanvas.CanvasGroup(parent=self.canvas.get_root_item())
+        group.connect("button-press-event", self.click_callback, click_callback)
+        parent = group
+
+        # background
+        GooCanvas.CanvasRect(
             parent=parent,
-            data=data,
-            stroke_color=rgb_to_hex(fg_color),
-        ).rotate(ang, x, y)
+            x=x-self.repl_button_width/2,
+            y=y,
+            width=self.repl_button_width,
+            height=self.repl_button_height,
+            radius_x=self.repl_button_corner_radius,
+            radius_y=self.repl_button_corner_radius,
+            fill_color=background_color,
+            stroke_color=border_color,
+        )
+
+        # icon
+        icon_theme = Gtk.IconTheme.get_default()
+        icon_size = 32
+        try:
+            pixbuf = icon_theme.load_icon(icon_name, icon_size, 0)
+        except GLib.Error:
+            pass
+        else:
+            # Create a GooCanvas.Image from the pixbuf
+            GooCanvas.CanvasImage(
+                parent=parent,
+                pixbuf=pixbuf,
+                x=x-icon_size/2,
+                y=y+10,
+                width=icon_size,
+                height=icon_size,
+                scale_to_fit=True,
+            )
+
+        # text
+        style_context = self.canvas_container.get_style_context()
+        font_desc = style_context.get_font(Gtk.StateFlags.NORMAL)
+        contrast_color = rgb_to_hex(get_contrast_color(
+            hex_to_rgb_float(background_color)
+        ))
+        GooCanvas.CanvasText(
+            parent=parent,
+            x=x,
+            y=y+self.repl_button_height-10-2*self.line_height_px,
+            text=label,
+            alignment=Pango.Alignment.CENTER,
+            anchor=GooCanvas.CanvasAnchorType.NORTH,
+            width=self.repl_button_width-10,
+            height=2*self.line_height_px + self.line_height_px/2,
+            font_desc=font_desc,
+            fill_color=contrast_color,
+        )
 
     def add_from_image_spec(self, parent, image_spec, x, y, max_width, max_height, color=None, grayscale=False, tooltip=None):
         if image_spec[0] in ["path", "svg_path", "pixbuf"]:
@@ -698,8 +1486,19 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                             max_height*svg_factor
                         )
                         pixbuf_loader.write(svg_code.encode())
-                        pixbuf_loader.close()
-                        pixbuf = pixbuf_loader.get_pixbuf()
+                        try:
+                            pixbuf_loader.close()
+                        except GLib.Error:
+                            # Error on MacOS, Gramps 6.0.0 for SVGs:
+                            # gi.repository.GLib.GError: gdk-pixbuf-error-quark: Unrecognized image file format (3)
+                            # Use white pixbuf of correct size as replacement
+                            pixbuf = GdkPixbuf.Pixbuf.new(
+                                GdkPixbuf.Colorspace.RGB, True, 8,
+                                max_width, max_height
+                            )
+                            pixbuf.fill(0xFFFFFFFF)
+                        else:
+                            pixbuf = pixbuf_loader.get_pixbuf()
                         self.svg_pixbuf_cache[svg_code] = pixbuf
             else:
                 pixbuf = image_spec[1]
@@ -750,7 +1549,21 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
         if self.widget_manager.search_widget is not None:
             self.widget_manager.search_widget.hide_search_popover()
         if target is None:
-            # background click
+            background_click = True
+        else:
+            background_click = False
+            if self.overlay_background_group is not None:
+                if self.overlay_background_group.find_child(target) != -1:
+                    background_click = True
+                else:
+                    # Loop over sub-groups (margin, margin stroke,
+                    # connections).
+                    for i in range(self.overlay_background_group.get_n_children()):
+                        child = self.overlay_background_group.get_child(i)
+                        if child.find_child(target) != -1:
+                            background_click = True
+                            break
+        if background_click:
             self.widget_manager.info_box_manager.close_info_box()
         if other_callback is not None:
             return other_callback(root_item, target, event, *other_args, **other_kwargs)

@@ -22,16 +22,18 @@
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
-from gi.repository import Gtk
+from gi.repository import Gdk, Gtk
 
 from gramps.gen.config import config
-from gramps.gen.const import SIZE_LARGE, SIZE_NORMAL, USER_HOME
+from gramps.gen.const import USER_HOME
 from gramps.gen.display.place import displayer as place_displayer
 from gramps.gen.lib.eventtype import EventType
+from gramps.gen.proxy.living import LivingProxyDb
+from gramps.gui.utils import rgb_to_hex
 
-from family_tree_view_config_page_manager_boxes import BOX_ITEMS, PREDEF_BOXES_DEFS, FamilyTreeViewConfigPageManagerBoxes
-from family_tree_view_config_provider_names import names_page, DEFAULT_ABBREV_RULES
-from family_tree_view_utils import get_gettext
+from family_tree_view_config_page_manager_boxes import BOX_ITEMS, PREDEF_BOXES_CONTENT_PROFILES, FamilyTreeViewConfigPageManagerBoxes
+from family_tree_view_config_provider_names import DEFAULT_ABBREV_RULES, FamilyTreeViewConfigProviderNames
+from family_tree_view_utils import get_gettext, get_reloaded_custom_filter_list
 if TYPE_CHECKING:
     from family_tree_view import FamilyTreeView
 
@@ -44,25 +46,43 @@ class FamilyTreeViewConfigProvider:
         self.badge_manager = ftv.badge_manager
 
         self.boxes_page_manager = FamilyTreeViewConfigPageManagerBoxes(self)
+        self.names_page_manager = FamilyTreeViewConfigProviderNames(self)
 
     @staticmethod
     def get_config_settings():
         default_event_types_show_description = [
+            # religious
             EventType.RELIGION,
+            # vocational
             EventType.OCCUPATION,
+            EventType.RETIREMENT,
+            EventType.ELECTED,
+            EventType.MILITARY_SERV,
+            EventType.ORDINATION,
+            # academic
+            EventType.EDUCATION,
+            EventType.DEGREE,
+            EventType.GRADUATION,
+            # other
+            EventType.CAUSE_DEATH,
+            EventType.MED_INFO,
+            EventType.NOB_TITLE,
+            EventType.NUM_MARRIAGES,
         ]
         return (
             ("appearance.familytreeview-num-ancestor-generations-default", 2),
             ("appearance.familytreeview-num-descendant-generations-default", 2),
-            ("appearance.familytreeview-connections-line-width", 2.0),
-            ("appearance.familytreeview-box-line-width", 2.0),
             ("appearance.familytreeview-highlight-home-person", True),
             ("appearance.familytreeview-highlight-root-person", True),
             ("appearance.familytreeview-show-deceased-ribbon", True),
             ("appearance.familytreeview-filter-person-gray-out", True),
-            ("appearance.familytreeview-person-image-resolution", 1),
-            ("appearance.familytreeview-person-image-filter", 0),
+            ("appearance.familytreeview-person-image-resolution", "thumbnail_large"), # TODO not only person
+            ("appearance.familytreeview-person-image-filter", "none"), # TODO not only person
             ("appearance.familytreeview-place-format", -1),
+            ("appearance.familytreeview-box-line-width", 2.0),
+            ("appearance.familytreeview-connections-line-width", 2.0),
+            ("appearance.familytreeview-connections-dashed-mode", "rel_any_non_birth"),
+
             ("appearance.familytreeview-timeline-mode-default-person", 3),
             ("appearance.familytreeview-timeline-mode-default-family", 3),
             ("appearance.familytreeview-timeline-short-age", True),
@@ -74,6 +94,12 @@ class FamilyTreeViewConfigProvider:
                 event_name: i in default_event_types_show_description
                 for i, event_str, event_name in EventType._DATAMAP
             }),
+
+            ("interaction.familytreeview-zoom-level-default", 0),
+            ("interaction.familytreeview-zoom-level-step", 0.15),
+            ("interaction.familytreeview-family-info-box-set-active-button", False),
+            ("interaction.familytreeview-person-add-relative-action", "overlay"),
+            ("interaction.familytreeview-family-add-relative-action", "overlay"),
 
             ("interaction.familytreeview-person-single-primary-click-action", "open_info_box_person"),
             ("interaction.familytreeview-person-double-primary-click-action", "edit_person"),
@@ -95,18 +121,23 @@ class FamilyTreeViewConfigProvider:
             ("interaction.familytreeview-background-double-middle-click-action", "nothing"),
             ("interaction.familytreeview-double-click-timeout-milliseconds", 200),
             ("interaction.familytreeview-scroll-mode", "map"),
-            ("interaction.familytreeview-zoom-level-default", 0),
-            ("interaction.familytreeview-zoom-level-step", 0.15),
-            ("interaction.familytreeview-family-info-box-set-active-button", False),
-            ("interaction.familytreeview-printing-scale-to-page", False),
-            ("interaction.familytreeview-printing-export-hide-expanders", True),
 
-            ("boxes.familytreeview-boxes-custom-defs", {}),
-            ("boxes.familytreeview-boxes-selected-def-key", "regular"),
+            ("presentation.familytreeview-presentation-active", False),
+            ("presentation.familytreeview-presentation-hide-private", False),
+            ("presentation.familytreeview-presentation-living-proxy-mode", LivingProxyDb.MODE_INCLUDE_ALL),
+            ("presentation.familytreeview-presentation-living-proxy-years-after-death", 0),
+            ("presentation.familytreeview-presentation-filter-person", ""), # empty, no filter
+
+            ("boxes.familytreeview-boxes-custom-defs", {}), # TODO rename familytreeview-boxes-custom-content-profiles
+            ("boxes.familytreeview-boxes-selected-def-key", "regular"), # TODO rename familytreeview-boxes-selected-content-profile
 
             ("names.familytreeview-abbrev-name-format-id", 0),
             ("names.familytreeview-abbrev-name-format-always", True),
-            ("names.familytreeview-abbrev-name-all-caps-style", 0),
+            ("names.familytreeview-abbrev-name-all-caps-style", "all_caps"),
+            ("names.familytreeview-abbrev-name-call-name-style", "none"),
+            ("names.familytreeview-abbrev-name-call-name-mode", "call"),
+            ("names.familytreeview-abbrev-name-primary-surname-style", "none"),
+            ("names.familytreeview-abbrev-name-primary-surname-mode", "primary_surname"),
             ("names.familytreeview-name-abbrev-rules", deepcopy(DEFAULT_ABBREV_RULES)),
 
             ("expanders.familytreeview-expander-types-shown", {
@@ -126,15 +157,22 @@ class FamilyTreeViewConfigProvider:
                 "children": None, # controlled by generation num-descendant-generations-default
             }),
 
-            ("badges.familytreeview-badges-active", { # most examples are turned off by default
+            ("badges.familytreeview-badges-active", { # example badges are turned off by default
                 "num_citations": {"person": False, "family": False},
                 "num_events_without_citations": {"person": False, "family": False},
                 "num_children": {"person": False, "family": False},
                 "num_other_families": {"person": False, "family": False},
-                "filter_result": {"person": True, "family": False},
+                "filter_result": {"person": False, "family": False},
                 "gramps_id": {"person": False, "family": False},
                 "gramps_handle": {"person": False, "family": False},
             }),
+            ("badges.familytreeview-badges-filter-match", {
+                "person": {"generic": {}, "custom": {}},
+                "family": {"custom": {}}
+            }),
+
+            ("interaction.familytreeview-printing-scale-to-page", False),
+            ("interaction.familytreeview-printing-export-hide-expanders", True),
 
             ("experimental.familytreeview-adaptive-ancestor-generation-dist", True),
             ("experimental.familytreeview-connection-follow-on-click", False),
@@ -148,6 +186,10 @@ class FamilyTreeViewConfigProvider:
     @staticmethod
     def config_connect(_config, cb_update_config):
         for config_name, *_ in FamilyTreeViewConfigProvider.get_config_settings():
+            if config_name.split(".")[0] == "presentation":
+                # Don't connect those signal. Db will be changed which
+                # will trigger a rebuild.
+                continue
             _config.connect(config_name, cb_update_config)
 
         FamilyTreeViewConfigProvider.ensure_valid_config(_config)
@@ -198,11 +240,11 @@ class FamilyTreeViewConfigProvider:
                     try:
                         v[1] = int(v[1])
                     except ValueError:
-                        v[1] = deepcopy(PREDEF_BOXES_DEFS["regular"][1])
+                        v[1] = deepcopy(PREDEF_BOXES_CONTENT_PROFILES["regular"][1])
                     v_changed = True
                 for i, box_type in [(2, "person"), (3, "family")]:
                     if not isinstance(v[i], list):
-                        v[i] = deepcopy(PREDEF_BOXES_DEFS["regular"][i])
+                        v[i] = deepcopy(PREDEF_BOXES_CONTENT_PROFILES["regular"][i])
                         v_changed = True
                         continue
 
@@ -331,15 +373,77 @@ class FamilyTreeViewConfigProvider:
                 return value
 
     def get_configure_page_funcs(self):
-        return [
-            self.appearance_page,
-            self.interaction_page,
-            self.boxes_page,
-            self.names_page,
-            self.expanders_page,
-            self.badges_page,
-            self.experimental_page,
-        ]
+        return [self.ftv_page]
+
+    def ftv_page(self, configdialog):
+        box = Gtk.Box()
+
+        tree_store = Gtk.TreeStore(str, str, str)
+        tree_view = Gtk.TreeView(model=tree_store)
+        tree_view.set_margin_top(12)
+        tree_view.set_margin_left(12)
+        tree_view.set_margin_right(6)
+        tree_view.set_margin_bottom(12)
+        column = Gtk.TreeViewColumn("Page",  Gtk.CellRendererText(), text=1)
+        tree_view.append_column(column)
+        column = Gtk.TreeViewColumn("", Gtk.CellRendererText(), text=2) # empty
+        tree_view.append_column(column)
+        tree_view.set_headers_visible(False)
+
+        selection = tree_view.get_selection()
+        selection.set_mode(Gtk.SelectionMode.BROWSE)
+
+        scrolled_window = Gtk.ScrolledWindow()
+        scrolled_window.add(tree_view)
+        scrolled_window.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scrolled_window.set_vexpand(True)
+        scrolled_window.set_hexpand(False)
+        box.pack_start(scrolled_window, False, False, 0)
+
+        separator = Gtk.Separator()
+        box.pack_start(separator, False, False, 6)
+
+        stack = Gtk.Stack()
+        box.pack_start(stack, True, True, 0)
+
+        default_page_id = "appearance"
+        id_to_iter_dict = {}
+        for page_id, parent_id, page_label, page_fcn in [
+            ("appearance", None, _("Appearance"), self.appearance_page),
+            ("interaction", None, _("Interaction"), self.interaction_page),
+            ("mouse", "interaction", _("Mouse"), self.mouse_page),
+            ("presentation", None, _("Presentation Mode"), self.presentation_page),
+            ("boxes", None, _("Boxes"), self.boxes_page),
+            ("names", None, _("Names"), self.names_page),
+            ("name_abbr", "names", _("Name Abbreviation"), self.name_abbr_page),
+            ("expanders", None, _("Expanders"), self.expanders_page),
+            ("badges", None, _("Badges"), self.badges_page),
+            ("timeline", None, _("Panel: Timeline"), self.timeline_page),
+            ("print_export", None, _("Print/Export"), self.print_export_page),
+            ("experimental", None, _("Experimental"), self.experimental_page),
+        ]:
+            if parent_id is None:
+                parent_iter = None
+            else:
+                parent_iter = id_to_iter_dict[parent_id]
+            tree_iter = tree_store.append(parent_iter, (page_id, page_label, ""))
+            id_to_iter_dict[page_id] = tree_iter
+            page_widget = page_fcn(configdialog)
+            stack.add_named(page_widget, page_id)
+
+        def cb_selection_changed(selection, tree_view):
+            model, selected_tree_iter = selection.get_selected()
+            if selected_tree_iter is not None:
+                selected_path = model.get_path(selected_tree_iter)
+                tree_view.expand_row(selected_path, False)
+                selected_id = model[selected_tree_iter][0]
+                stack.set_visible_child_name(selected_id)
+        selection.connect("changed", cb_selection_changed, tree_view)
+
+        selection.select_iter(id_to_iter_dict[default_page_id])
+        stack.set_visible_child_name(default_page_id)
+
+        return (_("FamilyTreeView"), box)
 
     def appearance_page(self, configdialog):
         grid = Gtk.Grid()
@@ -348,13 +452,17 @@ class FamilyTreeViewConfigProvider:
         grid.set_row_spacing(6)
         row = -1
 
+        # Since Gramps doesn't freeze while building the tree and the
+        # progress dialog (which shows up by default) allows to cancel,
+        # it's acceptable to allow huge trees.
+
         row += 1
         configdialog.add_spinner(
             grid,
             _("Default number of ancestor generations to show"),
             row,
             "appearance.familytreeview-num-ancestor-generations-default",
-            (0, 20) # more might can performance issues, expanders can be used
+            (0, 100)
         )
 
         row += 1
@@ -363,32 +471,8 @@ class FamilyTreeViewConfigProvider:
             _("Default number of descendant generations to show"),
             row,
             "appearance.familytreeview-num-descendant-generations-default",
-            (0, 20) # more might can performance issues, expanders can be used
+            (0, 100)
         )
-
-        row += 1
-        connection_line_width_spinner = configdialog.add_spinner(
-            grid,
-            _("Line width of connections"),
-            row,
-            "appearance.familytreeview-connections-line-width",
-            (0.1, 10.0),
-            callback=self.spin_button_float_changed,
-        )
-        connection_line_width_spinner.set_digits(1)
-        connection_line_width_spinner.get_adjustment().set_step_increment(0.1)
-
-        row += 1
-        box_line_width_spinner = configdialog.add_spinner(
-            grid,
-            _("Line width of boxes"),
-            row,
-            "appearance.familytreeview-box-line-width",
-            (0.0, 10.0),
-            callback=self.spin_button_float_changed,
-        )
-        box_line_width_spinner.set_digits(1)
-        box_line_width_spinner.get_adjustment().set_step_increment(0.1)
 
         row += 1
         configdialog.add_checkbox(
@@ -427,38 +511,76 @@ class FamilyTreeViewConfigProvider:
         )
 
         row += 1
+        label = Gtk.Label(_(
+            "Resolution of the images in the info box and the panel:"
+        ))
+        label.set_halign(Gtk.Align.START)
+        label.set_xalign(0)
+        label.set_line_wrap(True)
+        grid.attach(label, 1, row, 1, 1)
         image_resolution_options = [
-            (SIZE_NORMAL, _("Normal")),
-            (SIZE_LARGE, _("High")),
-            (-1, _("Original")),
+            ("thumbnail_normal", _("Normal")),
+            ("thumbnail_large", _("High")),
+            ("original", _("Original")),
         ]
-        def _cb_image_resolution_combo_changed(combo, constant):
-            self.ftv._config.set(constant, image_resolution_options[combo.get_active()][0])
-        active_i = [opt[0] for opt in image_resolution_options].index(
-            self.ftv._config.get("appearance.familytreeview-person-image-resolution")
+        image_resolution_list_store = Gtk.ListStore(str, str)
+        for option_id, option_label in image_resolution_options:
+            image_resolution_list_store.append((option_id, option_label))
+        image_resolution_combo = Gtk.ComboBox(model=image_resolution_list_store)
+        renderer = Gtk.CellRendererText()
+        image_resolution_combo.pack_start(renderer, True)
+        image_resolution_combo.add_attribute(renderer, "text", 1)
+        active_option = self.ftv._config.get("appearance.familytreeview-person-image-resolution")
+        try:
+            active_index = [opt[0] for opt in image_resolution_options].index(active_option)
+        except ValueError:
+            active_index = 0 # normal
+        image_resolution_combo.set_active(
+            active_index
         )
-        configdialog.add_combo(
-            grid,
-            _("Resolution of the images"),
-            row,
-            "appearance.familytreeview-person-image-resolution",
-            image_resolution_options,
-            callback=_cb_image_resolution_combo_changed,
-            setactive=active_i,
-        )
+        def _cb_image_resolution_combo_changed(combo):
+            self.ftv._config.set(
+                "appearance.familytreeview-person-image-resolution",
+                image_resolution_options[combo.get_active()][0]
+            )
+        image_resolution_combo.connect("changed", _cb_image_resolution_combo_changed)
+        grid.attach(image_resolution_combo, 2, row, 1, 1)
 
         row += 1
-        configdialog.add_combo(
-            grid,
-            _("Person image filter"),
-            row,
-            "appearance.familytreeview-person-image-filter",
-            [
-                (0, _("No filter")),
-                (1, _("Apply grayscale to dead persons")),
-                (2, _("Apply grayscale to all persons")),
-            ]
+        label = Gtk.Label(_(
+            "Filter applied to the images in the info box and the panel:"
+        ))
+        label.set_halign(Gtk.Align.START)
+        label.set_xalign(0)
+        label.set_line_wrap(True)
+        grid.attach(label, 1, row, 1, 1)
+        image_filter_options = [
+            ("none", _("No filter")),
+            ("grayscale_dead", _("Apply grayscale to dead people")),
+            ("grayscale_all", _("Apply grayscale to all people")),
+        ]
+        image_filter_list_store = Gtk.ListStore(str, str)
+        for option_id, option_label in image_filter_options:
+            image_filter_list_store.append((option_id, option_label))
+        image_filter_combo = Gtk.ComboBox(model=image_filter_list_store)
+        renderer = Gtk.CellRendererText()
+        image_filter_combo.pack_start(renderer, True)
+        image_filter_combo.add_attribute(renderer, "text", 1)
+        active_option = self.ftv._config.get("appearance.familytreeview-person-image-filter")
+        try:
+            active_index = [opt[0] for opt in image_filter_options].index(active_option)
+        except ValueError:
+            active_index = 0 # none
+        image_filter_combo.set_active(
+            active_index
         )
+        def _cb_image_filter_combo_changed(combo):
+            self.ftv._config.set(
+                "appearance.familytreeview-person-image-filter",
+                image_filter_options[combo.get_active()][0]
+            )
+        image_filter_combo.connect("changed", _cb_image_filter_combo_changed)
+        grid.attach(image_filter_combo, 2, row, 1, 1)
 
         row += 1
         place_format_options = [(-1, _("Default"))]
@@ -480,174 +602,208 @@ class FamilyTreeViewConfigProvider:
         )
 
         row += 1
-        configdialog.add_combo(
+        box_line_width_spinner = configdialog.add_spinner(
             grid,
-            _("Default timeline mode in person panel"),
+            _("Line width of boxes"),
             row,
-            "appearance.familytreeview-timeline-mode-default-person",
-            [
-                (0, _("Primary own events")),
-                (1, _("All own events")),
-                (2, _("Primary own and relatives' events")),
-                (3, _("All own and relatives' events")),
-            ]
+            "appearance.familytreeview-box-line-width",
+            (0.0, 10.0),
+            callback=self.spin_button_float_changed,
         )
+        box_line_width_spinner.set_digits(1)
+        box_line_width_spinner.get_adjustment().set_step_increment(0.1)
 
         row += 1
-        configdialog.add_combo(
+        connection_line_width_spinner = configdialog.add_spinner(
             grid,
-            _("Default timeline mode in family panel"),
+            _("Line width of connections"),
             row,
-            "appearance.familytreeview-timeline-mode-default-family",
-            [
-                (0, _("Family events")),
-                (1, _("Family and parents' event")),
-                (2, _("Family and children's events")),
-                (3, _("Family, parents' and children's events")),
-            ]
+            "appearance.familytreeview-connections-line-width",
+            (0.1, 10.0),
+            callback=self.spin_button_float_changed,
         )
+        connection_line_width_spinner.set_digits(1)
+        connection_line_width_spinner.get_adjustment().set_step_increment(0.1)
+
+        row += 1
+        dashed_options = [
+            ("no_dash", _("No dashed connections")),
+            ("rel_any_non_birth", _("Dashed if at least one parent is non-birth")),
+            ("rel_both_non_birth", _("Dashed only if both parents are non-birth")),
+            ("rel_split_non_birth", _("Dashed on each side based on each parent")),
+        ]
+        add_rel_label = Gtk.Label(_("Dashed connection lines:"))
+        add_rel_label.set_halign(Gtk.Align.START)
+        add_rel_label.set_xalign(0)
+        add_rel_label.set_line_wrap(True)
+        grid.attach(add_rel_label, 1, row, 1, 1)
+        add_rel_list_store = Gtk.ListStore(str, str)
+        for option_id, option_label in dashed_options:
+            add_rel_list_store.append((option_id, option_label))
+        add_rel_combo = Gtk.ComboBox(model=add_rel_list_store)
+        renderer = Gtk.CellRendererText()
+        add_rel_combo.pack_start(renderer, True)
+        add_rel_combo.add_attribute(renderer, "text", 1)
+        active_option = self.ftv._config.get("appearance.familytreeview-connections-dashed-mode")
+        try:
+            active_index = [opt[0] for opt in dashed_options].index(active_option)
+        except ValueError:
+            active_index = 1 # any non birth
+        add_rel_combo.set_active(
+            active_index
+        )
+        def cb_add_relative_changed(combo, options):
+            self.ftv._config.set(
+                "appearance.familytreeview-connections-dashed-mode",
+                options[combo.get_active()][0]
+            )
+        add_rel_combo.connect("changed", cb_add_relative_changed, dashed_options)
+        grid.attach(add_rel_combo, 2, row, 1, 1)
+        
+        row += 1
+        label = Gtk.Label()
+        label.set_markup(_(
+            "Dashed on each side based on each parent:\n"
+            "<i>Each half of the connection is dashed if the parent on that "
+            "side is non-birth (father: left half, mother: right half)</i>"
+        ))
+        label.set_halign(Gtk.Align.START)
+        label.set_xalign(0)
+        label.set_line_wrap(True)
+        grid.attach(label, 2, row, 1, 1)
+
+        return grid
+
+    def interaction_page(self, configdialog):
+        grid = Gtk.Grid()
+        grid.set_border_width(12)
+        grid.set_column_spacing(6)
+        grid.set_row_spacing(6)
+        row = -1
+
+        row += 1
+        checkbox = configdialog.add_checkbox(
+            grid,
+            _(
+                "Prepend FamilyTreeView to the plugin list instead of appending it. (Requires restart.)\n"
+                "If no other chart view is prepended, this makes FamilyTreeView the first and default chart view.\n"
+                "Since FamilyTreeView is still in beta stage, be cautious with this option."
+            ),
+            row,
+            "interface.familytreeview-order-start",
+            stop=3, # same width as spinners and combos
+            config=config, # This is stored in Gramps' config to be available when registering the plugin.
+        )
+        label = checkbox.get_child()
+        label.set_line_wrap(True)
+
+        row += 1
+        zoom_level_default_spin_button = configdialog.add_spinner(
+            grid,
+            _("Default zoom level"),
+            row,
+            "interaction.familytreeview-zoom-level-default",
+            (
+                self.ftv.widget_manager.canvas_manager.zoom_level_min,
+                self.ftv.widget_manager.canvas_manager.zoom_level_max
+            ),
+            callback=self.spin_button_float_changed,
+        )
+        zoom_level_default_spin_button.set_digits(2)
+        zoom_level_default_spin_button.get_adjustment().set_step_increment(0.1)
+
+        row += 1
+        set_default_zoom_button = configdialog.add_button(
+            grid,
+            _("Set current zoom level as default zoom level"),
+            row,
+            "",
+            extra_callback=lambda button:
+                zoom_level_default_spin_button.set_value(round(
+                    self.ftv.widget_manager.canvas_manager.get_zoom_level(),
+                    2 # two digits, same as displayed
+                ))
+        )
+        # move 1 grid column to the right (under spin button)
+        grid.remove(set_default_zoom_button)
+        grid.attach(set_default_zoom_button, 2, row, 1, 1)
+
+        row += 1
+        zoom_level_step_spin_button = configdialog.add_spinner(
+            grid,
+            _("Zoom level step size"),
+            row,
+            "interaction.familytreeview-zoom-level-step",
+            (0.01, 2.0),
+            callback=self.spin_button_float_changed,
+        )
+        zoom_level_step_spin_button.set_digits(2)
+        zoom_level_step_spin_button.get_adjustment().set_step_increment(0.05)
 
         row += 1
         configdialog.add_checkbox(
             grid,
-            _("Use short age representation in timeline (much shorter for uncertain dates)"),
+            _("Show \"Set active\" button in family info box (it has no effect on FamilyTreeView)"),
             row,
-            "appearance.familytreeview-timeline-short-age",
+            "interaction.familytreeview-family-info-box-set-active-button",
             stop=3 # same width as spinners and combos
         )
 
-        row += 1
-        label = configdialog.add_text(
-            grid,
-            _("Select which event types should be visible in the timeline and for which to show the description for:"),
-            row, stop=3
-        )
-        label.set_xalign(0)
-        label.set_margin_top(20)
+        person_label = _("Menu to open with the person \"Add relatives\" button:")
+        family_label = _("Menu to open with the family \"Add relatives\" button:")
+        person_options = [
+            ("context_menu", _("Context menu")),
+            ("overlay", _("Overlay menu")),
+            ("overlay_direct", _("Overlay menu (only direct relationships)")),
+            ("overlay_main", _("Overlay menu (only main relationships)")),
+            ("overlay_all", _("Overlay menu (everything)")),
+        ]
+        family_options = [
+            ("context_menu", _("Context menu")),
+            ("overlay", _("Overlay menu")),
+        ]
+        def cb_add_relative_changed(combo, key, options):
+            self.ftv._config.set(
+                f"interaction.familytreeview-{key}-add-relative-action",
+                options[combo.get_active()][0]
+            )
+        for key, label_text, options in [
+            ("person", person_label, person_options),
+            ("family", family_label, family_options)
+        ]:
+            row += 1
+            add_rel_label = Gtk.Label(label_text)
+            add_rel_label.set_halign(Gtk.Align.START)
+            add_rel_label.set_xalign(0)
+            add_rel_label.set_line_wrap(True)
+            grid.attach(add_rel_label, 1, row, 1, 1)
+            add_rel_list_store = Gtk.ListStore(str, str)
+            for option_id, option_label in options:
+                add_rel_list_store.append((option_id, option_label))
+            add_rel_combo = Gtk.ComboBox(model=add_rel_list_store)
+            renderer = Gtk.CellRendererText()
+            add_rel_combo.pack_start(renderer, True)
+            add_rel_combo.add_attribute(renderer, "text", 1)
+            active_option = self.ftv._config.get(f"interaction.familytreeview-{key}-add-relative-action")
+            try:
+                active_index = [opt[0] for opt in options].index(active_option)
+            except ValueError:
+                active_index = 1 # overlay
+            add_rel_combo.set_active(
+                active_index
+            )
+            add_rel_combo.connect("changed", cb_add_relative_changed, key, options)
+            grid.attach(add_rel_combo, 2, row, 1, 1)
 
-        row += 1
-        config_event_types_visible = self.ftv._config.get("appearance.familytreeview-timeline-event-types-visible")
-        config_event_types_show_description = self.ftv._config.get("appearance.familytreeview-timeline-event-types-show-description")
+        return grid
 
-        event_type_tree_store = Gtk.TreeStore(str, str, bool, bool, bool, bool, str)
-        for group, events in EventType._MENU:
-            all_visible = all(config_event_types_visible.get(EventType._I2EMAP[event_i], True) for event_i in events)
-            none_visible = all(not config_event_types_visible.get(EventType._I2EMAP[event_i], True) for event_i in events)
-            all_show_description = all(config_event_types_show_description.get(EventType._I2EMAP[event_i], False) for event_i in events)
-            none_show_description = all(not config_event_types_show_description.get(EventType._I2EMAP[event_i], False) for event_i in events)
-            treeiter = event_type_tree_store.append(None, [
-                group,
-                _(group),
-                all_visible,
-                not all_visible and not none_visible, # inconsistent
-                all_show_description,
-                not all_show_description and not none_show_description, # inconsistent
-                "" # empty column
-            ])
-            for event_i in events:
-                event_str = EventType._I2SMAP[event_i]
-                event_name = EventType._I2EMAP[event_i]
-                event_type_visible = config_event_types_visible.get(event_name, True) # default: visible
-                event_type_show_description = config_event_types_show_description.get(event_name, False) # default: no description
-                event_type_tree_store.append(treeiter, [
-                    event_name,
-                    event_str,
-                    event_type_visible,
-                    False, # not inconsistent
-                    event_type_show_description,
-                    False, # not inconsistent
-                    "" # empty column
-                ])
+    def mouse_page(self, configdialog):
+        grid = Gtk.Grid()
+        grid.set_border_width(12)
+        grid.set_column_spacing(6)
+        grid.set_row_spacing(6)
+        row = -1
 
-        event_type_list_view = Gtk.TreeView(model=event_type_tree_store)
-        event_type_list_view.get_selection().set_mode(Gtk.SelectionMode.NONE)
-
-        # name column
-        renderer = Gtk.CellRendererText()
-        column = Gtk.TreeViewColumn("Name", renderer, text=1)
-        event_type_list_view.append_column(column)
-
-        def _cb_event_type_toggled(widget, path, i, config_name, default):
-            config_val = self.ftv._config.get(config_name)
-            if ":" in path:
-                # event type (not event type group)
-                event_type_tree_store[path][i] = not event_type_tree_store[path][i]
-                event_name = event_type_tree_store[path][0]
-                if event_name not in config_val:
-                    config_val[event_name] = default
-                config_val[event_name] = event_type_tree_store[path][i]
-                self.ftv._config.set(config_name, config_val)
-
-                # update checkboxes of parent / group
-                parent_path = path.rsplit(":", 1)[0]
-                group = event_type_tree_store[parent_path][0]
-                group_events = [events for gr, events in EventType._MENU if gr == group][0]
-                all_ = all(config_val.get(EventType._I2EMAP[event_i], default) for event_i in group_events)
-                none_ = all(not config_val.get(EventType._I2EMAP[event_i], default) for event_i in group_events)
-                event_type_tree_store[parent_path][i] = all_
-                event_type_tree_store[parent_path][i+1] = not all_ and not none_ # inconsistent
-            else:
-                # event type group clicked
-                # if in intermediate, select all checkboxes
-                if event_type_tree_store[path][i+1]:
-                    event_type_tree_store[path][i] = True
-                    event_type_tree_store[path][i+1] = False
-                else:
-                    event_type_tree_store[path][i] = not event_type_tree_store[path][i]
-                
-                # update all
-                for child_row in event_type_tree_store[path].iterchildren():
-                    # child_row is event_type_tree_store[child_path]
-                    # Apply checked/unchecked to child ui element and child's config.
-                    child_row[i] = event_type_tree_store[path][i]
-                    event_name = child_row[0]
-                    if event_name not in config_val:
-                        config_val[event_name] = default
-                    config_val[event_name] = event_type_tree_store[path][i]
-                self.ftv._config.set(config_name, config_val)
-
-            # cb_update_config connected doesn't work, even when using a shallow or deep copy.
-            # Update explicitly:
-            self.ftv.cb_update_config(None, None, None, None)
-
-        # visible column
-        renderer = Gtk.CellRendererToggle()
-        renderer.connect("toggled", _cb_event_type_toggled, 2, "appearance.familytreeview-timeline-event-types-visible", True)
-        column = Gtk.TreeViewColumn("Visible", renderer, active=2, inconsistent=3)
-        event_type_list_view.append_column(column)
-
-        # show description column
-        renderer = Gtk.CellRendererToggle()
-        renderer.connect("toggled", _cb_event_type_toggled, 4, "appearance.familytreeview-timeline-event-types-show-description", False)
-        column = Gtk.TreeViewColumn("Show description", renderer, active=4, inconsistent=5)
-        event_type_list_view.append_column(column)
-
-        # empty column to fill the remaining space
-        renderer = Gtk.CellRendererText()
-        column = Gtk.TreeViewColumn("", renderer, text=6)
-        event_type_list_view.append_column(column)
-
-        scrolled_window = Gtk.ScrolledWindow()
-        scrolled_window.set_hexpand(True)
-        scrolled_window.set_vexpand(True)
-        scrolled_window.add(event_type_list_view)
-        grid.attach(scrolled_window, 1, row, 2, 1)
-
-        row += 1
-        label = configdialog.add_text(
-            grid,
-            _(
-                "In order for an event to appear on the timeline, it must have a valid date, "
-                "the selected timeline mode must allow it to be displayed, "
-                "and it's type must be checked in the Visible column above."
-            ),
-            row, stop=3
-        )
-        label.set_xalign(0)
-
-        return (_("Appearance"), grid)
-
-    def interaction_page(self, configdialog):
         person_click_options = [
             ("nothing", _("Do nothing")),
             ("open_info_box_person", _("Open info box")),
@@ -675,28 +831,6 @@ class FamilyTreeViewConfigProvider:
             ("scroll_to_home_person", _("Move to home person")),
             ("scroll_to_active_family", _("Move to active family")),
         ]
-
-        grid = Gtk.Grid()
-        grid.set_border_width(12)
-        grid.set_column_spacing(6)
-        grid.set_row_spacing(6)
-        row = -1
-
-        row += 1
-        checkbox = configdialog.add_checkbox(
-            grid,
-            _(
-                "Prepend FamilyTreeView to the plugin list instead of appending it. (Requires restart.)\n"
-                "If no other chart view is prepended, this makes FamilyTreeView the first and default chart view.\n"
-                "Since FamilyTreeView is still in beta stage, be cautious with this option."
-            ),
-            row,
-            "interface.familytreeview-order-start",
-            stop=3, # same width as spinners and combos
-            config=config, # This is stored in Gramps' config to be available when registering the plugin.
-        )
-        label = checkbox.get_child()
-        label.set_line_wrap(True)
 
         row += 1
         click_grid = Gtk.Grid()
@@ -842,99 +976,242 @@ class FamilyTreeViewConfigProvider:
         scroll_mode_combo_box.connect("changed", _cb_scroll_mode_changed)
         grid.attach(scroll_mode_combo_box, 2, row, 1, 1)
 
-        row += 1
-        zoom_level_default_spin_button = configdialog.add_spinner(
-            grid,
-            _("Default zoom level"),
-            row,
-            "interaction.familytreeview-zoom-level-default",
-            (
-                self.ftv.widget_manager.canvas_manager.zoom_level_min,
-                self.ftv.widget_manager.canvas_manager.zoom_level_max
-            ),
-            callback=self.spin_button_float_changed,
-        )
-        zoom_level_default_spin_button.set_digits(2)
-        zoom_level_default_spin_button.get_adjustment().set_step_increment(0.1)
+        return grid
+
+    def presentation_page(self, configdialog):
+        grid = Gtk.Grid()
+        grid.set_border_width(12)
+        grid.set_column_spacing(6)
+        grid.set_row_spacing(6)
+        row = -1
 
         row += 1
-        set_default_zoom_button = configdialog.add_button(
-            grid,
-            _("Set current zoom level as default zoom level"),
-            row,
-            "",
-            extra_callback=lambda button:
-                zoom_level_default_spin_button.set_value(round(
-                    self.ftv.widget_manager.canvas_manager.get_zoom_level(),
-                    2 # two digits, same as displayed
-                ))
-        )
-        # move 1 grid column to the right (under spin button)
-        grid.remove(set_default_zoom_button)
-        grid.attach(set_default_zoom_button, 2, row, 1, 1)
+        label = Gtk.Label(_(
+            "This presentation mode aims to disable database editing and hide "
+            "information according to the configurations below."
+        ))
+        label.set_line_wrap(True)
+        label.set_xalign(0)
+        grid.attach(label, 1, row, 2, 1)
 
         row += 1
-        zoom_level_step_spin_button = configdialog.add_spinner(
-            grid,
-            _("Zoom level step size"),
-            row,
-            "interaction.familytreeview-zoom-level-step",
-            (0.01, 2.0),
-            callback=self.spin_button_float_changed,
-        )
-        zoom_level_step_spin_button.set_digits(2)
-        zoom_level_step_spin_button.get_adjustment().set_step_increment(0.05)
+        label = Gtk.Label()
+        label.set_markup("<b>" + _(
+            "This presentation mode is a best-effort feature and may not "
+            "prevent all forms of exposure of data intended to be hidden. It "
+            "is provided 'as is' and without any warranty. Use of this "
+            "feature is at your own risk. "
+            "See the GNU General Public License for more details."
+        ) + "</b>")
+        label.set_line_wrap(True)
+        label.set_xalign(0)
+        grid.attach(label, 1, row, 2, 1)
 
         row += 1
-        configdialog.add_checkbox(
-            grid,
-            _("Show \"Set active\" button in family info box (it has no effect on FamilyTreeView)"),
-            row,
-            "interaction.familytreeview-family-info-box-set-active-button",
-            stop=3 # same width as spinners and combos
-        )
-
-        # TODO Maybe move printing options to appearance?
-        row += 1
-        configdialog.add_text(
-            grid,
-            _(
-                "Printing and exporting:"
-            ),
-            row,
-        )
+        label = Gtk.Label()
+        label.set_markup("<b>" + _(
+            "The presentation mode currently affects most, if not all, of "
+            "Gramps. This means that data that should be hidden according to "
+            "the configurations below shouldn't be revealed by changing the "
+            "view or opening a Gramplet. To modify the database or view all "
+            "of its data in other parts of Gramps, return to this page and "
+            "disable presentation mode."
+        ) + "</b>")
+        label.set_line_wrap(True)
+        label.set_xalign(0)
+        grid.attach(label, 1, row, 2, 1)
 
         row += 1
-        configdialog.add_checkbox(
+        grid.attach(Gtk.Box(), 1, row, 1, 1) # gap
+
+        row += 1
+        def cb_presentation_mode_toggled(checkbox):
+            active = checkbox.get_active()
+            private_checkbox.set_sensitive(active)
+            living_proxy_mode_combo.set_sensitive(active)
+            active_mode = living_proxy_mode_options[
+                living_proxy_mode_combo.get_active()
+            ][0]
+            years_after_death_spin_button.set_sensitive(
+                active and active_mode != LivingProxyDb.MODE_INCLUDE_ALL
+            )
+            person_filter_combo.set_sensitive(active)
+            self.ftv.update_proxy_db()
+        presentation_checkbox = configdialog.add_checkbox(
             grid,
-            _(
-                "Printing: Scale down tree to fit on Letter and A4 paper. "
-                "Uncheck to print at 1:1 scale.\n"
-                "Note that scaling down can cause distorted text on some systems."
-            ),
+            _("Activate presentation mode"),
             row,
-            "interaction.familytreeview-printing-scale-to-page",
-            stop=3 # same width as spinners and combos
+            "presentation.familytreeview-presentation-active",
+            start=1,
+            stop=3,
+            extra_callback=cb_presentation_mode_toggled,
         )
 
         row += 1
-        configdialog.add_checkbox(
+        label = Gtk.Label(_(
+            "In presentation mode, the database cannot be modified."
+        ))
+        label.set_line_wrap(True)
+        label.set_xalign(0)
+        grid.attach(label, 1, row, 2, 1)
+
+        row += 1
+        label = Gtk.Label()
+        label.set_margin_top(20)
+        label.set_markup("<b>" + _(
+            "Configure which data to hide:"
+        ) + "</b>")
+        label.set_line_wrap(True)
+        label.set_xalign(0)
+        grid.attach(label, 1, row, 2, 1)
+
+        row += 1
+        label = Gtk.Label(_(
+            "The configurations below are only available in presentation "
+            "mode. They can slow down building the tree, using the search etc."
+        ))
+        label.set_line_wrap(True)
+        label.set_xalign(0)
+        grid.attach(label, 1, row, 2, 1)
+
+        row += 1
+        grid.attach(Gtk.Box(), 1, row, 1, 1) # gap
+
+        row += 1
+        private_checkbox = configdialog.add_checkbox(
             grid,
-            _(
-                "Hide expanders in prints and exports."
-            ),
+            _("Hide data marked private"),
             row,
-            "interaction.familytreeview-printing-export-hide-expanders",
-            stop=3 # same width as spinners and combos
+            "presentation.familytreeview-presentation-hide-private",
+            start=1,
+            stop=3,
+            extra_callback=self.ftv.update_proxy_db,
+        )
+        private_checkbox.set_sensitive(presentation_checkbox.get_active())
+
+        row += 1
+        grid.attach(Gtk.Box(), 1, row, 1, 1) # gap
+
+        row += 1
+        label = Gtk.Label(_("Hiding living people:"))
+        label.set_halign(Gtk.Align.START)
+        grid.attach(label, 1, row, 1, 1)
+        living_proxy_mode_options = [
+            (LivingProxyDb.MODE_INCLUDE_ALL, _("Don't hide living people")),
+            (LivingProxyDb.MODE_INCLUDE_FULL_NAME_ONLY, _("Hide data on living people except the name (full name is visible)")),
+            (LivingProxyDb.MODE_INCLUDE_LAST_NAME_ONLY, _("Hide data on living people except the surname (only surname is visible)")),
+            (LivingProxyDb.MODE_REPLACE_COMPLETE_NAME, _("Hide data on living people (full name is replaced)")),
+            (LivingProxyDb.MODE_EXCLUDE_ALL, _("Hide living people altogether")),
+        ]
+        living_proxy_mode_list_store = Gtk.ListStore(int, str)
+        for opt in living_proxy_mode_options:
+            living_proxy_mode_list_store.append(opt)
+        living_proxy_mode_combo = Gtk.ComboBox.new_with_model(living_proxy_mode_list_store)
+        renderer = Gtk.CellRendererText()
+        living_proxy_mode_combo.pack_start(renderer, True)
+        living_proxy_mode_combo.add_attribute(renderer, "markup", 1)
+        try:
+            active_index = [opt[0] for opt in living_proxy_mode_options].index(
+                self.ftv._config.get("presentation.familytreeview-presentation-living-proxy-mode")
+            )
+        except ValueError:
+            active_index = 0 # include all
+        living_proxy_mode_combo.set_active(active_index)
+        def cb_living_proxy_mode_combo_changed(combo):
+            active_mode = living_proxy_mode_options[combo.get_active()][0]
+            self.ftv._config.set(
+                "presentation.familytreeview-presentation-living-proxy-mode",
+                active_mode
+            )
+            years_after_death_spin_button.set_sensitive(
+                active_mode != LivingProxyDb.MODE_INCLUDE_ALL
+            )
+            self.ftv.update_proxy_db()
+        living_proxy_mode_combo.connect("changed", cb_living_proxy_mode_combo_changed)
+        living_proxy_mode_combo.set_sensitive(presentation_checkbox.get_active())
+        grid.attach(living_proxy_mode_combo, 2, row, 1, 1)
+
+        row += 1
+        def cb_living_proxy_year_after_death_value_changed(*args):
+            configdialog.update_spinner(*args)
+            self.ftv.update_proxy_db()
+        years_after_death_spin_button = configdialog.add_spinner(
+            grid,
+            _("Years after death for which to consider people as living in the above option"),
+            row,
+            "presentation.familytreeview-presentation-living-proxy-years-after-death",
+            (0, 100),
+            callback=cb_living_proxy_year_after_death_value_changed,
+        )
+        label = grid.get_child_at(1, row)
+        label.set_line_wrap(True)
+        label.set_xalign(0)
+        years_after_death_spin_button.set_valign(Gtk.Align.START) # don't expand with multi-line label
+        active_mode = self.ftv._config.get("presentation.familytreeview-presentation-living-proxy-mode")
+        years_after_death_spin_button.set_sensitive(
+            presentation_checkbox.get_active() and active_mode != LivingProxyDb.MODE_INCLUDE_ALL
         )
 
-        return (_("Interaction"), grid)
+        row += 1
+        grid.attach(Gtk.Box(), 1, row, 1, 1) # gap
+
+        row += 1
+        label = Gtk.Label(_("Hide people not matching the filter:"))
+        label.set_halign(Gtk.Align.START)
+        grid.attach(label, 1, row, 1, 1)
+        custom_filter_list = get_reloaded_custom_filter_list()
+        person_filter_list = custom_filter_list.get_filters("Person")
+        person_filter_list = [("", _("No filter"))] + [
+            (person_filter.get_name(), person_filter.get_name())
+            for person_filter in person_filter_list
+        ]
+        person_filter_list_store = Gtk.ListStore(str, str)
+        for person_filter in person_filter_list:
+            person_filter_list_store.append(person_filter)
+        person_filter_combo = Gtk.ComboBox.new_with_model(person_filter_list_store)
+        renderer = Gtk.CellRendererText()
+        person_filter_combo.pack_start(renderer, True)
+        person_filter_combo.add_attribute(renderer, "markup", 1)
+        try:
+            active_index = [opt[0] for opt in person_filter_list].index(
+                self.ftv._config.get("presentation.familytreeview-presentation-filter-person")
+            )
+        except ValueError:
+            active_index = 0 # no filter, empty string
+        person_filter_combo.set_active(active_index)
+        def cb_person_filter_combo_changed(combo):
+            active_filter = person_filter_list[combo.get_active()][0]
+            self.ftv._config.set(
+                "presentation.familytreeview-presentation-filter-person",
+                active_filter
+            )
+            self.ftv.update_proxy_db()
+        person_filter_combo.connect("changed", cb_person_filter_combo_changed)
+        person_filter_combo.set_sensitive(presentation_checkbox.get_active())
+        grid.attach(person_filter_combo, 2, row, 1, 1)
+
+        row += 1
+        label = Gtk.Label(_(
+            "Unlike pruning the tree with a filter, this feature restricts "
+            "access to the data altogether and therefore affects the panel, "
+            "Gramplets, other views and other parts of Gramps as well."
+        ))
+        label.set_line_wrap(True)
+        label.set_xalign(0)
+        grid.attach(label, 1, row, 2, 1)
+
+        # TODO maybe something custom (e.g. only year for dates)
+
+        return grid
 
     def boxes_page(self, configdialog):
         return self.boxes_page_manager.boxes_page(configdialog)
 
     def names_page(self, configdialog):
-        return names_page(self.ftv, configdialog)
+        return self.names_page_manager.names_page(configdialog)
+
+    def name_abbr_page(self, configdialog):
+        return self.names_page_manager.name_abbr_page(configdialog)
 
     def expanders_page(self, configdialog):
         grid = Gtk.Grid()
@@ -1030,8 +1307,6 @@ class FamilyTreeViewConfigProvider:
                         config[expander_type_] = expander_list_store[path_][i]
             self.ftv._config.set(config_key, config)
 
-            # cb_update_config connected doesn't work, even when using a shallow or deep copy.
-            # Update explicitly:
             self.ftv.cb_update_config(None, None, None, None)
 
         # checkbox column
@@ -1061,7 +1336,7 @@ class FamilyTreeViewConfigProvider:
         scrolled_window.add(expander_tree_view)
         grid.attach(scrolled_window, 1, row, 8, 1) # these are the default with of widgets created by configdialog's methods
 
-        return (_("Expanders"), grid)
+        return grid
 
     def badges_page(self, configdialog):
         grid = Gtk.Grid()
@@ -1074,7 +1349,7 @@ class FamilyTreeViewConfigProvider:
         label = configdialog.add_text(
             grid,
             _("Choose which badges to display where:"),
-            row, stop=3
+            row, stop=8, bold=True
         )
         label.set_xalign(0)
 
@@ -1096,13 +1371,13 @@ class FamilyTreeViewConfigProvider:
                 "" # empty column
             ])
 
-        badge_tree_view = Gtk.TreeView(model=badge_list_store)
-        badge_tree_view.get_selection().set_mode(Gtk.SelectionMode.NONE)
+        badges_tree_view = Gtk.TreeView(model=badge_list_store)
+        badges_tree_view.get_selection().set_mode(Gtk.SelectionMode.NONE)
 
         # name column
         renderer = Gtk.CellRendererText()
         column = Gtk.TreeViewColumn(_("Name"), renderer, text=0)
-        badge_tree_view.append_column(column)
+        badges_tree_view.append_column(column)
 
         def _cb_badge_toggled(widget, path, i):
             badge_list_store[path][2*i+1] = not badge_list_store[path][2*i+1] # +1 to skip name column, factor 2 because of available columns
@@ -1117,8 +1392,6 @@ class FamilyTreeViewConfigProvider:
             config_badges_active[badge_id][["person", "family"][i]] = badge_list_store[path][2*i+1]
             self.ftv._config.set("badges.familytreeview-badges-active", config_badges_active)
 
-            # cb_update_config connected doesn't work, even when using a shallow or deep copy.
-            # Update explicitly:
             self.ftv.cb_update_config(None, None, None, None)
 
         # checkbox column
@@ -1126,20 +1399,385 @@ class FamilyTreeViewConfigProvider:
             renderer = Gtk.CellRendererToggle()
             renderer.connect("toggled", _cb_badge_toggled, i)
             column = Gtk.TreeViewColumn(column_title, renderer, active=2*i+1, activatable=2*i+2)
-            badge_tree_view.append_column(column)
+            badges_tree_view.append_column(column)
 
         # empty column to fill the remaining space
         renderer = Gtk.CellRendererText()
         column = Gtk.TreeViewColumn("", renderer, text=5)
-        badge_tree_view.append_column(column)
+        badges_tree_view.append_column(column)
 
         scrolled_window = Gtk.ScrolledWindow()
         scrolled_window.set_hexpand(True)
         scrolled_window.set_vexpand(True)
-        scrolled_window.add(badge_tree_view)
+        scrolled_window.add(badges_tree_view)
         grid.attach(scrolled_window, 1, row, 8, 1) # these are the default with of widgets created by configdialog's methods
 
-        return (_("Badges"), grid)
+        # filter match badges
+
+        DEFAULT_FILTER_MATCH_BADGE_PARAMS = {
+            "active": False, # Do not show badge for each new filter.
+            "content_text": "◉",
+            "text_color": "#000",
+            "background_color": "#FFF",
+        }
+        filter_match_badges_config = self.ftv._config.get("badges.familytreeview-badges-filter-match")
+
+        # NOTE: We use Grid for the filter match badges instead of
+        # TreeView, since it seems to be very complicated to get color
+        # picker and text entry to work inside of a TreeView.
+
+        def fmt_grid(grid):
+            grid.set_border_width(0)
+            grid.set_column_spacing(13) # looks similar to TreeView
+            grid.set_row_spacing(6) # looks similar to TreeView
+
+        size_groups = [
+            Gtk.SizeGroup(mode=Gtk.SizeGroupMode.HORIZONTAL)
+            for _ in range(5)
+        ]
+
+        custom_filter_list = get_reloaded_custom_filter_list()
+
+        for filter_space in ["Person", "Family"]:
+            row += 1
+            if filter_space == "Person":
+                label_text = _("Badges based on person filters:")
+            else:
+                label_text = _("Badges based on family filters:")
+            label = Gtk.Label()
+            label.set_markup(f"<b>{label_text}</b>")
+            label.set_xalign(0)
+            label.set_margin_top(20)
+            grid.attach(label, 1, row, 8, 1)
+
+            if filter_space == "Person":
+                filters = [None] # generic filter (sidebar)
+            else:
+                filters = []
+            filters.extend(custom_filter_list.get_filters(filter_space))
+
+            namespace_config = filter_match_badges_config[filter_space.lower()]
+            for filt in filters:
+                if filt is None:
+                    # generic filter
+                    if len(namespace_config["generic"]) == 0:
+                        namespace_config["generic"] = deepcopy(DEFAULT_FILTER_MATCH_BADGE_PARAMS)
+                    continue
+
+                # Use name as filter key.
+                # TODO Using a hash would be better, but I haven't found
+                # a reliable way to hash a filter yet. 
+                filt_name = filt.get_name()
+                if filt_name not in namespace_config["custom"]:
+                    namespace_config["custom"][filt_name] = deepcopy(DEFAULT_FILTER_MATCH_BADGE_PARAMS)
+
+            row += 1
+            filter_header_grid = Gtk.Grid()
+            fmt_grid(filter_header_grid)
+            for col, col_name in enumerate([
+                _("Filter name"),
+                _("Active"),
+                _("Badge content"),
+                _("Text color"),
+                _("Background color"),
+            ]):
+                label = Gtk.Label()
+                label.set_xalign(0)
+                label.set_markup(f"<b>{col_name}</b>")
+                size_groups[col].add_widget(label)
+                filter_header_grid.attach(label, col, 0, 1, 1)
+            grid.attach(filter_header_grid, 1, row, 8, 1)
+
+            row += 1
+            filter_grid = Gtk.Grid()
+            fmt_grid(filter_grid)
+            for i, filt in enumerate(filters):
+                if filt is None:
+                    filt_name = None
+                    filt_label = _("Sidebar filter")
+                    filter_badge_config = namespace_config["generic"]
+                else:
+                    filt_name = filt.get_name()
+                    filt_label = filt_name
+                    filter_badge_config = namespace_config["custom"][filt_name]
+                col = -1
+
+                col += 1
+                label = Gtk.Label(filt_label)
+                label.set_xalign(0)
+                size_groups[col].add_widget(label)
+                filter_grid.attach(label, col, i, 1, 1)
+
+                col += 1
+                box = Gtk.Box()
+                check_button = Gtk.CheckButton()
+                check_button.set_active(filter_badge_config["active"])
+                def active_toggled(check_button, filter_badge_config):
+                    filter_badge_config["active"] = check_button.get_active()
+                    self.ftv._config.set("badges.familytreeview-badges-filter-match", filter_match_badges_config)
+                    self.ftv.cb_update_config(None, None, None, None)
+                check_button.connect("toggled", active_toggled, filter_badge_config)
+                box.pack_start(check_button, True, False, 0)
+                size_groups[col].add_widget(box)
+                filter_grid.attach(box, col, i, 1, 1)
+
+                # TODO maybe also support icons?
+                col += 1
+                entry = Gtk.Entry()
+                entry.set_text(filter_badge_config["content_text"])
+                def content_text_changed(entry, filter_badge_config):
+                    filter_badge_config["content_text"] = entry.get_text()
+                    self.ftv._config.set("badges.familytreeview-badges-filter-match", filter_match_badges_config)
+                    self.ftv.cb_update_config(None, None, None, None)
+                entry.connect("changed", content_text_changed, filter_badge_config)
+                size_groups[col].add_widget(entry)
+                filter_grid.attach(entry, col, i, 1, 1)
+
+                def color_set(color_button, filter_badge_config, key):
+                    rgba = color_button.get_rgba()
+                    filter_badge_config[key] = rgb_to_hex((rgba.red, rgba.green, rgba.blue))
+                    self.ftv._config.set("badges.familytreeview-badges-filter-match", filter_match_badges_config)
+                    self.ftv.cb_update_config(None, None, None, None)
+
+                col += 1
+                box = Gtk.Box()
+                color_button = Gtk.ColorButton()
+                color_button.set_hexpand(False)
+                rgba = Gdk.RGBA()
+                rgba.parse(filter_badge_config["text_color"])
+                color_button.set_rgba(rgba)
+                color_button.set_title(_("{name}: text color").format(name=filt_name))
+                color_button.connect("color-set", color_set, filter_badge_config, "text_color")
+                box.pack_start(color_button, True, False, 0)
+                size_groups[col].add_widget(box)
+                filter_grid.attach(box, col, i, 1, 1)
+
+                col += 1
+                box = Gtk.Box()
+                color_button = Gtk.ColorButton()
+                color_button.set_hexpand(False)
+                rgba = Gdk.RGBA()
+                rgba.parse(filter_badge_config["background_color"])
+                color_button.set_rgba(rgba)
+                color_button.set_title(_("{name}: background color").format(name=filt_name))
+                color_button.connect("color-set", color_set, filter_badge_config, "background_color")
+                box.pack_start(color_button, True, False, 0)
+                size_groups[col].add_widget(box)
+                filter_grid.attach(box, col, i, 1, 1)
+
+            scrolled_window = Gtk.ScrolledWindow()
+            scrolled_window.set_hexpand(True)
+            scrolled_window.set_vexpand(True)
+            scrolled_window.add(filter_grid)
+            grid.attach(scrolled_window, 1, row, 8, 1) # these are the default with of widgets created by configdialog's methods
+
+        return grid
+
+    def timeline_page(self, configdialog):
+        grid = Gtk.Grid()
+        grid.set_border_width(12)
+        grid.set_column_spacing(6)
+        grid.set_row_spacing(6)
+        row = -1
+
+        row += 1
+        configdialog.add_combo(
+            grid,
+            _("Default timeline mode in person panel"),
+            row,
+            "appearance.familytreeview-timeline-mode-default-person",
+            [
+                (0, _("Primary own events")),
+                (1, _("All own events")),
+                (2, _("Primary own and relatives' events")),
+                (3, _("All own and relatives' events")),
+            ]
+        )
+
+        row += 1
+        configdialog.add_combo(
+            grid,
+            _("Default timeline mode in family panel"),
+            row,
+            "appearance.familytreeview-timeline-mode-default-family",
+            [
+                (0, _("Family events")),
+                (1, _("Family and parents' event")),
+                (2, _("Family and children's events")),
+                (3, _("Family, parents' and children's events")),
+            ]
+        )
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _("Use short age representation in timeline (much shorter for uncertain dates)"),
+            row,
+            "appearance.familytreeview-timeline-short-age",
+            stop=3 # same width as spinners and combos
+        )
+
+        row += 1
+        label = configdialog.add_text(
+            grid,
+            _("Select which event types should be visible in the timeline and for which to show the description for:"),
+            row, stop=3
+        )
+        label.set_xalign(0)
+        label.set_margin_top(20)
+
+        row += 1
+        config_event_types_visible = self.ftv._config.get("appearance.familytreeview-timeline-event-types-visible")
+        config_event_types_show_description = self.ftv._config.get("appearance.familytreeview-timeline-event-types-show-description")
+
+        event_type_tree_store = Gtk.TreeStore(str, str, bool, bool, bool, bool, str)
+        for group, events in EventType._MENU:
+            all_visible = all(config_event_types_visible.get(EventType._I2EMAP[event_i], True) for event_i in events)
+            none_visible = all(not config_event_types_visible.get(EventType._I2EMAP[event_i], True) for event_i in events)
+            all_show_description = all(config_event_types_show_description.get(EventType._I2EMAP[event_i], False) for event_i in events)
+            none_show_description = all(not config_event_types_show_description.get(EventType._I2EMAP[event_i], False) for event_i in events)
+            treeiter = event_type_tree_store.append(None, [
+                group,
+                _(group),
+                all_visible,
+                not all_visible and not none_visible, # inconsistent
+                all_show_description,
+                not all_show_description and not none_show_description, # inconsistent
+                "" # empty column
+            ])
+            for event_i in events:
+                event_str = EventType._I2SMAP[event_i]
+                event_name = EventType._I2EMAP[event_i]
+                event_type_visible = config_event_types_visible.get(event_name, True) # default: visible
+                event_type_show_description = config_event_types_show_description.get(event_name, False) # default: no description
+                event_type_tree_store.append(treeiter, [
+                    event_name,
+                    event_str,
+                    event_type_visible,
+                    False, # not inconsistent
+                    event_type_show_description,
+                    False, # not inconsistent
+                    "" # empty column
+                ])
+
+        event_type_list_view = Gtk.TreeView(model=event_type_tree_store)
+        event_type_list_view.get_selection().set_mode(Gtk.SelectionMode.NONE)
+
+        # name column
+        renderer = Gtk.CellRendererText()
+        column = Gtk.TreeViewColumn("Name", renderer, text=1)
+        event_type_list_view.append_column(column)
+
+        def _cb_event_type_toggled(widget, path, i, config_name, default):
+            config_val = self.ftv._config.get(config_name)
+            if ":" in path:
+                # event type (not event type group)
+                event_type_tree_store[path][i] = not event_type_tree_store[path][i]
+                event_name = event_type_tree_store[path][0]
+                if event_name not in config_val:
+                    config_val[event_name] = default
+                config_val[event_name] = event_type_tree_store[path][i]
+                self.ftv._config.set(config_name, config_val)
+
+                # update checkboxes of parent / group
+                parent_path = path.rsplit(":", 1)[0]
+                group = event_type_tree_store[parent_path][0]
+                group_events = [events for gr, events in EventType._MENU if gr == group][0]
+                all_ = all(config_val.get(EventType._I2EMAP[event_i], default) for event_i in group_events)
+                none_ = all(not config_val.get(EventType._I2EMAP[event_i], default) for event_i in group_events)
+                event_type_tree_store[parent_path][i] = all_
+                event_type_tree_store[parent_path][i+1] = not all_ and not none_ # inconsistent
+            else:
+                # event type group clicked
+                # if in intermediate, select all checkboxes
+                if event_type_tree_store[path][i+1]:
+                    event_type_tree_store[path][i] = True
+                    event_type_tree_store[path][i+1] = False
+                else:
+                    event_type_tree_store[path][i] = not event_type_tree_store[path][i]
+                
+                # update all
+                for child_row in event_type_tree_store[path].iterchildren():
+                    # child_row is event_type_tree_store[child_path]
+                    # Apply checked/unchecked to child ui element and child's config.
+                    child_row[i] = event_type_tree_store[path][i]
+                    event_name = child_row[0]
+                    if event_name not in config_val:
+                        config_val[event_name] = default
+                    config_val[event_name] = event_type_tree_store[path][i]
+                self.ftv._config.set(config_name, config_val)
+
+            self.ftv.cb_update_config(None, None, None, None)
+
+        # visible column
+        renderer = Gtk.CellRendererToggle()
+        renderer.connect("toggled", _cb_event_type_toggled, 2, "appearance.familytreeview-timeline-event-types-visible", True)
+        column = Gtk.TreeViewColumn("Visible", renderer, active=2, inconsistent=3)
+        event_type_list_view.append_column(column)
+
+        # show description column
+        renderer = Gtk.CellRendererToggle()
+        renderer.connect("toggled", _cb_event_type_toggled, 4, "appearance.familytreeview-timeline-event-types-show-description", False)
+        column = Gtk.TreeViewColumn("Show description", renderer, active=4, inconsistent=5)
+        event_type_list_view.append_column(column)
+
+        # empty column to fill the remaining space
+        renderer = Gtk.CellRendererText()
+        column = Gtk.TreeViewColumn("", renderer, text=6)
+        event_type_list_view.append_column(column)
+
+        scrolled_window = Gtk.ScrolledWindow()
+        scrolled_window.set_hexpand(True)
+        scrolled_window.set_vexpand(True)
+        scrolled_window.add(event_type_list_view)
+        grid.attach(scrolled_window, 1, row, 2, 1)
+
+        row += 1
+        label = configdialog.add_text(
+            grid,
+            _(
+                "In order for an event to appear on the timeline, it must have a valid date, "
+                "the selected timeline mode must allow it to be displayed, "
+                "and it's type must be checked in the Visible column above."
+            ),
+            row, stop=3
+        )
+        label.set_xalign(0)
+
+        return grid
+
+    def print_export_page(self, configdialog):
+        grid = Gtk.Grid()
+        grid.set_border_width(12)
+        grid.set_column_spacing(6)
+        grid.set_row_spacing(6)
+        row = -1
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _(
+                "Printing: Scale down tree to fit on Letter and A4 paper. "
+                "Uncheck to print at 1:1 scale.\n"
+                "Note that scaling down can cause distorted text on some systems."
+            ),
+            row,
+            "interaction.familytreeview-printing-scale-to-page",
+            stop=3 # same width as spinners and combos
+        )
+
+        row += 1
+        configdialog.add_checkbox(
+            grid,
+            _(
+                "Hide expanders in prints and exports."
+            ),
+            row,
+            "interaction.familytreeview-printing-export-hide-expanders",
+            stop=3 # same width as spinners and combos
+        )
+
+        return grid
 
     def experimental_page(self, configdialog):
         grid = Gtk.Grid()
@@ -1196,7 +1834,7 @@ class FamilyTreeViewConfigProvider:
             stop=3 # same width as spinners and combos
         )
 
-        return (_("Experimental"), grid)
+        return grid
 
     # boxes page wrappers
 

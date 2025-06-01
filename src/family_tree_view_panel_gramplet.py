@@ -47,7 +47,7 @@ class FamilyTreeViewPanelGramplet(FamilyTreeViewGramplet):
             if self.panel_manager.displayed_object is None:
                 active_person_handle = self.ftv.get_active()
                 if len(active_person_handle) > 0:
-                    self.panel_manager.open_person_panel(active_person_handle)
+                    self.panel_manager.open_person_panel(active_person_handle, 0, 0)
                 else:
                     self.show_replacement_text(_(
                         "Select a person and open their panel to see details here."

@@ -61,11 +61,21 @@ class DummyFamilyTreeView:
         pass
 
 
-def get_dummy_ftv(num, always=True, style=0, rules=None):
+def get_dummy_ftv(
+    num, always=True,
+    all_caps_style="all_caps",
+    call_name_style="none", call_name_mode="call",
+    primary_surname_style="none", primary_surname_mode="primary_surname",
+    rules=None
+):
     return DummyFamilyTreeView({
         "names.familytreeview-abbrev-name-format-id": num,
         "names.familytreeview-abbrev-name-format-always": always,
-        "names.familytreeview-abbrev-name-all-caps-style": style,
+        "names.familytreeview-abbrev-name-all-caps-style": all_caps_style,
+        "names.familytreeview-abbrev-name-call-name-style": call_name_style,
+        "names.familytreeview-abbrev-name-call-name-mode": call_name_mode,
+        "names.familytreeview-abbrev-name-primary-surname-style": primary_surname_style,
+        "names.familytreeview-abbrev-name-primary-surname-mode": primary_surname_mode,
         "names.familytreeview-name-abbrev-rules": deepcopy(DEFAULT_ABBREV_RULES) if rules is None else rules
     })
 
@@ -78,8 +88,18 @@ class NameAbbreviationTest(unittest.TestCase):
     def _add_custom_name_format(self, name_format):
         name_displayer.add_name_format(name_format, name_format)
 
-    def _test_name_with_num(self, name, num, result, style=0):
-        abbrev_name_display = AbbreviatedNameDisplay(get_dummy_ftv(num, always=True, style=style))
+    def _test_name_with_num(
+        self, name, num, result,
+        all_caps_style="all_caps",
+        call_name_style="none",
+        primary_surname_style="none"
+    ):
+        abbrev_name_display = AbbreviatedNameDisplay(get_dummy_ftv(
+            num, always=True,
+            all_caps_style=all_caps_style,
+            call_name_style=call_name_style,
+            primary_surname_style=primary_surname_style
+        ))
 
         name_num = abbrev_name_display.get_num_for_name_abbrev(name)
         assert name_num == num # get_dummy_ftv: always=True
@@ -87,7 +107,12 @@ class NameAbbreviationTest(unittest.TestCase):
         abbrev_names = abbrev_name_display.get_abbreviated_names(name, name_num)
         self.assertEqual(abbrev_names, result)
 
-    def _test_example_name_with_num(self, num, result, style=0):
+    def _test_example_name_with_num(
+        self, num, result,
+        all_caps_style="all_caps",
+        call_name_style="none",
+        primary_surname_style="none"
+    ):
         name = Name()
         name.set_first_name("Edwin Jose")
         name.set_call_name("Jose")
@@ -115,7 +140,45 @@ class NameAbbreviationTest(unittest.TestCase):
 
         name.set_family_nick_name("Underhills")
 
-        self._test_name_with_num(name, num, result, style=style)
+        self._test_name_with_num(
+            name, num, result,
+            all_caps_style=all_caps_style,
+            call_name_style=call_name_style,
+            primary_surname_style=primary_surname_style
+        )
+
+    def _test_double_barrelled_and_prefixes_with_num(
+        self, num, result,
+        all_caps_style="all_caps",
+        call_name_style="none",
+        primary_surname_style="none"
+    ):
+        test_name = Name()
+        test_name.set_first_name("Mary Anne Mary-Anne MaryAnne")
+        test_name.set_call_name("Anne")
+
+        for prefix, surname, connector, primary in [
+            (None, "McCarthy", "-", False),
+            (None, "O'Brien", None, True),
+            (None, "FitzGerald-d'Este", None, False),
+        ]:
+            test_surname = Surname()
+            test_surname.set_primary(primary)
+            if prefix is not None:
+                test_surname.set_prefix(prefix)
+            test_surname.set_surname(surname)
+            if connector is not None:
+                test_surname.set_connector(connector)
+            test_name.add_surname(test_surname)
+
+        self._test_name_with_num(
+            test_name, num, result,
+            all_caps_style=all_caps_style,
+            call_name_style=call_name_style,
+            primary_surname_style=primary_surname_style
+        )
+
+    # tests with example name and different formats
 
     def test_example_name_with_num_1(self):
         self._test_example_name_with_num(
@@ -203,49 +266,31 @@ class NameAbbreviationTest(unittest.TestCase):
             ]
         )
 
-    def _test_double_barrelled_and_prefixes_with_num(self, num, result, style=0):
-        test_name = Name()
-        test_name.set_first_name("Mary Anne Mary-Anne MaryAnne")
-        test_name.set_call_name("Anne")
-
-        for prefix, surname, connector, primary in [
-            (None, "McCarthy", "-", False),
-            (None, "O'Brien", None, True),
-            (None, "FitzGerald-d'Este", None, False),
-        ]:
-            test_surname = Surname()
-            test_surname.set_primary(primary)
-            if prefix is not None:
-                test_surname.set_prefix(prefix)
-            test_surname.set_surname(surname)
-            if connector is not None:
-                test_surname.set_connector(connector)
-            test_name.add_surname(test_surname)
-
-        self._test_name_with_num(test_name, num, result, style=style)
+    # tests with double barrelled name and prefixes and different all
+    # caps styles
 
     def test_double_barrelled_and_prefixes_with_num_1(self):
         self._test_double_barrelled_and_prefixes_with_num(
             1,
             [
                 "McCarthy-O'Brien FitzGerald-d'Este, Mary Anne Mary-Anne MaryAnne",
-                "McCarthy-O'Brien FitzGerald-d'Este, Mary Anne Mary-Anne M.Anne",
-                "McCarthy-O'Brien FitzGerald-d'Este, Mary Anne M.-Anne M.Anne",
-                "McCarthy-O'Brien FitzGerald-d'Este, M. Anne M.-Anne M.Anne",
-                "McCarthy-O'Brien FitzGerald-d'Este, M. Anne M.-Anne M.A.",
+                "McCarthy-O'Brien FitzGerald-d'Este, Mary Anne Mary-Anne MaryA.",
+                "McCarthy-O'Brien FitzGerald-d'Este, Mary Anne Mary-Anne M.A.",
+                "McCarthy-O'Brien FitzGerald-d'Este, Mary Anne Mary-A. M.A.",
+                "McCarthy-O'Brien FitzGerald-d'Este, Mary Anne M.-A. M.A.",
                 "McCarthy-O'Brien FitzGerald-d'Este, M. Anne M.-A. M.A.",
                 "McCarthy-O'Brien FitzGerald-d'Este, M. A. M.-A. M.A.",
                 "McCarthy-O'Brien FitzGerald-d'E., M. A. M.-A. M.A.",
                 "McCarthy-O'Brien FitzG.-d'E., M. A. M.-A. M.A.",
                 "McC.-O'Brien FitzG.-d'E., M. A. M.-A. M.A.",
-                "McC.-O'Brien FitzG.-d'E., M. A. M.-A.",
-                "McC.-O'Brien FitzG.-d'E., M. A. A.",
-                "McC.-O'Brien FitzG.-d'E., A. A.",
-                "McC. O'Brien FitzG.-d'E., A. A.",
-                "McC. O'Brien FitzG., A. A.",
-                "McC. O'Brien, A. A.",
-                "O'Brien, A. A.",
-                "O'B., A. A.",
+                "McC.-O'Brien FitzG.-d'E., M. A. M.-A.", # TODO maybe don't remove M.A. together?
+                "McC.-O'Brien FitzG.-d'E., M. A. M.",
+                "McC.-O'Brien FitzG.-d'E., M. A.",
+                "McC.-O'Brien FitzG.-d'E., A.",
+                "McC. O'Brien FitzG.-d'E., A.",
+                "McC. O'Brien FitzG., A.",
+                "McC. O'Brien, A.",
+                "O'Brien, A.",
                 "O'B., A.",
                 "O'B.",
             ]
@@ -257,23 +302,23 @@ class NameAbbreviationTest(unittest.TestCase):
             -1,
             [
                 "McCARTHY-O'BRIEN FitzGERALD-d'ESTE, MARY ANNE MARY-ANNE MARYANNE",
-                "McCARTHY-O'BRIEN FitzGERALD-d'ESTE, MARY ANNE MARY-ANNE M.ANNE",
-                "McCARTHY-O'BRIEN FitzGERALD-d'ESTE, MARY ANNE M.-ANNE M.ANNE",
-                "McCARTHY-O'BRIEN FitzGERALD-d'ESTE, M. ANNE M.-ANNE M.ANNE",
-                "McCARTHY-O'BRIEN FitzGERALD-d'ESTE, M. ANNE M.-ANNE M.A.",
+                "McCARTHY-O'BRIEN FitzGERALD-d'ESTE, MARY ANNE MARY-ANNE MARYA.",
+                "McCARTHY-O'BRIEN FitzGERALD-d'ESTE, MARY ANNE MARY-ANNE M.A.",
+                "McCARTHY-O'BRIEN FitzGERALD-d'ESTE, MARY ANNE MARY-A. M.A.",
+                "McCARTHY-O'BRIEN FitzGERALD-d'ESTE, MARY ANNE M.-A. M.A.",
                 "McCARTHY-O'BRIEN FitzGERALD-d'ESTE, M. ANNE M.-A. M.A.",
                 "McCARTHY-O'BRIEN FitzGERALD-d'ESTE, M. A. M.-A. M.A.",
                 "McCARTHY-O'BRIEN FitzGERALD-d'E., M. A. M.-A. M.A.",
                 "McCARTHY-O'BRIEN FitzG.-d'E., M. A. M.-A. M.A.",
                 "McC.-O'BRIEN FitzG.-d'E., M. A. M.-A. M.A.",
                 "McC.-O'BRIEN FitzG.-d'E., M. A. M.-A.",
-                "McC.-O'BRIEN FitzG.-d'E., M. A. A.",
-                "McC.-O'BRIEN FitzG.-d'E., A. A.",
-                "McC. O'BRIEN FitzG.-d'E., A. A.",
-                "McC. O'BRIEN FitzG., A. A.",
-                "McC. O'BRIEN, A. A.",
-                "O'BRIEN, A. A.",
-                "O'B., A. A.",
+                "McC.-O'BRIEN FitzG.-d'E., M. A. M.",
+                "McC.-O'BRIEN FitzG.-d'E., M. A.",
+                "McC.-O'BRIEN FitzG.-d'E., A.",
+                "McC. O'BRIEN FitzG.-d'E., A.",
+                "McC. O'BRIEN FitzG., A.",
+                "McC. O'BRIEN, A.",
+                "O'BRIEN, A.",
                 "O'B., A.",
                 "O'B.",
             ]
@@ -285,27 +330,27 @@ class NameAbbreviationTest(unittest.TestCase):
             -1,
             [
                 "M<small>C</small>C<small>ARTHY</small>-O'B<small>RIEN</small> F<small>ITZ</small>G<small>ERALD</small>-<small>D</small>'E<small>STE</small>, M<small>ARY</small> A<small>NNE</small> M<small>ARY</small>-A<small>NNE</small> M<small>ARY</small>A<small>NNE</small>",
-                "M<small>C</small>C<small>ARTHY</small>-O'B<small>RIEN</small> F<small>ITZ</small>G<small>ERALD</small>-<small>D</small>'E<small>STE</small>, M<small>ARY</small> A<small>NNE</small> M<small>ARY</small>-A<small>NNE</small> M.A<small>NNE</small>",
-                "M<small>C</small>C<small>ARTHY</small>-O'B<small>RIEN</small> F<small>ITZ</small>G<small>ERALD</small>-<small>D</small>'E<small>STE</small>, M<small>ARY</small> A<small>NNE</small> M.-A<small>NNE</small> M.A<small>NNE</small>",
-                "M<small>C</small>C<small>ARTHY</small>-O'B<small>RIEN</small> F<small>ITZ</small>G<small>ERALD</small>-<small>D</small>'E<small>STE</small>, M. A<small>NNE</small> M.-A<small>NNE</small> M.A<small>NNE</small>",
-                "M<small>C</small>C<small>ARTHY</small>-O'B<small>RIEN</small> F<small>ITZ</small>G<small>ERALD</small>-<small>D</small>'E<small>STE</small>, M. A<small>NNE</small> M.-A<small>NNE</small> M.A.",
+                "M<small>C</small>C<small>ARTHY</small>-O'B<small>RIEN</small> F<small>ITZ</small>G<small>ERALD</small>-<small>D</small>'E<small>STE</small>, M<small>ARY</small> A<small>NNE</small> M<small>ARY</small>-A<small>NNE</small> M<small>ARY</small>A.",
+                "M<small>C</small>C<small>ARTHY</small>-O'B<small>RIEN</small> F<small>ITZ</small>G<small>ERALD</small>-<small>D</small>'E<small>STE</small>, M<small>ARY</small> A<small>NNE</small> M<small>ARY</small>-A<small>NNE</small> M.A.",
+                "M<small>C</small>C<small>ARTHY</small>-O'B<small>RIEN</small> F<small>ITZ</small>G<small>ERALD</small>-<small>D</small>'E<small>STE</small>, M<small>ARY</small> A<small>NNE</small> M<small>ARY</small>-A. M.A.",
+                "M<small>C</small>C<small>ARTHY</small>-O'B<small>RIEN</small> F<small>ITZ</small>G<small>ERALD</small>-<small>D</small>'E<small>STE</small>, M<small>ARY</small> A<small>NNE</small> M.-A. M.A.",
                 "M<small>C</small>C<small>ARTHY</small>-O'B<small>RIEN</small> F<small>ITZ</small>G<small>ERALD</small>-<small>D</small>'E<small>STE</small>, M. A<small>NNE</small> M.-A. M.A.",
                 "M<small>C</small>C<small>ARTHY</small>-O'B<small>RIEN</small> F<small>ITZ</small>G<small>ERALD</small>-<small>D</small>'E<small>STE</small>, M. A. M.-A. M.A.",
                 "M<small>C</small>C<small>ARTHY</small>-O'B<small>RIEN</small> F<small>ITZ</small>G<small>ERALD</small>-<small>D</small>'E., M. A. M.-A. M.A.",
                 "M<small>C</small>C<small>ARTHY</small>-O'B<small>RIEN</small> F<small>ITZ</small>G.-<small>D</small>'E., M. A. M.-A. M.A.",
                 "M<small>C</small>C.-O'B<small>RIEN</small> F<small>ITZ</small>G.-<small>D</small>'E., M. A. M.-A. M.A.",
                 "M<small>C</small>C.-O'B<small>RIEN</small> F<small>ITZ</small>G.-<small>D</small>'E., M. A. M.-A.",
-                "M<small>C</small>C.-O'B<small>RIEN</small> F<small>ITZ</small>G.-<small>D</small>'E., M. A. A.",
-                "M<small>C</small>C.-O'B<small>RIEN</small> F<small>ITZ</small>G.-<small>D</small>'E., A. A.",
-                "M<small>C</small>C. O'B<small>RIEN</small> F<small>ITZ</small>G.-<small>D</small>'E., A. A.",
-                "M<small>C</small>C. O'B<small>RIEN</small> F<small>ITZ</small>G., A. A.",
-                "M<small>C</small>C. O'B<small>RIEN</small>, A. A.",
-                "O'B<small>RIEN</small>, A. A.",
-                "O'B., A. A.",
+                "M<small>C</small>C.-O'B<small>RIEN</small> F<small>ITZ</small>G.-<small>D</small>'E., M. A. M.",
+                "M<small>C</small>C.-O'B<small>RIEN</small> F<small>ITZ</small>G.-<small>D</small>'E., M. A.",
+                "M<small>C</small>C.-O'B<small>RIEN</small> F<small>ITZ</small>G.-<small>D</small>'E., A.",
+                "M<small>C</small>C. O'B<small>RIEN</small> F<small>ITZ</small>G.-<small>D</small>'E., A.",
+                "M<small>C</small>C. O'B<small>RIEN</small> F<small>ITZ</small>G., A.",
+                "M<small>C</small>C. O'B<small>RIEN</small>, A.",
+                "O'B<small>RIEN</small>, A.",
                 "O'B., A.",
                 "O'B.",
             ],
-            style=1 # (fake) small caps
+            all_caps_style="small_caps"
         )
 
     def test_double_barrelled_and_prefixes_with_num_1_bold(self):
@@ -314,27 +359,116 @@ class NameAbbreviationTest(unittest.TestCase):
             -1,
             [
                 "<b>Mc</b><b>Carthy</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>Gerald</b>-<b>d'</b><b>Este</b>, <b>Mary</b> <b>Anne</b> <b>Mary</b>-<b>Anne</b> <b>Mary</b><b>Anne</b>",
-                "<b>Mc</b><b>Carthy</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>Gerald</b>-<b>d'</b><b>Este</b>, <b>Mary</b> <b>Anne</b> <b>Mary</b>-<b>Anne</b> <b>M.</b><b>Anne</b>",
-                "<b>Mc</b><b>Carthy</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>Gerald</b>-<b>d'</b><b>Este</b>, <b>Mary</b> <b>Anne</b> <b>M.</b>-<b>Anne</b> <b>M.</b><b>Anne</b>",
-                "<b>Mc</b><b>Carthy</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>Gerald</b>-<b>d'</b><b>Este</b>, <b>M.</b> <b>Anne</b> <b>M.</b>-<b>Anne</b> <b>M.</b><b>Anne</b>",
-                "<b>Mc</b><b>Carthy</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>Gerald</b>-<b>d'</b><b>Este</b>, <b>M.</b> <b>Anne</b> <b>M.</b>-<b>Anne</b> <b>M.A.</b>",
+                "<b>Mc</b><b>Carthy</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>Gerald</b>-<b>d'</b><b>Este</b>, <b>Mary</b> <b>Anne</b> <b>Mary</b>-<b>Anne</b> <b>Mary</b><b>A.</b>",
+                "<b>Mc</b><b>Carthy</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>Gerald</b>-<b>d'</b><b>Este</b>, <b>Mary</b> <b>Anne</b> <b>Mary</b>-<b>Anne</b> <b>M.A.</b>",
+                "<b>Mc</b><b>Carthy</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>Gerald</b>-<b>d'</b><b>Este</b>, <b>Mary</b> <b>Anne</b> <b>Mary</b>-<b>A.</b> <b>M.A.</b>",
+                "<b>Mc</b><b>Carthy</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>Gerald</b>-<b>d'</b><b>Este</b>, <b>Mary</b> <b>Anne</b> <b>M.</b>-<b>A.</b> <b>M.A.</b>",
                 "<b>Mc</b><b>Carthy</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>Gerald</b>-<b>d'</b><b>Este</b>, <b>M.</b> <b>Anne</b> <b>M.</b>-<b>A.</b> <b>M.A.</b>",
                 "<b>Mc</b><b>Carthy</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>Gerald</b>-<b>d'</b><b>Este</b>, <b>M.</b> <b>A.</b> <b>M.</b>-<b>A.</b> <b>M.A.</b>",
                 "<b>Mc</b><b>Carthy</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>Gerald</b>-<b>d'</b><b>E.</b>, <b>M.</b> <b>A.</b> <b>M.</b>-<b>A.</b> <b>M.A.</b>",
                 "<b>Mc</b><b>Carthy</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>G.</b>-<b>d'</b><b>E.</b>, <b>M.</b> <b>A.</b> <b>M.</b>-<b>A.</b> <b>M.A.</b>",
                 "<b>Mc</b><b>C.</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>G.</b>-<b>d'</b><b>E.</b>, <b>M.</b> <b>A.</b> <b>M.</b>-<b>A.</b> <b>M.A.</b>",
                 "<b>Mc</b><b>C.</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>G.</b>-<b>d'</b><b>E.</b>, <b>M.</b> <b>A.</b> <b>M.</b>-<b>A.</b>",
-                "<b>Mc</b><b>C.</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>G.</b>-<b>d'</b><b>E.</b>, <b>M.</b> <b>A.</b> <b>A.</b>",
-                "<b>Mc</b><b>C.</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>G.</b>-<b>d'</b><b>E.</b>, <b>A.</b> <b>A.</b>",
-                "<b>Mc</b><b>C.</b> <b>O'</b><b>Brien</b> <b>Fitz</b><b>G.</b>-<b>d'</b><b>E.</b>, <b>A.</b> <b>A.</b>",
-                "<b>Mc</b><b>C.</b> <b>O'</b><b>Brien</b> <b>Fitz</b><b>G.</b>, <b>A.</b> <b>A.</b>",
-                "<b>Mc</b><b>C.</b> <b>O'</b><b>Brien</b>, <b>A.</b> <b>A.</b>",
-                "<b>O'</b><b>Brien</b>, <b>A.</b> <b>A.</b>",
-                "<b>O'B.</b>, <b>A.</b> <b>A.</b>",
+                "<b>Mc</b><b>C.</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>G.</b>-<b>d'</b><b>E.</b>, <b>M.</b> <b>A.</b> <b>M.</b>",
+                "<b>Mc</b><b>C.</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>G.</b>-<b>d'</b><b>E.</b>, <b>M.</b> <b>A.</b>",
+                "<b>Mc</b><b>C.</b>-<b>O'</b><b>Brien</b> <b>Fitz</b><b>G.</b>-<b>d'</b><b>E.</b>, <b>A.</b>",
+                "<b>Mc</b><b>C.</b> <b>O'</b><b>Brien</b> <b>Fitz</b><b>G.</b>-<b>d'</b><b>E.</b>, <b>A.</b>",
+                "<b>Mc</b><b>C.</b> <b>O'</b><b>Brien</b> <b>Fitz</b><b>G.</b>, <b>A.</b>",
+                "<b>Mc</b><b>C.</b> <b>O'</b><b>Brien</b>, <b>A.</b>",
+                "<b>O'</b><b>Brien</b>, <b>A.</b>",
                 "<b>O'B.</b>, <b>A.</b>",
                 "<b>O'B.</b>",
             ],
-            style=3 # bold
+            all_caps_style="bold"
+        )
+
+    # tests with combined styles
+
+    def test_example_name_with_num_1_combined_1(self):
+        """bold (primary surname) in small caps (all caps)"""
+        self._add_custom_name_format("SURNAME, Given Suffix")
+        self._test_example_name_with_num(
+            -1,
+            [
+                "<small>VON</small> <small>DER</small> <b>S<small>MITH</small></b> <small>AND</small> W<small>ESTON</small> W<small>ILSON</small>, Edwin <u>Jose</u> Sr",
+                "<small>VON</small> <small>DER</small> <b>S<small>MITH</small></b> <small>AND</small> W<small>ESTON</small> W<small>ILSON</small>, E. <u>Jose</u> Sr",
+                "<small>VON</small> <small>DER</small> <b>S<small>MITH</small></b> <small>AND</small> W<small>ESTON</small> W<small>ILSON</small>, E. <u>J.</u> Sr",
+                "<small>VON</small> <small>DER</small> <b>S<small>MITH</small></b> <small>A</small>. W<small>ESTON</small> W<small>ILSON</small>, E. <u>J.</u> Sr",
+                "<small>VON</small> <small>D</small>. <b>S<small>MITH</small></b> <small>A</small>. W<small>ESTON</small> W<small>ILSON</small>, E. <u>J.</u> Sr",
+                "<small>V</small>. <small>D</small>. <b>S<small>MITH</small></b> <small>A</small>. W<small>ESTON</small> W<small>ILSON</small>, E. <u>J.</u> Sr",
+                "<small>V</small>. <small>D</small>. <b>S<small>MITH</small></b> <small>A</small>. W<small>ESTON</small> W., E. <u>J.</u> Sr",
+                "<small>V</small>. <small>D</small>. <b>S<small>MITH</small></b> <small>A</small>. W. W., E. <u>J.</u> Sr",
+                "<small>V</small>. <small>D</small>. <b>S<small>MITH</small></b> <small>A</small>. W. W., <u>J.</u> Sr",
+                "<small>V</small>. <small>D</small>. <b>S<small>MITH</small></b> <small>A</small>. W. W., <u>J.</u>",
+                "<small>V</small>. <small>D</small>. <b>S<small>MITH</small></b> W. W., <u>J.</u>",
+                "<small>V</small>. <b>S<small>MITH</small></b> W. W., <u>J.</u>",
+                "<b>S<small>MITH</small></b> W. W., <u>J.</u>",
+                "<b>S<small>MITH</small></b> W., <u>J.</u>",
+                "<b>S<small>MITH</small></b>, <u>J.</u>",
+                "<b>S.</b>, <u>J.</u>",
+                "<b>S.</b>",
+            ],
+            all_caps_style="small_caps",
+            call_name_style="underline",
+            primary_surname_style="bold",
+        )
+
+    def test_example_name_with_num_1_combined_2(self):
+        """small caps (primary surname) in bold (all caps)"""
+        self._add_custom_name_format("SURNAME, Given Suffix")
+        self._test_example_name_with_num(
+            -1,
+            [
+                "<b>von</b> <b>der</b> <b>S<small>MITH</small></b> <b>and</b> <b>Weston</b> <b>Wilson</b>, Edwin <i>Jose</i> Sr",
+                "<b>von</b> <b>der</b> <b>S<small>MITH</small></b> <b>and</b> <b>Weston</b> <b>Wilson</b>, E. <i>Jose</i> Sr",
+                "<b>von</b> <b>der</b> <b>S<small>MITH</small></b> <b>and</b> <b>Weston</b> <b>Wilson</b>, E. <i>J.</i> Sr",
+                "<b>von</b> <b>der</b> <b>S<small>MITH</small></b> <b>a.</b> <b>Weston</b> <b>Wilson</b>, E. <i>J.</i> Sr",
+                "<b>von</b> <b>d.</b> <b>S<small>MITH</small></b> <b>a.</b> <b>Weston</b> <b>Wilson</b>, E. <i>J.</i> Sr",
+                "<b>v.</b> <b>d.</b> <b>S<small>MITH</small></b> <b>a.</b> <b>Weston</b> <b>Wilson</b>, E. <i>J.</i> Sr",
+                "<b>v.</b> <b>d.</b> <b>S<small>MITH</small></b> <b>a.</b> <b>Weston</b> <b>W.</b>, E. <i>J.</i> Sr",
+                "<b>v.</b> <b>d.</b> <b>S<small>MITH</small></b> <b>a.</b> <b>W.</b> <b>W.</b>, E. <i>J.</i> Sr",
+                "<b>v.</b> <b>d.</b> <b>S<small>MITH</small></b> <b>a.</b> <b>W.</b> <b>W.</b>, <i>J.</i> Sr",
+                "<b>v.</b> <b>d.</b> <b>S<small>MITH</small></b> <b>a.</b> <b>W.</b> <b>W.</b>, <i>J.</i>",
+                "<b>v.</b> <b>d.</b> <b>S<small>MITH</small></b> <b>W.</b> <b>W.</b>, <i>J.</i>",
+                "<b>v.</b> <b>S<small>MITH</small></b> <b>W.</b> <b>W.</b>, <i>J.</i>",
+                "<b>S<small>MITH</small></b> <b>W.</b> <b>W.</b>, <i>J.</i>",
+                "<b>S<small>MITH</small></b> <b>W.</b>, <i>J.</i>",
+                "<b>S<small>MITH</small></b>, <i>J.</i>",
+                "<b>S.</b>, <i>J.</i>",
+                "<b>S.</b>",
+            ],
+            all_caps_style="bold",
+            call_name_style="italic",
+            primary_surname_style="small_caps",
+        )
+
+    def test_example_name_with_num_1_combined_3(self):
+        """small caps (primary surname) in bold (all caps)"""
+        self._add_custom_name_format("SURNAME, Given Suffix")
+        self._test_example_name_with_num(
+            -1,
+            [
+                "<small><small>VON</small></small> <small><small>DER</small></small> S<small>MITH</small> <small><small>AND</small></small> W<small><small>ESTON</small></small> W<small><small>ILSON</small></small>, Edwin <b>Jose</b> Sr",
+                "<small><small>VON</small></small> <small><small>DER</small></small> S<small>MITH</small> <small><small>AND</small></small> W<small><small>ESTON</small></small> W<small><small>ILSON</small></small>, E. <b>Jose</b> Sr",
+                "<small><small>VON</small></small> <small><small>DER</small></small> S<small>MITH</small> <small><small>AND</small></small> W<small><small>ESTON</small></small> W<small><small>ILSON</small></small>, E. <b>J.</b> Sr",
+                "<small><small>VON</small></small> <small><small>DER</small></small> S<small>MITH</small> <small><small>A</small></small>. W<small><small>ESTON</small></small> W<small><small>ILSON</small></small>, E. <b>J.</b> Sr",
+                "<small><small>VON</small></small> <small><small>D</small></small>. S<small>MITH</small> <small><small>A</small></small>. W<small><small>ESTON</small></small> W<small><small>ILSON</small></small>, E. <b>J.</b> Sr",
+                "<small><small>V</small></small>. <small><small>D</small></small>. S<small>MITH</small> <small><small>A</small></small>. W<small><small>ESTON</small></small> W<small><small>ILSON</small></small>, E. <b>J.</b> Sr",
+                "<small><small>V</small></small>. <small><small>D</small></small>. S<small>MITH</small> <small><small>A</small></small>. W<small><small>ESTON</small></small> W., E. <b>J.</b> Sr",
+                "<small><small>V</small></small>. <small><small>D</small></small>. S<small>MITH</small> <small><small>A</small></small>. W. W., E. <b>J.</b> Sr",
+                "<small><small>V</small></small>. <small><small>D</small></small>. S<small>MITH</small> <small><small>A</small></small>. W. W., <b>J.</b> Sr",
+                "<small><small>V</small></small>. <small><small>D</small></small>. S<small>MITH</small> <small><small>A</small></small>. W. W., <b>J.</b>",
+                "<small><small>V</small></small>. <small><small>D</small></small>. S<small>MITH</small> W. W., <b>J.</b>",
+                "<small><small>V</small></small>. S<small>MITH</small> W. W., <b>J.</b>",
+                "S<small>MITH</small> W. W., <b>J.</b>",
+                "S<small>MITH</small> W., <b>J.</b>",
+                "S<small>MITH</small>, <b>J.</b>",
+                "S., <b>J.</b>",
+                "S.",
+            ],
+            all_caps_style="petite_caps",
+            call_name_style="bold",
+            primary_surname_style="small_caps",
         )
 
 if __name__ == "__main__":

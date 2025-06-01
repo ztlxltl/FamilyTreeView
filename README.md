@@ -57,7 +57,7 @@ If you have problems, you can always use the robust alternative of downloading t
 3. Clone or download the repository to this subdirectory, e.g. `~/.gramps/gramps52/plugins/FamilyTreeView` or `C:\Users\<username>\AppData\Roaming\gramps\gramps52\plugins\FamilyTreeView`. To do this, click on the green "Code" button on FamilyTreeView's repository on Github and 
     - copy the URL to clone it (I assume you know how to do this if you choose to clone it.)\
       or 
-    - click "Download ZIP" to download a ZIP of the source code directly. After the download finished, extract the ZIP file in the subdirectory mentioned above. You can check to make sure that this README.md is in the correct location: e.g. `~/.gramps/gramps52/plugins/FamilyTreeView/README.md` or `C:\Users\<username>\AppData\Roaming\gramps\gramps52\plugins\FamilyTreeView\README.md`
+    - click "Download ZIP" to download a ZIP of the source code directly. After the download finished, extract the ZIP file in the subdirectory mentioned above. You can check to make sure that `COPYING.txt` is in the correct location: e.g. `~/.gramps/gramps52/plugins/FamilyTreeView/COPYING.txt` or `C:\Users\<username>\AppData\Roaming\gramps\gramps52\plugins\FamilyTreeView\COPYING.txt`
 
 ## TODOs, ideas & known issues
 
@@ -70,12 +70,10 @@ If you have feedback or bug reports that are not listed below or tracked by a Gi
     - expand other parents of the active person or an ancestor while the main parent's other families are expanded (but not the children of the other families of the main parents)
     - expand parents/ancestors of other parents
     - maybe more
-- more context menus items (add new person as parent, spouse, child etc.)
-- implement "add relative" button functionality
 - panel:
   - more info (persons and families: media overview; persons: e.g. families, spouses and children)
-  - context menu and go to buttons (opt.) next to names in the panel (incl. timeline)
-  - context menu on events in timeline (e.g. edit event)
+  - context menu for people (names)
+  - context menu for events in timeline (e.g. edit event)
   - badges in info box and panel (separately (de)activatable in config)
   - ticks for negative time (e.g. birth of spouses where marriage is 0)
   - if birth is uncertain, no range
@@ -86,7 +84,6 @@ If you have feedback or bug reports that are not listed below or tracked by a Gi
 - height of info box should adjust to content
 - add buttons to title bar (e.g. zoom in/out/reset, etc.)
 - right-to-left direction (similar to pedigree view) as an alternative to top-to-bottom
-- better info for marriage (and likely other events) in timeline
 - overlapping lines from families to children appear thicker when zoomed out
 - badge priority / not too many badges
 - shadow on hover of person and family boxes

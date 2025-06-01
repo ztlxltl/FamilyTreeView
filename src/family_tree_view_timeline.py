@@ -353,7 +353,7 @@ class FamilyTreeViewTimeline:
             event_place_str = self.ftv.get_place_name_from_event(event)
             if event_place_str is None: # no place
                 event_place_str = ""
-            else:
+            if event_place_str != "":
                 event_place_str = ",\n" + event_place_str
             event_place_str = event_place_str.encode('utf-8')
             event_place_str = GLib.markup_escape_text(event_place_str, len(event_place_str))
@@ -396,8 +396,21 @@ class FamilyTreeViewTimeline:
                     uri = f"gramps://Person/handle/{rel[-1].handle}"
                     relative_name += f" <a href=\"{uri}\" title=\"Set {relative_name} as active person\">\u2794</a>" # rightwards arrow
                     markup = f"{event_age_str}{event_type} of {relationship_type} <b>{relative_name}</b>{description}:\n{event_date_str}{event_place_str}"
-                else:
-                    markup = f"{event_age_str}{event_type} of <b>{relationship_type}</b>{description}:\n{event_date_str}{event_place_str}"
+                else: # Family
+                    spouse_name = _("[missing spouse]") # default if only one spouse in the family
+                    spouse_link_handle = None
+                    for spouse_handle in [rel[-1].get_father_handle(), rel[-1].get_mother_handle()]:
+                        if spouse_handle is not None and spouse_handle != self.obj.get_handle():
+                            spouse = self.ftv.get_person_from_handle(spouse_handle)
+                            spouse_name = name_displayer.display_name(spouse.get_primary_name())
+                            spouse_link_handle = spouse_handle
+                            break
+                    spouse_name = spouse_name.encode('utf-8')
+                    spouse_name = GLib.markup_escape_text(spouse_name, len(spouse_name))
+                    if spouse_link_handle: # missing spouse has no handle to link
+                        uri = f"gramps://Person/handle/{spouse_link_handle}"
+                        spouse_name += f" <a href=\"{uri}\" title=\"Set {spouse_name} as active person\">\u2794</a>" # rightwards arrow
+                    markup = f"{event_age_str}{event_type} with <b>{spouse_name}</b>{description}:\n{event_date_str}{event_place_str}"
                 class_name = "ftv-timeline-event-relatives"
             event_label = Gtk.Label()
             event_label.set_markup(markup)
@@ -502,7 +515,7 @@ class FamilyTreeViewTimeline:
                 # get the first tick unit whose ticks are far enough apart
                 for i in range(len(UNIT_LIST)):
                     num_base_units, unit_factor, unit_name_years, unit_name_time = UNIT_LIST[i]
-                    num_base_units *= num_days
+                    num_base_units *= pos_num_days
                     num_ticks = num_base_units / unit_factor
                     tick_dist = pos_timeline_height / num_ticks
                     if tick_dist >= min_tick_dist or i == len(UNIT_LIST)-1:

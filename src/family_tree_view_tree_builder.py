@@ -80,7 +80,7 @@ class FamilyTreeViewTreeBuilder():
                 flags=0,
                 message_type=Gtk.MessageType.INFO,
                 buttons=Gtk.ButtonsType.OK,
-                text="FamilyTreeView",
+                text=_("FamilyTreeView"),
             )
             dialog.format_secondary_markup(_(
                 "<b>Failed to apply filter.</b>\n"
@@ -94,6 +94,13 @@ class FamilyTreeViewTreeBuilder():
             self.filtered_person_handles = None
 
     def build_tree(self, root_person_handle, reset=True):
+
+        # Cancel using progress meter default function.
+        # This prevents parallel building the tree (in most cases TODO).
+        if self.progress_meter is not None:
+            self.progress_meter.handle_cancel()
+            self.progress_meter.close()
+            self.progress_meter = None
 
         # TODO This is a workaround that fixes a bug that in some cases
         # (observed on Windows, cause unknown) causes the measured line
@@ -115,32 +122,45 @@ class FamilyTreeViewTreeBuilder():
         # After dry run, keep track where we are using this property.
         self.i_connections_per_generation = {}
 
+        # See also: self.widget_manager.position_of_handle
+        self.tree_cache_persons = {}
+        self.tree_cache_families = {}
+
         self.expander_types_shown = self.ftv._config.get("expanders.familytreeview-expander-types-shown")
         self.expander_types_expanded = self.ftv._config.get("expanders.familytreeview-expander-types-expanded")
 
         self.use_progress = self.ftv._config.get("experimental.familytreeview-tree-builder-use-progress")
-        if self.use_progress:
-            self.set_progress_meter_pass(
-                _("Building tree..."),
-            )
 
-        failed = False
-        try:
-            self.process_person(
-                root_person_handle, 0, 0,
-                ahnentafel=1
-            )
-        except RecursionError:
-            failed = True
-            text = (
-                "The following are known causes of this issue. They will be "
-                "addressed in a future update.\n"
-                "- One or multiple loops in the database near the active "
-                "person. \n"
-                "Possible workaround: Try to reduce the number of generations "
-                "and/or disable expander expansion by default in the "
-                "FamilyTreeView's config window."
-            )
+        try: # try ... finally to definitely close progress meter
+            if self.use_progress:
+                self.set_progress_meter_pass(
+                    _("Preparing badges..."),
+                )
+
+            self.ftv.badge_manager.prepare_badges()
+
+            if self.use_progress:
+                self.set_progress_meter_pass(
+                    _("Building tree..."),
+                )
+
+            failed = False
+            try:
+                self.process_person(
+                    root_person_handle, 0, 0,
+                    ahnentafel=1
+                )
+            except RecursionError:
+                failed = True
+                text = (
+                    "The following are known causes of this issue. They will be "
+                    "addressed in a future update.\n"
+                    "- One or multiple loops in the database near the active "
+                    "person. \n"
+                    "Possible workaround: Try to reduce the number of generations "
+                    "and/or disable expander expansion by default in the "
+                    "FamilyTreeView's config window."
+                )
         finally:
             # Close the progress meter even when unknown errors occur.
             if self.use_progress:
@@ -329,6 +349,7 @@ class FamilyTreeViewTreeBuilder():
             person_bounds["st_r"] = descendant_subtree_bounds["st_r"]
 
         person = self.ftv.get_person_from_handle(person_handle)
+        self.init_person_cache(x_person, person_generation)
 
         if alignment is None:
             if person is None:
@@ -416,11 +437,24 @@ class FamilyTreeViewTreeBuilder():
 
         children_possible = person_generation <= 1
 
+        person_is_s1_in_prominent_family = False # fallback
+        if len(family_handles) > 0:
+            if skip_family_handle is None:
+                # main family
+                prominent_family_handle = family_handles[0]
+            else:
+                prominent_family_handle = skip_family_handle
+            prominent_family = self.dbstate.db.get_family_from_handle(prominent_family_handle)
+            if prominent_family is not None:
+                person_is_s1_in_prominent_family = prominent_family.get_father_handle() == person_handle
+
         for i_family, family_handle in enumerate(family_handles):
             if self.get_cancelled():
                 break
             if skip_family_handle is None:
                 is_primary_family = i_family == 0
+                if is_primary_family:
+                    self.set_person_cache(x_person, person_generation, "prominent_family", family_handle)
             elif skip_family_handle == family_handle:
                 # This family has already been processed. Only add the expander.
                 if not dry_run and len(family_handles) > 1 and self.expander_types_shown[key]["default_hidden"]:
@@ -466,13 +500,13 @@ class FamilyTreeViewTreeBuilder():
 
                 if children_possible:
                     # Place the family so there is enough space for family and children.
-                    if person_is_s1:
+                    if person_is_s1_in_prominent_family:
                         # Family will be on the left
                         x_family = x_person + person_bounds["st_l"] - max(family_width/2, children_bounds["st_r"]) - self.canvas_manager.other_families_sep
                     else:
                         x_family = x_person + person_bounds["st_r"] + max(family_width/2, -children_bounds["st_l"]) + self.canvas_manager.other_families_sep
                 else:
-                    if person_is_s1:
+                    if person_is_s1_in_prominent_family:
                         # Family will be on the left
                         x_family = x_person + person_bounds["gs_l"] - family_width/2 - self.canvas_manager.other_families_sep
                     else:
@@ -501,6 +535,7 @@ class FamilyTreeViewTreeBuilder():
 
             if not dry_run:
                 if spouse_handle is not None:
+                    self.set_person_cache(x_spouse, person_generation, "prominent_family", family_handle)
                     spouse_bounds = self.widget_manager.add_person(spouse_handle, x_spouse, person_generation, spouse_alignment)
                 else:
                     # missing person
@@ -525,6 +560,20 @@ class FamilyTreeViewTreeBuilder():
             # children
             if process_descendants:
                 person_bounds = self.process_children(person_bounds, x_person, person_generation, dry_run, family, x_family, family_bounds)
+            elif not dry_run and self.expander_types_shown["children"]["default_hidden"]:
+                child_refs = family.get_child_ref_list()
+                if len(child_refs) > 0:
+                    bottom_family_offset = self.canvas_manager.bottom_family_offset
+                    expander_sep = self.canvas_manager.expander_sep
+                    expander_size = self.canvas_manager.expander_size
+                    x_expander = x_family
+                    y_expander = self.get_y_of_generation(person_generation) + bottom_family_offset + expander_sep + expander_size/2
+                    tooltip = _(
+                        "The children of this family cannot be displayed. "
+                        "Set a person more closely related to this family as "
+                        "the active person to be able to display the children."
+                    )
+                    self.add_unavailable_expander(x_expander, y_expander, -90, tooltip=tooltip)
 
             # Now, person_bounds includes the descendants.
 
@@ -617,6 +666,7 @@ class FamilyTreeViewTreeBuilder():
                 if self.get_cancelled():
                     break
                 x_child -= children_bounds[i_child]["st_l"] # subtree left is negative
+                self.set_person_cache(x_child, child_generation, "prominent_parents", family.handle)
                 child_bounds = self.process_person(child_handle, x_child, child_generation, dry_run=False, process_ancestors=False)
                 dashed = self.get_dashed(family, child_handle)
                 self.widget_manager.add_connection(
@@ -722,6 +772,7 @@ class FamilyTreeViewTreeBuilder():
                     x_sibling += -sibling_bounds["st_l"] + sibling_sep
                 else:
                     x_sibling -= sibling_bounds["st_r"] + sibling_sep
+                self.set_person_cache(x_sibling, sibling_generation, "prominent_parents", parent_family.handle)
                 sibling_bounds = self.process_person(sibling_handle, x_sibling, sibling_generation, dry_run=dry_run, process_ancestors=False, process_descendants=process_descendants)
                 if not dry_run:
                     dashed = self.get_dashed(parent_family, sibling_handle)
@@ -1059,6 +1110,9 @@ class FamilyTreeViewTreeBuilder():
             else:
                 inner_parent_x = x_father
                 outer_parent_x = x_mother
+            if is_main_parent_family:
+                self.set_person_cache(x_person, person_generation, "prominent_parents", parent_family_handle)
+            self.set_family_cache(x_family, parent_generation, "prominent_child", person_handle)
 
             inner_parent_bounds = self.process_parent(person_bounds, x_person, alignment, dry_run, parent_generation, person_handle, person_width, parent_family_handle, is_main_parent_family, inner_parent_handle, inner_parent_ahnentafel, inner_parent_alignment, inner_parent_x)
 
@@ -1133,6 +1187,7 @@ class FamilyTreeViewTreeBuilder():
                 child_handle_with_other_parents_to_collapse = person_handle
             else:
                 child_handle_with_other_parents_to_collapse = None
+            self.set_person_cache(this_parent_x, parent_generation, "prominent_family", parent_family_handle)
             this_parent_bounds = self.process_person(
                 this_parent_handle,
                 this_parent_x,
@@ -1189,9 +1244,55 @@ class FamilyTreeViewTreeBuilder():
         ]
         return handles
 
+    def init_person_cache(self, x_person, generation):
+        if (x_person, generation) not in self.tree_cache_persons:
+            self.tree_cache_persons[(x_person, generation)] = {
+                "prominent_parents": None,
+                "prominent_family": None,
+            }
+
+    def init_family_cache(self, x_family, generation):
+        if (x_family, generation) not in self.tree_cache_families:
+            self.tree_cache_families[(x_family, generation)] = {
+                "prominent_child": None,
+            }
+
+    def set_person_cache(self, x_person, generation, key, value):
+        # Using coordinates instead of handle since prominent
+        # family/parents can differ if the person appears multiple times
+        # in the tree.
+        self.init_person_cache(x_person, generation)
+        self.tree_cache_persons[(x_person, generation)][key] = value
+
+    def set_family_cache(self, x_family, generation, key, value):
+        # Using coordinates instead of handle since prominent child can
+        # differ if the family appears multiple times in the tree.
+        self.init_family_cache(x_family, generation)
+        self.tree_cache_families[(x_family, generation)][key] = value
+
     def get_dashed(self, family, child_handle):
+        dashed_mode = self.ftv._config.get("appearance.familytreeview-connections-dashed-mode")
+        if dashed_mode == "no_dash":
+            return False
+
         child_ref = [ref for ref in family.get_child_ref_list() if ref.ref == child_handle][0]
-        dashed = int(child_ref.get_father_relation()) != ChildRefType.BIRTH or int(child_ref.get_mother_relation()) != ChildRefType.BIRTH
+        dashed = [
+            int(child_ref.get_father_relation()) != ChildRefType.BIRTH,
+            int(child_ref.get_mother_relation()) != ChildRefType.BIRTH
+        ]
+
+        if dashed_mode == "rel_any_non_birth":
+            dashed = any(dashed)
+        elif dashed_mode == "rel_both_non_birth":
+            dashed = all(dashed)
+        elif dashed_mode == "rel_split_non_birth":
+            # Don't get separate lines if this is not necessary. This
+            # would result in more canvas elements than needed. It would
+            # also cause an offset of the dashes after arcs.
+            if dashed[0] == dashed[1]:
+                # list to bool
+                dashed = dashed[0]
+
         return dashed
 
     def get_expand(self, handle, key, default=None):
@@ -1223,6 +1324,9 @@ class FamilyTreeViewTreeBuilder():
         else:
             ang = ang_collapsed
         self.widget_manager.add_expander(x_expander, y_expander, ang, expander_clicked)
+
+    def add_unavailable_expander(self, x_expander, y_expander, ang, tooltip=None):
+        self.widget_manager.add_unavailable_expander(x_expander, y_expander, ang, tooltip=tooltip)
 
     def add_other_families_expander(self, person_handle, x_person, person_generation, person_is_s1, key, expanded, collapse_on_expand=None):
         person_width = self.canvas_manager.person_width

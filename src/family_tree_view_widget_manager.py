@@ -29,6 +29,7 @@ from gi.repository import Gdk, GLib, Gtk
 from gramps.gen.config import config
 from gramps.gen.const import USER_PLUGINS
 from gramps.gen.datehandler import get_date
+from gramps.gen.display.name import displayer as name_displayer
 from gramps.gen.lib import Person
 from gramps.gen.utils.alive import probably_alive
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback, get_divorce_or_fallback
@@ -155,12 +156,16 @@ class FamilyTreeViewWidgetManager:
         self.minimap_manager = FamilyTreeViewMinimapManager(self)
         self.minimap_overlay_container.add_overlay(self.minimap_manager.minimap_outer_container)
 
+        self.close_tree_overlay_container = Gtk.Overlay()
+        self.close_tree_overlay_button = None
+        self.close_tree_overlay_container.add(self.minimap_overlay_container)
+
         # Overlay is required for info boxes.
         # This solution isn't perfect since the overlayed child is in front of the scroll bar of ScrolledWindow.
         # Overlay inside ScrollWindow doesn't work as GooCanvas doesn't seem to expand Overlay larger than ScrolledWindow.
         # Maybe I'm missing a property to fix this.
         self.info_box_overlay_container = Gtk.Overlay()
-        self.info_box_overlay_container.add(self.minimap_overlay_container)
+        self.info_box_overlay_container.add(self.close_tree_overlay_container)
         self.main_container_paned.pack1(self.info_box_overlay_container)
         self.info_box_manager = FamilyTreeViewInfoBoxManager(self)
 
@@ -228,8 +233,14 @@ class FamilyTreeViewWidgetManager:
         else:
             paned_width = self.main_container_paned.get_allocation().width
             if self.panel_hidden:
-                self.main_container_paned.set_position(round(paned_width*0.8)) # default value
-                # if not hidden, keep position
+                paned_pos = round(paned_width * self.main_container_rel_pos)
+                min_panel_width = 100
+                if paned_width - paned_pos < min_panel_width:
+                    # Set to default or minimum width which can be
+                    # considered visible.
+                    paned_pos = max(min_panel_width, round(paned_width * 0.8))
+                self.main_container_paned.set_position(paned_pos)
+            # else: if not hidden, keep position
             self.panel_manager.panel_widget.show_all()
             self.panel_hidden = False
 
@@ -258,7 +269,7 @@ class FamilyTreeViewWidgetManager:
                 self.main_container_rel_pos = main_container.get_position() / allocation.width
             else:
                 # keep relative position
-                main_container.set_position(int(allocation.width * self.main_container_rel_pos))
+                main_container.set_position(round(allocation.width * self.main_container_rel_pos))
                 # don't update main_container_rel_pos here since this can cause drift in rel pos if size is changed fast
         self.container_size_last_allocation_tuple = allocation_tuple
 
@@ -282,7 +293,7 @@ class FamilyTreeViewWidgetManager:
 
         self.position_of_handle = {}
 
-    def add_person(self, person_handle, x, person_generation, alignment, ahnentafel=None):
+    def add_person(self, person_handle, x, person_generation, alignment, ahnentafel=None, canvas_parent=None):
         person = self.ftv.get_person_from_handle(person_handle)
 
         alive = probably_alive(person, self.ftv.dbstate.db)
@@ -312,7 +323,7 @@ class FamilyTreeViewWidgetManager:
 
         content_items = self.ftv.config_provider.get_person_content_item_defs()
 
-        # TODO Add an option to hide an item in an item is empty  for a
+        # TODO Add an option to hide an item in an item is empty for a
         # whole generation (especially images).
 
         for i_item, item in enumerate(content_items):
@@ -321,7 +332,19 @@ class FamilyTreeViewWidgetManager:
             if item[0] == "gutter":
                 pass
             elif item[0] == "image":
-                image_spec = self.ftv.get_image_spec(person, "person")
+                image_selector_keys = ["media_tag_sel", "media_ref_attr_type_sel", "media_ref_attr_val_sel"]
+                image_selector = {
+                    k_: item[1][k_]
+                    for k in image_selector_keys
+                    for k_ in [k, k + "_type"]
+                    if k in item[1]
+                }
+                image_spec = self.ftv.get_image_spec(
+                    person, "person",
+                    fallback_avatar=item[1]["fallback_avatar"],
+                    image_resolution=item[1]["resolution"],
+                    image_selector=image_selector
+                )
                 item_data["image_spec"] = image_spec
             elif item[0] in ["name", "alt_name"]:
                 if item[0] == "name":
@@ -392,7 +415,7 @@ class FamilyTreeViewWidgetManager:
                             text = attr.get_value()
                             break
                 elif item[0] == "gender":
-                    if item[1]["word_or_symbol"] == "Word":
+                    if item[1]["word_or_symbol"] == "word":
                         text = format_gender([person.get_gender()]) # argument has to be an iterable
                     else:
                         if person.get_gender() == Person.FEMALE:
@@ -429,7 +452,7 @@ class FamilyTreeViewWidgetManager:
         person_bounds = self.canvas_manager.add_person(
             x, person_generation, content_items, background_color, border_color, alive, round_lower_corners,
             click_callback=lambda item, target, event: self._cb_person_clicked(person_handle, event, x, person_generation, alignment),
-            badges=badges
+            badges=badges, parent=canvas_parent
         )
         self.minimap_manager.add_person(x, person_generation, background_color)
 
@@ -442,7 +465,7 @@ class FamilyTreeViewWidgetManager:
 
         return person_bounds
 
-    def add_missing_person(self, x, person_generation, alignment, relationship, handle):
+    def get_colors_for_missing(self):
         fg_color_found, fg_color = self.main_widget.get_style_context().lookup_color('theme_fg_color')
         if fg_color_found:
             fg_color = tuple(fg_color)[:3]
@@ -458,6 +481,10 @@ class FamilyTreeViewWidgetManager:
         background_color = rgb_to_hex(tuple(fgc*0.1+bgc*0.9 for fgc, bgc in zip(fg_color, bg_color)))
         border_color = "#000"
 
+        return (background_color, border_color)
+
+    def add_missing_person(self, x, person_generation, alignment, relationship, handle):
+        background_color, border_color = self.get_colors_for_missing()
         round_lower_corners = alignment == "c"
 
         gutter_size = (
@@ -482,7 +509,7 @@ class FamilyTreeViewWidgetManager:
 
         return person_bounds
 
-    def add_family(self, family_handle, x, family_generation):
+    def add_family(self, family_handle, x, family_generation, canvas_parent=None):
         family = self.ftv.dbstate.db.get_family_from_handle(family_handle)
         background_color, border_color = color_graph_family(family, self.ftv.dbstate)
 
@@ -496,7 +523,19 @@ class FamilyTreeViewWidgetManager:
             if item[0] == "gutter":
                 item_type = item[0]
             elif item[0] == "image":
-                image_spec = self.ftv.get_image_spec(family, "family")
+                image_selector_keys = ["media_tag_sel", "media_ref_attr_type_sel", "media_ref_attr_val_sel"]
+                image_selector = {
+                    k_: item[1][k_]
+                    for k in image_selector_keys
+                    for k_ in [k, k + "_type"]
+                    if k in item[1]
+                }
+                image_spec = self.ftv.get_image_spec(
+                    family, "family",
+                    fallback_avatar=item[1]["fallback_avatar"],
+                    image_resolution=item[1]["resolution"],
+                    image_selector=image_selector
+                )
                 item_data["image_spec"] = image_spec
             elif item[0] == "names":
                 name1 = self.ftv.get_person_from_handle(family.get_father_handle()).get_primary_name()
@@ -572,7 +611,7 @@ class FamilyTreeViewWidgetManager:
         family_bounds = self.canvas_manager.add_family(
             x, family_generation, content_items, background_color, border_color,
             click_callback=lambda item, target, event: self._cb_family_clicked(family_handle, event, x, family_generation),
-            badges=badges
+            badges=badges, parent=canvas_parent
         )
         self.minimap_manager.add_family(x, family_generation, background_color)
 
@@ -596,6 +635,9 @@ class FamilyTreeViewWidgetManager:
 
     def add_expander(self, x, y, ang, click_callback):
         self.canvas_manager.add_expander(x, y, ang, click_callback)
+
+    def add_unavailable_expander(self, x, y, ang, tooltip=None):
+        self.canvas_manager.add_expander(x, y, ang, unavailable=True, tooltip=tooltip)
 
     # box helpers
 
@@ -716,6 +758,41 @@ class FamilyTreeViewWidgetManager:
         # else event_type_visualization_type == "none"
         return ""
 
+    # replacement for empty db etc.
+
+    def add_replacement_message(self, x, y, msg, buttons):
+        y_text = y - 50
+        y_button = y
+
+        self.canvas_manager.add_text(
+            x, y_text, msg, self.canvas_manager.repl_msg_width
+        )
+
+        background_color, border_color = self.get_colors_for_missing()
+        button_width = self.canvas_manager.repl_button_width
+        button_sep = self.canvas_manager.repl_button_sep
+        button_row_width = (
+            len(buttons) * button_width + (len(buttons)-1) * button_sep
+        )
+        for i, button_info in enumerate(buttons):
+            x_button = (
+                x - button_row_width/2 + button_width/2
+                + i*(button_width + button_sep)
+            )
+            def button_callback(callback):
+                def cb(*args):
+                    self.canvas_manager.ignore_this_mouse_button_press()
+                    if callback is not None:
+                        callback()
+                return cb
+            self.canvas_manager.add_button(
+                x_button, y_button,
+                background_color, border_color,
+                button_info["icon"],
+                button_info["label"],
+                button_callback(button_info["callback"])
+            )
+
     # callbacks
 
     def _cb_person_clicked(self, person_handle, event, x, person_generation, alignment):
@@ -726,7 +803,7 @@ class FamilyTreeViewWidgetManager:
             data = [person_handle, x, person_generation, alignment]
         elif action == "open_panel_person":
             fcn = self.panel_manager.open_person_panel
-            data = [person_handle]
+            data = [person_handle, x, person_generation]
         elif action == "edit_person":
             fcn = self.ftv.edit_person
             data = [person_handle]
@@ -753,7 +830,8 @@ class FamilyTreeViewWidgetManager:
         if relationship is None:
             return False
         elif relationship == "root":
-            return False # TODO
+            fcn = self.ftv.add_new_person
+            args = [True, True] # set active and home since it's the first person in db
         elif relationship in ["spouse", "parent"]:
             fcn = self.ftv.add_new_parent_to_family
             family_handle = handle
@@ -773,7 +851,7 @@ class FamilyTreeViewWidgetManager:
             data = [family_handle, x, family_generation]
         elif action == "open_panel_family":
             fcn = self.panel_manager.open_family_panel
-            data = [family_handle]
+            data = [family_handle, x, family_generation]
         elif action == "edit_family":
             fcn = self.ftv.edit_family
             data = [family_handle]
@@ -917,9 +995,12 @@ class FamilyTreeViewWidgetManager:
         self.canvas_manager.move_to_center(*active_pos)
 
     def open_person_context_menu(self, person_handle, event, x, person_generation, alignment):
+        person = self.ftv.get_person_from_handle(person_handle)
         self.menu = Gtk.Menu()
 
         menu_item = Gtk.MenuItem(label=_("Edit"))
+        menu_item.set_sensitive(not self.ftv.dbstate.db.readonly)
+        self.check_and_set_readonly_tooltip(menu_item)
         menu_item.connect("activate", lambda *_args:
             self.ftv.edit_person(person_handle)
         )
@@ -945,16 +1026,113 @@ class FamilyTreeViewWidgetManager:
 
         menu_item = Gtk.MenuItem(label=_("Open panel"))
         menu_item.connect("activate", lambda *_args:
-            self.panel_manager.open_person_panel(person_handle)
+            self.panel_manager.open_person_panel(person_handle, x, person_generation)
         )
         self.menu.append(menu_item)
 
+        self.add_person_add_relatives_items_to_menu(person_handle, person)
+
+        associated_people_handles = []
+        for person_ref in person.get_person_ref_list():
+            associated_people_handles.append(person_ref.get_reference_handle())
+        if len(associated_people_handles) > 0:
+            submenu = Gtk.Menu()
+            menu_item = Gtk.MenuItem(label=_("Set an associated person as active"))
+            menu_item.set_submenu(submenu)
+            menu_item.show()
+            self.menu.append(menu_item)
+
+            for associated_person_handle in associated_people_handles:
+                person = self.ftv.get_person_from_handle(associated_person_handle)
+                name = person.get_primary_name()
+                menu_item = Gtk.MenuItem(label=name_displayer.display_name(name))
+                menu_item.connect("activate", lambda *_args:
+                    self.ftv.set_active_person(associated_person_handle)
+                )
+                submenu.append(menu_item)
+
+            ## TODO: Add witnesses at this person's main event
+            ## TODO: Add main people at event this person witnessed
+
         self.show_menu(event)
 
+    def add_person_add_relatives_items_to_menu(self, person_handle, person):
+        menu_item = Gtk.MenuItem(label=_("Add a new parent family (and parents)"))
+        menu_item.set_sensitive(not self.ftv.dbstate.db.readonly)
+        self.check_and_set_readonly_tooltip(menu_item)
+        menu_item.connect("activate", lambda *_args:
+            self.ftv.add_new_parent_family(person_handle)
+        )
+        self.menu.append(menu_item)
+
+        if person.get_gender() == Person.MALE:
+            show_as_first = True
+            show_as_second = False
+        elif person.get_gender() == Person.FEMALE:
+            show_as_first = False
+            show_as_second = True
+        else:
+            family_handle_list = person.get_family_handle_list()
+            families = [
+                self.ftv.dbstate.db.get_family_from_handle(family_handle)
+                for family_handle in family_handle_list
+            ]
+            if len(families) == 0:
+                show_as_first = True
+                show_as_second = True
+            else:
+                father_sum = 0
+                mother_sum = 0
+                for fam in families:
+                    father_sum += fam.get_father_handle() == person_handle
+                    mother_sum += fam.get_mother_handle() == person_handle
+                if father_sum > mother_sum:
+                    show_as_first = True
+                    show_as_second = False
+                elif father_sum < mother_sum:
+                    show_as_first = False
+                    show_as_second = True
+                else:
+                    show_as_first = True
+                    show_as_second = True
+
+        if show_as_first:
+            if show_as_second:
+                label = _(
+                    "Add a new family (and spouse/children)\n"
+                    "with this person as the first spouse"
+                )
+            else:
+                label = _("Add a new family (and spouse/children)")
+            menu_item = Gtk.MenuItem(label=label)
+            menu_item.set_sensitive(not self.ftv.dbstate.db.readonly)
+            self.check_and_set_readonly_tooltip(menu_item)
+            menu_item.connect("activate", lambda *_args:
+                self.ftv.add_new_family(person_handle, person_is_first=True)
+            )
+            self.menu.append(menu_item)
+
+        if show_as_second:
+            if show_as_first:
+                label = _(
+                    "Add a new family (and spouse/children)\n"
+                    "with this person as the second spouse"
+                )
+            else:
+                label = _("Add a new family (and spouse/children)")
+            menu_item = Gtk.MenuItem(label=label)
+            menu_item.connect("activate", lambda *_args:
+                self.ftv.add_new_family(person_handle, person_is_first=False)
+            )
+            self.menu.append(menu_item)
+
     def open_family_context_menu(self, family_handle, event, x, family_generation):
+        family = self.ftv.dbstate.db.get_family_from_handle(family_handle)
         self.menu = Gtk.Menu()
 
         menu_item = Gtk.MenuItem(label=_("Edit"))
+        menu_item.set_sensitive(not self.ftv.dbstate.db.readonly)
+        self.check_and_set_readonly_tooltip(menu_item)
         menu_item.connect("activate", lambda *_args:
             self.ftv.edit_family(family_handle)
         )
@@ -972,7 +1150,38 @@ class FamilyTreeViewWidgetManager:
         )
         self.menu.append(menu_item)
 
+        self.add_family_add_relatives_items_to_menu(family_handle, family)
+
         self.show_menu(event)
+
+    def add_family_add_relatives_items_to_menu(self, family_handle, family):
+        father_handle = family.get_father_handle()
+        if father_handle is None or len(father_handle) == 0:
+            menu_item = Gtk.MenuItem(label=_("Add a new person as father"))
+            menu_item.set_sensitive(not self.ftv.dbstate.db.readonly)
+            self.check_and_set_readonly_tooltip(menu_item)
+            menu_item.connect("activate", lambda *_args:
+                self.ftv.add_new_spouse(family_handle, new_spouse_is_first=True)
+            )
+            self.menu.append(menu_item)
+
+        mother_handle = family.get_mother_handle()
+        if mother_handle is None or len(mother_handle) == 0:
+            menu_item = Gtk.MenuItem(label=_("Add a new person as mother"))
+            menu_item.set_sensitive(not self.ftv.dbstate.db.readonly)
+            self.check_and_set_readonly_tooltip(menu_item)
+            menu_item.connect("activate", lambda *_args:
+                self.ftv.add_new_spouse(family_handle, new_spouse_is_first=False)
+            )
+            self.menu.append(menu_item)
+
+        menu_item = Gtk.MenuItem(label=_("Add a new person as child"))
+        menu_item.set_sensitive(not self.ftv.dbstate.db.readonly)
+        self.check_and_set_readonly_tooltip(menu_item)
+        menu_item.connect("activate", lambda *_args:
+            self.ftv.add_new_child(family_handle)
+        )
+        self.menu.append(menu_item)
 
     def open_background_context_menu(self, event):
         self.menu = Gtk.Menu()
@@ -1045,6 +1254,78 @@ class FamilyTreeViewWidgetManager:
         new_event.button = orig_event.button
         new_event.time = orig_event.time
         self.menu.popup_at_pointer(new_event)
+
+    def show_menu_at_widget(self, button):
+        self.menu.show_all()
+
+        new_event = Gdk.Event.new(Gdk.EventType.BUTTON_PRESS)
+        seat = self.main_widget.get_display().get_default_seat()
+        new_event.device = seat.get_pointer() or seat.get_keyboard()
+        self.menu.popup_at_widget(button, Gdk.Gravity.SOUTH_WEST, Gdk.Gravity.NORTH_WEST, new_event)
+
+    def person_add_relative_clicked(self, button, person_handle, x_person, generation):
+        if self.ftv.check_readonly_and_notify():
+            return
+
+        action = self.ftv._config.get("interaction.familytreeview-person-add-relative-action")
+        if action == "context_menu":
+            self.menu = Gtk.Menu()
+            person = self.ftv.get_person_from_handle(person_handle)
+            self.add_person_add_relatives_items_to_menu(person_handle, person)
+            self.show_menu_at_widget(button)
+        else:
+            # x_person and generation are required to place the overlay
+            # where the user opened it, in case the person appears
+            # multiple times in the tree.
+            self.canvas_manager.open_add_person_relative_overlay(
+                person_handle, x_person, generation, action
+            )
+
+    def family_add_relative_clicked(self, button, family_handle, x_family, generation):
+        if self.ftv.check_readonly_and_notify():
+            return
+
+        action = self.ftv._config.get("interaction.familytreeview-family-add-relative-action")
+        if action == "context_menu":
+            self.menu = Gtk.Menu()
+            family = self.ftv.get_family_from_handle(family_handle)
+            self.add_family_add_relatives_items_to_menu(family_handle, family)
+            self.show_menu_at_widget(button)
+        else:
+            # x_family and generation are required to place the overlay
+            # where the user opened it, in case the family appears
+            # multiple times in the tree.
+            self.canvas_manager.open_add_family_relative_overlay(
+                family_handle, x_family, generation
+            )
+
+    def show_close_tree_overlay_button(self, callback, text):
+        # TODO Tooltip doesn't work for some reason, use button label
+        # instead for now.
+        self.close_tree_overlay_button = Gtk.Button(label=text)
+        image = Gtk.Image.new_from_icon_name("window-close", Gtk.IconSize.LARGE_TOOLBAR)
+        self.close_tree_overlay_button.set_image(image)
+        self.close_tree_overlay_button.set_always_show_image(True)
+        self.close_tree_overlay_button.set_valign(Gtk.Align.START)
+        self.close_tree_overlay_button.set_halign(Gtk.Align.END)
+        self.close_tree_overlay_button.connect("clicked", callback)
+        self.close_tree_overlay_container.add_overlay(self.close_tree_overlay_button)
+        self.close_tree_overlay_button.show()
+
+    def hide_close_tree_overlay_button(self):
+        if self.close_tree_overlay_button is not None:
+            self.close_tree_overlay_button.destroy()
+            self.close_tree_overlay_button = None
+
+    def check_and_set_readonly_tooltip(self, widget):
+        if not self.ftv.dbstate.db.readonly:
+            return
+
+        if self.ftv._config.get("presentation.familytreeview-presentation-active"):
+            tooltip = _("Database cannot be modified in presentation mode")
+        else:
+            tooltip = _("Readonly database cannot be modified")
+        widget.set_tooltip_text(tooltip)
 
     def add_to_provider(self, s):
         self.provider_str += s

@@ -33,7 +33,7 @@ class FamilyTreeViewCanvasManagerBase:
 
         self.zoom_level_step = 0.1
         self.zoom_level_max = 4
-        self.zoom_level_min = -4
+        self.zoom_level_min = -6
 
         self.default_zoom_level = 0
         self.default_x = 0
@@ -63,6 +63,8 @@ class FamilyTreeViewCanvasManagerBase:
         self.canvas.set_bounds(-10000, -10000, 10000, 10000) # TODO
 
         self.canvas_container.add(self.canvas)
+
+        self.ignore_this_mouse_button_press_ = False
 
     def reset_canvas(self):
         # Remove children of root item (instead of creating a new root
@@ -177,7 +179,22 @@ class FamilyTreeViewCanvasManagerBase:
     # navigation: pan
     ################################
 
+    def ignore_this_mouse_button_press(self):
+        """
+        Call this method if the currently processed mouse button press
+        event is processed in another callback and doesn't needs to be
+        processed here. This can help to prevent the canvas from
+        sticking to the mouse when the other callback causes the mouse
+        button release to not be caught. Only call if you are sure that
+        mouse button press callback will be called as there is no
+        timeout.
+        """
+        self.ignore_this_mouse_button_press_ = True
+
     def mouse_button_press(self, _, __, event):
+        if self.ignore_this_mouse_button_press_:
+            self.ignore_this_mouse_button_press_ = False
+            return
         button = event.get_button()[1]
         if button == 1 or button == 2:
             self.drag_canvas_last_x = event.x_root

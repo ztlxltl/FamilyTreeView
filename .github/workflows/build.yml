@@ -8,14 +8,14 @@ on:
   # # Activate if every push (incl. PRs) should trigger (incl. README update etc.)
   # push:
   #   branches:
-  #     - main
+  #     - maintenance/gramps52
 
   # # Activate while working on this in a pr.
-  # # Recommendation: create branches main-test and dist-test
-  # # change all main to main-test and all dist to dist-test below.
+  # # Recommendation: create branches maintenance/gramps52-test and dist-test
+  # # change all maintenance/gramps52 to maintenance/gramps52-test and all dist to dist-test below.
   # pull_request:
   #   branches:
-  #       - main
+  #       - maintenance/gramps52
 
   # Allow running it manually (e.g. only after relevant changes to the code)
   workflow_dispatch:
@@ -27,7 +27,7 @@ jobs:
       - name: Checkout repository (in cwd)
         uses: actions/checkout@v3
         with:
-          ref: 'main'
+          ref: 'maintenance/gramps52'
       - name: Move repo to subdir
         # Required since checkout doesn't create subdir and make.py expects it.
         run: |
@@ -78,7 +78,7 @@ jobs:
           git add po/template.pot
 
           git commit -m "Update files after automated build"
-          git push --force origin main:main
+          git push --force origin maintenance/gramps52:maintenance/gramps52
       - name: Remove all files (output is in ../addons)
         run: rm -rf -- .[!.]* *
       - name: Checkout repository (in cwd)
@@ -94,12 +94,12 @@ jobs:
           # Create or switch to the 'dist' branch
           git checkout -b dist || git checkout dist
 
-          # Replace the content of the current directory with the contents of ../addons
-          rm -rf $(ls -A | grep -v '.git')
+          # Replace the directory of the built Gramps version with the new one from ../addons
+          rm -rf gramps52
           cp -r ../addons/* ./
 
           # Add and commit the updated build files
-          git add .
+          git add gramps52
           git commit -m "Automated build and distribution of addons"
 
           # Push changes to the 'dist' branch
