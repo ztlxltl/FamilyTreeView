@@ -814,7 +814,7 @@ class FamilyTreeView(NavigationView, Callback):
 
         self.widget_manager.add_replacement_message(0, 0, msg, buttons)
 
-    def get_image_spec(self, obj, obj_type, fallback_avatar=False, image_resolution=None, image_selector=None):
+    def get_image_spec(self, obj, obj_type, fallback_avatar=True, image_resolution=None, image_selector=None):
         if fallback_avatar:
             if obj_type == "person":
                 data_callback = get_person_avatar_svg_data
