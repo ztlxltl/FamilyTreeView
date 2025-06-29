@@ -1146,7 +1146,7 @@ class FamilyTreeViewWidgetManager:
 
         menu_item = Gtk.MenuItem(label=_("Open panel"))
         menu_item.connect("activate", lambda *_args:
-            self.panel_manager.open_family_panel(family_handle)
+            self.panel_manager.open_family_panel(family_handle, x, family_generation)
         )
         self.menu.append(menu_item)
 
