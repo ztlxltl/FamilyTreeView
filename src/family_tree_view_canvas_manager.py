@@ -29,7 +29,7 @@ from gramps.gen.lib import Person
 from gramps.gui.utils import get_contrast_color, hex_to_rgb_float, rgb_to_hex
 
 from family_tree_view_canvas_manager_base import FamilyTreeViewCanvasManagerBase
-from family_tree_view_utils import get_gettext, import_GooCanvas, make_hashable
+from family_tree_view_utils import Pango_extent_to_pixels_inclusive, get_gettext, import_GooCanvas, make_hashable
 if TYPE_CHECKING:
     from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
@@ -1262,7 +1262,7 @@ class FamilyTreeViewCanvasManager(FamilyTreeViewCanvasManagerBase):
                         visibility_threshold=self.visibility_threshold_text,
                     )
                     ink_extent_rect, logical_extent_rect = badge_content_text.get_natural_extents()
-                    Pango.extents_to_pixels(logical_extent_rect)
+                    Pango_extent_to_pixels_inclusive(logical_extent_rect)
                     x = x - logical_extent_rect.width
                 elif badge_content_info["content_type"][:5] == "icon_":
                     icon_size = 10

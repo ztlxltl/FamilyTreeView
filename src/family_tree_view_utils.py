@@ -133,11 +133,52 @@ def get_event_from_family(db, family, event_type_name, idx=0):
     except IndexError:
         return None
 
+def PANGO_PIXELS_FLOOR(d):
+    return (int(d)) >> 10 # PANGO_SCALE = 2**10 = 1024
+
+def PANGO_PIXELS_CEIL(d):
+    return (int(d) + 1023) >> 10 # PANGO_SCALE = 2**10 = 1024
+
+def Pango_extent_to_pixels_inclusive(inclusive):
+    """Pango.extents_to_pixels(inclusive) with fallback"""
+
+    # This function is a wrapper for Pango.extents_to_pixels() to
+    # circumvent a bug that multiple users reported. It can be
+    # reproduced on Fedora 6.14.0-63.fc42.x86_64 with Gramps installed
+    # using yum (6.0.3-1.fc42, with
+    # python3-gobject-base-3.50.0-3.fc42.x86_64 and
+    # pango-1.56.4-1.fc42.x86_64) as well as with Gramps installed using
+    # flatpak (org.gramps_project.Gramps 6.0.3). On those installations,
+    # Pango.extents_to_pixels with multiple args/kwargs causes Gramps to
+    # crash after "Warning: g_atomic_ref_count_inc: assertion 'old_value
+    # > 0' failed". Pango.extents_to_pixels(inclusive) causes an type
+    # error.
+    #
+    # Since only inclusive is needed at the moment,
+    # Pango.extents_to_pixels(inclusive) is called, the error is caught
+    # and an equivalent Python implementation is used.
+
+    # TODO Maybe this workaround can be removed if a upstream fix is
+    # available.
+
+    try:
+        Pango.extents_to_pixels(inclusive)
+    except TypeError:
+        if inclusive is not None:
+            orig_x = inclusive.x
+            orig_y = inclusive.y
+
+            inclusive.x = PANGO_PIXELS_FLOOR(inclusive.x)
+            inclusive.y = PANGO_PIXELS_FLOOR(inclusive.y)
+
+            inclusive.width  = PANGO_PIXELS_CEIL(orig_x + inclusive.width ) - inclusive.x
+            inclusive.height = PANGO_PIXELS_CEIL(orig_y + inclusive.height) - inclusive.y
+
 def get_label_line_height(label):
     label_layout = label.get_layout()
     line = label_layout.get_line(0)
     ink_extent_rect, logical_extent_rect = line.get_extents()
-    Pango.extents_to_pixels(logical_extent_rect)
+    Pango_extent_to_pixels_inclusive(logical_extent_rect)
     return logical_extent_rect.height
 
 def get_start_stop_ymd(event, calendar):

@@ -34,7 +34,7 @@ from gramps.gen.lib.person import Person
 from gramps.gui.utils import rgb_to_hex
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback, get_divorce_or_fallback
 
-from family_tree_view_utils import calculate_min_max_age_at_event, get_gettext, get_label_line_height, import_GooCanvas
+from family_tree_view_utils import calculate_min_max_age_at_event, Pango_extent_to_pixels_inclusive, get_gettext, get_label_line_height, import_GooCanvas
 if TYPE_CHECKING:
     from family_tree_view_widget_manager import FamilyTreeViewWidgetManager
 
@@ -565,7 +565,7 @@ class FamilyTreeViewTimeline:
             )
             if i_tick == 0:
                 ink_extent_rect, logical_extent_rect =  tick_label.get_natural_extents()
-                Pango.extents_to_pixels(logical_extent_rect)
+                Pango_extent_to_pixels_inclusive(logical_extent_rect)
                 GooCanvas.CanvasText(
                     parent=root_item,
                     x=x_tick - logical_extent_rect.width, # left align to tick_label
