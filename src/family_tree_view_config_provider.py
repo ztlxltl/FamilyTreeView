@@ -72,6 +72,7 @@ class FamilyTreeViewConfigProvider:
         return (
             ("appearance.familytreeview-num-ancestor-generations-default", 2),
             ("appearance.familytreeview-num-descendant-generations-default", 2),
+            ("appearance.familytreeview-main-family", "first"),
             ("appearance.familytreeview-highlight-home-person", True),
             ("appearance.familytreeview-highlight-root-person", True),
             ("appearance.familytreeview-show-deceased-ribbon", True),
@@ -475,6 +476,39 @@ class FamilyTreeViewConfigProvider:
         )
 
         row += 1
+        main_family_options = [
+            ("first", _("First")),
+            ("last", _("Last")),
+        ]
+        main_family_label = Gtk.Label(_("Main family to show:"))
+        main_family_label.set_halign(Gtk.Align.START)
+        main_family_label.set_xalign(0)
+        main_family_label.set_line_wrap(True)
+        grid.attach(main_family_label, 1, row, 1, 1)
+        main_family_list_store = Gtk.ListStore(str, str)
+        for option_id, option_label in main_family_options:
+            main_family_list_store.append((option_id, option_label))
+        main_family_combo = Gtk.ComboBox(model=main_family_list_store)
+        renderer = Gtk.CellRendererText()
+        main_family_combo.pack_start(renderer, True)
+        main_family_combo.add_attribute(renderer, "text", 1)
+        active_option = self.ftv._config.get("appearance.familytreeview-main-family")
+        try:
+            active_index = [opt[0] for opt in main_family_options].index(active_option)
+        except ValueError:
+            active_index = 1 # any non birth
+        main_family_combo.set_active(
+            active_index
+        )
+        def cb_main_family_changed(combo, options):
+            self.ftv._config.set(
+                "appearance.familytreeview-main-family",
+                options[combo.get_active()][0]
+            )
+        main_family_combo.connect("changed", cb_main_family_changed, main_family_options)
+        grid.attach(main_family_combo, 2, row, 1, 1)
+
+        row += 1
         configdialog.add_checkbox(
             grid,
             _("Highlight the home person according to the active Gramps color scheme"),
@@ -509,6 +543,96 @@ class FamilyTreeViewConfigProvider:
             "appearance.familytreeview-filter-person-gray-out",
             stop=3 # same width as spinners and combos
         )
+
+        row += 1
+        place_format_options = [(-1, _("Default"))]
+        for i, place_format in enumerate(place_displayer.get_formats()):
+            place_format_options.append((i, place_format.name))
+        def _cb_place_format_combo_changed(combo, constant):
+            self.ftv._config.set(constant, place_format_options[combo.get_active()][0])
+        active = self.ftv._config.get("appearance.familytreeview-place-format")+1
+        if active not in [i for i, format_name in place_format_options]:
+            active = -1+1
+        configdialog.add_combo(
+            grid,
+            _("Place format in the tree"),
+            row,
+            "appearance.familytreeview-place-format",
+            place_format_options,
+            setactive=active,
+            callback=_cb_place_format_combo_changed,
+        )
+
+        row += 1
+        box_line_width_spinner = configdialog.add_spinner(
+            grid,
+            _("Line width of boxes"),
+            row,
+            "appearance.familytreeview-box-line-width",
+            (0.0, 10.0),
+            callback=self.spin_button_float_changed,
+        )
+        box_line_width_spinner.set_digits(1)
+        box_line_width_spinner.get_adjustment().set_step_increment(0.1)
+
+        row += 1
+        connection_line_width_spinner = configdialog.add_spinner(
+            grid,
+            _("Line width of connections"),
+            row,
+            "appearance.familytreeview-connections-line-width",
+            (0.1, 10.0),
+            callback=self.spin_button_float_changed,
+        )
+        connection_line_width_spinner.set_digits(1)
+        connection_line_width_spinner.get_adjustment().set_step_increment(0.1)
+
+        row += 1
+        dashed_options = [
+            ("no_dash", _("No dashed connections")),
+            ("rel_any_non_birth", _("Dashed if at least one parent is non-birth")),
+            ("rel_both_non_birth", _("Dashed only if both parents are non-birth")),
+            ("rel_split_non_birth", _("Dashed on each side based on each parent")),
+        ]
+        dashed_label = Gtk.Label(_("Dashed connection lines:"))
+        dashed_label.set_halign(Gtk.Align.START)
+        dashed_label.set_xalign(0)
+        dashed_label.set_line_wrap(True)
+        grid.attach(dashed_label, 1, row, 1, 1)
+        dashed_list_store = Gtk.ListStore(str, str)
+        for option_id, option_label in dashed_options:
+            dashed_list_store.append((option_id, option_label))
+        dashed_combo = Gtk.ComboBox(model=dashed_list_store)
+        renderer = Gtk.CellRendererText()
+        dashed_combo.pack_start(renderer, True)
+        dashed_combo.add_attribute(renderer, "text", 1)
+        active_option = self.ftv._config.get("appearance.familytreeview-connections-dashed-mode")
+        try:
+            active_index = [opt[0] for opt in dashed_options].index(active_option)
+        except ValueError:
+            active_index = 1 # any non birth
+        dashed_combo.set_active(
+            active_index
+        )
+        def cb_dashed_changed(combo, options):
+            self.ftv._config.set(
+                "appearance.familytreeview-connections-dashed-mode",
+                options[combo.get_active()][0]
+            )
+        dashed_combo.connect("changed", cb_dashed_changed, dashed_options)
+        grid.attach(dashed_combo, 2, row, 1, 1)
+
+        row += 1
+        label = Gtk.Label()
+        label.set_markup(_(
+            "Dashed on each side based on each parent:\n"
+            "<i>Each half of the connection is dashed if the parent on that "
+            "side is non-birth (father: left half, mother: right half)</i>"
+        ))
+        label.set_halign(Gtk.Align.START)
+        label.set_xalign(0)
+        label.set_line_wrap(True)
+        grid.attach(label, 2, row, 1, 1)
 
         row += 1
         label = Gtk.Label(_(
@@ -583,94 +707,17 @@ class FamilyTreeViewConfigProvider:
         grid.attach(image_filter_combo, 2, row, 1, 1)
 
         row += 1
-        place_format_options = [(-1, _("Default"))]
-        for i, place_format in enumerate(place_displayer.get_formats()):
-            place_format_options.append((i, place_format.name))
-        def _cb_place_format_combo_changed(combo, constant):
-            self.ftv._config.set(constant, place_format_options[combo.get_active()][0])
-        active = self.ftv._config.get("appearance.familytreeview-place-format")+1
-        if active not in [i for i, format_name in place_format_options]:
-            active = -1+1
-        configdialog.add_combo(
-            grid,
-            _("Place format in the tree"),
-            row,
-            "appearance.familytreeview-place-format",
-            place_format_options,
-            setactive=active,
-            callback=_cb_place_format_combo_changed,
-        )
-
-        row += 1
-        box_line_width_spinner = configdialog.add_spinner(
-            grid,
-            _("Line width of boxes"),
-            row,
-            "appearance.familytreeview-box-line-width",
-            (0.0, 10.0),
-            callback=self.spin_button_float_changed,
-        )
-        box_line_width_spinner.set_digits(1)
-        box_line_width_spinner.get_adjustment().set_step_increment(0.1)
-
-        row += 1
-        connection_line_width_spinner = configdialog.add_spinner(
-            grid,
-            _("Line width of connections"),
-            row,
-            "appearance.familytreeview-connections-line-width",
-            (0.1, 10.0),
-            callback=self.spin_button_float_changed,
-        )
-        connection_line_width_spinner.set_digits(1)
-        connection_line_width_spinner.get_adjustment().set_step_increment(0.1)
-
-        row += 1
-        dashed_options = [
-            ("no_dash", _("No dashed connections")),
-            ("rel_any_non_birth", _("Dashed if at least one parent is non-birth")),
-            ("rel_both_non_birth", _("Dashed only if both parents are non-birth")),
-            ("rel_split_non_birth", _("Dashed on each side based on each parent")),
-        ]
-        add_rel_label = Gtk.Label(_("Dashed connection lines:"))
-        add_rel_label.set_halign(Gtk.Align.START)
-        add_rel_label.set_xalign(0)
-        add_rel_label.set_line_wrap(True)
-        grid.attach(add_rel_label, 1, row, 1, 1)
-        add_rel_list_store = Gtk.ListStore(str, str)
-        for option_id, option_label in dashed_options:
-            add_rel_list_store.append((option_id, option_label))
-        add_rel_combo = Gtk.ComboBox(model=add_rel_list_store)
-        renderer = Gtk.CellRendererText()
-        add_rel_combo.pack_start(renderer, True)
-        add_rel_combo.add_attribute(renderer, "text", 1)
-        active_option = self.ftv._config.get("appearance.familytreeview-connections-dashed-mode")
-        try:
-            active_index = [opt[0] for opt in dashed_options].index(active_option)
-        except ValueError:
-            active_index = 1 # any non birth
-        add_rel_combo.set_active(
-            active_index
-        )
-        def cb_add_relative_changed(combo, options):
-            self.ftv._config.set(
-                "appearance.familytreeview-connections-dashed-mode",
-                options[combo.get_active()][0]
-            )
-        add_rel_combo.connect("changed", cb_add_relative_changed, dashed_options)
-        grid.attach(add_rel_combo, 2, row, 1, 1)
-        
-        row += 1
-        label = Gtk.Label()
-        label.set_markup(_(
-            "Dashed on each side based on each parent:\n"
-            "<i>Each half of the connection is dashed if the parent on that "
-            "side is non-birth (father: left half, mother: right half)</i>"
+        image_opt_label = Gtk.Label()
+        image_opt_label.set_markup(_(
+            "<i>To change image options for images in the tree's boxes, go to "
+            "the Boxes page, click on the edit icon of the boxes content "
+            "profile and change the corresponding option of the image content "
+            "item(s).</i>"
         ))
-        label.set_halign(Gtk.Align.START)
-        label.set_xalign(0)
-        label.set_line_wrap(True)
-        grid.attach(label, 2, row, 1, 1)
+        image_opt_label.set_halign(Gtk.Align.START)
+        image_opt_label.set_xalign(0)
+        image_opt_label.set_line_wrap(True)
+        grid.attach(image_opt_label, 2, row, 1, 1)
 
         return grid
 

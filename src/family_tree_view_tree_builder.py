@@ -126,6 +126,19 @@ class FamilyTreeViewTreeBuilder():
         self.tree_cache_persons = {}
         self.tree_cache_families = {}
 
+        # primary family: the family with index 0
+        # main family: the family based on the config below
+        # prominent family: the family a person is directly attached to in the tree
+        main_family_config = self.ftv._config.get("appearance.familytreeview-main-family")
+        if main_family_config == "first":
+            # Topmost family in UI, first/earliest family if sorted
+            # chronologically
+            self.main_family_index = 0
+        else: # main_family_config == "last"
+            # Bottommost family in UI, latest/current if sorted
+            # chronologically
+            self.main_family_index = -1
+
         self.expander_types_shown = self.ftv._config.get("expanders.familytreeview-expander-types-shown")
         self.expander_types_expanded = self.ftv._config.get("expanders.familytreeview-expander-types-expanded")
 
@@ -319,7 +332,7 @@ class FamilyTreeViewTreeBuilder():
         process_descendants=True, # needed for not processing descendants of ancestors again
         ahnentafel=None, # needed for non-overlapping connection between ancestors
         descendant_subtree_bounds=None, # needed for placement of aunts/uncles with descendants
-        skip_family_handle=None, # needed when processing a parent to skip main family
+        skip_family_handle=None, # needed when processing a parent to skip prominent family
         child_handle_with_other_parents_to_collapse=None, # needed when expanding other families of this person
     ):
         step = False
@@ -359,7 +372,7 @@ class FamilyTreeViewTreeBuilder():
                 if len(family_handles) == 0:
                     alignment = "c"
                 else:
-                    family = self.dbstate.db.get_family_from_handle(family_handles[0]) # 0: main / primary
+                    family = self.dbstate.db.get_family_from_handle(family_handles[self.main_family_index])
                     person_is_s1 = family.get_father_handle() == person_handle
                     if person_is_s1:
                         alignment = "r"
@@ -440,8 +453,8 @@ class FamilyTreeViewTreeBuilder():
         person_is_s1_in_prominent_family = False # fallback
         if len(family_handles) > 0:
             if skip_family_handle is None:
-                # main family
-                prominent_family_handle = family_handles[0]
+                # prominent family
+                prominent_family_handle = family_handles[self.main_family_index]
             else:
                 prominent_family_handle = skip_family_handle
             prominent_family = self.dbstate.db.get_family_from_handle(prominent_family_handle)
@@ -452,8 +465,8 @@ class FamilyTreeViewTreeBuilder():
             if self.get_cancelled():
                 break
             if skip_family_handle is None:
-                is_primary_family = i_family == 0
-                if is_primary_family:
+                is_prominent_family = i_family == self.main_family_index % len(family_handles) # support self.main_family_index==-1 with modulo
+                if is_prominent_family:
                     self.set_person_cache(x_person, person_generation, "prominent_family", family_handle)
             elif skip_family_handle == family_handle:
                 # This family has already been processed. Only add the expander.
@@ -467,8 +480,13 @@ class FamilyTreeViewTreeBuilder():
                     self.add_other_families_expander(person_handle, x_person, person_generation, person_is_s1, key, expand_other_families, collapse_on_expand=collapse_on_expand)
                 continue
             else:
-                is_primary_family = False
-            if not is_primary_family and not expand_other_families:
+                # skip_family_handle is specified and it's not the
+                # family of the current iteration. Since
+                # skip_family_handle is the prominent family, the
+                # current iteration's family cannot be the prominent
+                # one.
+                is_prominent_family = False
+            if not is_prominent_family and not expand_other_families:
                 continue
 
             family = self.dbstate.db.get_family_from_handle(family_handle)
@@ -476,14 +494,14 @@ class FamilyTreeViewTreeBuilder():
             mother_handle = family.get_mother_handle()
             person_is_s1 = father_handle == person_handle
 
-            if not dry_run and i_family == 0 and len(family_handles) > 1 and self.expander_types_shown["other_families"]["default_hidden"]:
+            if not dry_run and is_prominent_family and len(family_handles) > 1 and self.expander_types_shown["other_families"]["default_hidden"]:
                 if child_handle_with_other_parents_to_collapse is None or person_generation > 1:
                     collapse_on_expand = None
                 else:
                     collapse_on_expand = [(child_handle_with_other_parents_to_collapse, "other_parents")]
                 self.add_other_families_expander(person_handle, x_person, person_generation, person_is_s1, "other_families", expand_other_families, collapse_on_expand=collapse_on_expand)
 
-            if is_primary_family:
+            if is_prominent_family:
                 x_family = x_person + (-1+2*person_is_s1)*(person_width/2+spouse_sep/2)
             else:
                 # At this point, person_bounds includes the person's family and the children of previous families
@@ -589,7 +607,7 @@ class FamilyTreeViewTreeBuilder():
                 spouse = self.ftv.get_person_from_handle(spouse_handle)
                 spouse_family_handles = spouse.get_family_handle_list()
                 if len(spouse_family_handles) > 1 and (
-                    i_family == 0 # i_family > 0: person's other families: They should not have an expander for other families of spouse.
+                    is_prominent_family # is_prominent_family == false: person's other families: They should not have an expander for other families of spouse.
                     and skip_family_handle is None # Since other families of the spouse can be the first (i_family == 0) of the spouse,
                     # also skip if the current call to process_families() is run on the spouse (skip_family_handle wouldn't be None).
                 ):
