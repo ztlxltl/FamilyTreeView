@@ -672,13 +672,15 @@ class FamilyTreeViewWidgetManager:
     def get_event_date_for_box(self, event, display_only_year, date_compact):
         if event is None:
             return ""
-        if display_only_year:
+        if display_only_year and not date_compact:
+            # Only the year is needed, no other info from the date.
+            # Modifier and quality are removed.
             date = event.get_date_object()
             if date.get_year_valid():
                 return str(date.get_year())
             return ""
         if date_compact:
-            date_str = get_date_compact(event)
+            date_str = get_date_compact(event, display_only_year)
         else:
             date_str = get_date(event)
         date_bytes = date_str.encode("utf-8")

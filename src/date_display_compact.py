@@ -66,7 +66,11 @@ class DateDisplayCompact(DateDisplay):
 
 displayer = DateDisplayCompact()
 
-def get_date(date_base):
-    date_str = displayer.display(date_base.get_date_object())
+def get_date(date_base, only_year):
+    date = date_base.get_date_object()
+    if only_year:
+        # Remove day and month, keep modifier, quality, calender etc.
+        date.set_yr_mon_day(date.get_year(), 0, 0)
+    date_str = displayer.display(date)
     date_str = date_str.replace(" +", "+").replace(" \u2212", "\u2212") # minus
     return date_str
