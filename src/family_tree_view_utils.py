@@ -140,7 +140,7 @@ def PANGO_PIXELS_CEIL(d):
     return (int(d) + 1023) >> 10 # PANGO_SCALE = 2**10 = 1024
 
 def Pango_extent_to_pixels_inclusive(inclusive):
-    """Pango.extents_to_pixels(inclusive) with fallback"""
+    """Pango.extents_to_pixels(inclusive) equivalent"""
 
     # This function is a wrapper for Pango.extents_to_pixels() to
     # circumvent a bug that multiple users reported. It can be
@@ -157,22 +157,23 @@ def Pango_extent_to_pixels_inclusive(inclusive):
     # Since only inclusive is needed at the moment,
     # Pango.extents_to_pixels(inclusive) is called, the error is caught
     # and an equivalent Python implementation is used.
+    #
+    # The error appeared also on Windows AIO 6.0.6 where catching the
+    # TypeError didn't work. Using the equivalent Python implementation
+    # in all cases for now.
 
     # TODO Maybe this workaround can be removed if a upstream fix is
     # available.
 
-    try:
-        Pango.extents_to_pixels(inclusive)
-    except TypeError:
-        if inclusive is not None:
-            orig_x = inclusive.x
-            orig_y = inclusive.y
+    if inclusive is not None:
+        orig_x = inclusive.x
+        orig_y = inclusive.y
 
-            inclusive.x = PANGO_PIXELS_FLOOR(inclusive.x)
-            inclusive.y = PANGO_PIXELS_FLOOR(inclusive.y)
+        inclusive.x = PANGO_PIXELS_FLOOR(inclusive.x)
+        inclusive.y = PANGO_PIXELS_FLOOR(inclusive.y)
 
-            inclusive.width  = PANGO_PIXELS_CEIL(orig_x + inclusive.width ) - inclusive.x
-            inclusive.height = PANGO_PIXELS_CEIL(orig_y + inclusive.height) - inclusive.y
+        inclusive.width  = PANGO_PIXELS_CEIL(orig_x + inclusive.width ) - inclusive.x
+        inclusive.height = PANGO_PIXELS_CEIL(orig_y + inclusive.height) - inclusive.y
 
 def get_label_line_height(label):
     label_layout = label.get_layout()
