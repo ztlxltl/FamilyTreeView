@@ -31,6 +31,8 @@ Note that if you have Graph View installed along with FamilyTreeView, the Graph 
 
 There are two options for adding FamilyTreeView to Gramps. The first lets Gramps know about the provided prebuilds. The second downloads the source code to the right location for Gramps to find. If you have problems with the first option, you can always use the robust alternative of downloading the source code. 
 
+No matter which option you use to install, you must restart Gramps to enable FamilyTreeView.
+
 > [!IMPORTANT]
 > Back up your data before installing. Do regular backups when working with this addon.
 
