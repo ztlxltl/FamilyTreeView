@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-09 16:32+0000\n"
+"POT-Creation-Date: 2025-12-23 08:04+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -491,15 +491,15 @@ msgstr ""
 
 #: FamilyTreeView/family_tree_view_config_provider.py:856
 #: FamilyTreeView/family_tree_view_config_provider.py:865
-#: FamilyTreeView/family_tree_view_widget_manager.py:1023
-#: FamilyTreeView/family_tree_view_widget_manager.py:1143
+#: FamilyTreeView/family_tree_view_widget_manager.py:1028
+#: FamilyTreeView/family_tree_view_widget_manager.py:1148
 msgid "Open info box"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_config_provider.py:857
 #: FamilyTreeView/family_tree_view_config_provider.py:866
-#: FamilyTreeView/family_tree_view_widget_manager.py:1029
-#: FamilyTreeView/family_tree_view_widget_manager.py:1149
+#: FamilyTreeView/family_tree_view_widget_manager.py:1034
+#: FamilyTreeView/family_tree_view_widget_manager.py:1154
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:359
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:367
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:401
@@ -512,12 +512,12 @@ msgid "Edit person"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_config_provider.py:859
-#: FamilyTreeView/family_tree_view_widget_manager.py:1017
+#: FamilyTreeView/family_tree_view_widget_manager.py:1022
 msgid "Set as active person"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_config_provider.py:860
-#: FamilyTreeView/family_tree_view_widget_manager.py:1011
+#: FamilyTreeView/family_tree_view_widget_manager.py:1016
 msgid "Set as home person"
 msgstr ""
 
@@ -536,17 +536,17 @@ msgid "Set as active family"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_config_provider.py:874
-#: FamilyTreeView/family_tree_view_widget_manager.py:1191
+#: FamilyTreeView/family_tree_view_widget_manager.py:1196
 msgid "Zoom in"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_config_provider.py:875
-#: FamilyTreeView/family_tree_view_widget_manager.py:1197
+#: FamilyTreeView/family_tree_view_widget_manager.py:1202
 msgid "Zoom out"
 msgstr ""
 
 #: FamilyTreeView/family_tree_view_config_provider.py:876
-#: FamilyTreeView/family_tree_view_widget_manager.py:1203
+#: FamilyTreeView/family_tree_view_widget_manager.py:1208
 msgid "Reset zoom"
 msgstr ""
 
@@ -1539,36 +1539,36 @@ msgid ""
 "If the number is negative, it's counted from the last item.\n"
 "Examples:\n"
 "1 -> the 1st item (if there is at least one)\n"
-"3 -> the 3rd item (if there are at least three\n"
+"3 -> the 3rd item (if there are at least three)\n"
 "-1 -> the last item (if there is at least one)\n"
 "-2 -> the 2nd to last item (if there are at least two)\n"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:880
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:900
 msgid "Default format"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:897
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:917
 msgid ""
 "Tip: You can create a new name format in the Gramps preferences (e.g. "
 "'Surname' to display only the surnames) and use it here."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:964
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:984
 msgid "Leave the entry box on the right empty to ignore this rule."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:971
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:991
 msgid ""
 "Leave the entry box on the right of the attribute's type empty to ignore "
 "this rule."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:1210
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:1230
 msgid "Boxes content profile duplicated"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:1213
+#: FamilyTreeView/family_tree_view_config_page_manager_boxes.py:1233
 msgid ""
 "You edited a predefined boxes content profile, which cannot be changed by "
 "the user. A copy was created and selected. The changes are applied to that "
@@ -1887,67 +1887,67 @@ msgid ""
 "make the search available."
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1003
-#: FamilyTreeView/family_tree_view_widget_manager.py:1135
+#: FamilyTreeView/family_tree_view_widget_manager.py:1008
+#: FamilyTreeView/family_tree_view_widget_manager.py:1140
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:340
 #: FamilyTreeView/family_tree_view_info_widget_manager.py:388
 msgid "Edit"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1042
+#: FamilyTreeView/family_tree_view_widget_manager.py:1047
 msgid "Set an associated person as active"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1062
+#: FamilyTreeView/family_tree_view_widget_manager.py:1067
 msgid "Add a new parent family (and parents)"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1104
+#: FamilyTreeView/family_tree_view_widget_manager.py:1109
 msgid ""
 "Add a new family (and spouse/children)\n"
 "with this person as the first spouse"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1108
-#: FamilyTreeView/family_tree_view_widget_manager.py:1124
+#: FamilyTreeView/family_tree_view_widget_manager.py:1113
+#: FamilyTreeView/family_tree_view_widget_manager.py:1129
 msgid "Add a new family (and spouse/children)"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1120
+#: FamilyTreeView/family_tree_view_widget_manager.py:1125
 msgid ""
 "Add a new family (and spouse/children)\n"
 "with this person as the second spouse"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1162
+#: FamilyTreeView/family_tree_view_widget_manager.py:1167
 msgid "Add a new person as father"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1172
+#: FamilyTreeView/family_tree_view_widget_manager.py:1177
 msgid "Add a new person as mother"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1180
+#: FamilyTreeView/family_tree_view_widget_manager.py:1185
 msgid "Add a new person as child"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1209
+#: FamilyTreeView/family_tree_view_widget_manager.py:1214
 msgid "Scroll to active person"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1215
+#: FamilyTreeView/family_tree_view_widget_manager.py:1220
 msgid "Scroll to home person"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1227
+#: FamilyTreeView/family_tree_view_widget_manager.py:1232
 msgid "Scroll to active family"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1327
+#: FamilyTreeView/family_tree_view_widget_manager.py:1332
 msgid "Database cannot be modified in presentation mode"
 msgstr ""
 
-#: FamilyTreeView/family_tree_view_widget_manager.py:1329
+#: FamilyTreeView/family_tree_view_widget_manager.py:1334
 msgid "Readonly database cannot be modified"
 msgstr ""
 
