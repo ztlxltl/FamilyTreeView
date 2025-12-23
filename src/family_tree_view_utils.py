@@ -108,7 +108,11 @@ def get_event_from_person(db, person, event_type_name, idx=0):
     for event_ref in person.get_event_ref_list():
         if event_ref.get_role().is_primary():
             event = db.get_event_from_handle(event_ref.ref)
-            if event.get_type().is_type(event_type_name):
+            event_type = event.get_type()
+            if (
+                (event_type.is_custom() and str(event_type) == event_type_name)
+                or (not event_type.is_custom() and event_type.is_type(event_type_name))
+            ):
                 if idx == 0:
                     return event
                 else:

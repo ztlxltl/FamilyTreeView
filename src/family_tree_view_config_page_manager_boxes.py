@@ -815,7 +815,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
                         "last item.\n"
                         "Examples:\n"
                         "1 -> the 1st item (if there is at least one)\n"
-                        "3 -> the 3rd item (if there are at least three\n"
+                        "3 -> the 3rd item (if there are at least three)\n"
                         "-1 -> the last item (if there is at least one)\n"
                         "-2 -> the 2nd to last item (if there are at least "
                         "two)\n"
@@ -843,7 +843,17 @@ class FamilyTreeViewConfigPageManagerBoxes:
                             self._cb_param_monitored_data_type_set(val, box_type, item_i, item_param)
                     )
                     # GrampsType.__set_str expects translated (as it's using _S2IMAP) so param_value cannot be used directly
-                    get_val = lambda param_value=param_value: EventType(EventType._E2IMAP[param_value])
+                    def get_val(param_value=param_value):
+                        if param_value in EventType._E2IMAP:
+                            return EventType(
+                                EventType._E2IMAP[param_value]
+                            )
+                        event_type = EventType()
+                        event_type.set_object_state({
+                            "value": EventType._CUSTOM,
+                            "string": param_value
+                        })
+                        return event_type
                 elif item_param == "attribute_type":
                     if box_type == "person":
                         custom_values = sorted(self.ftv.dbstate.db.get_person_attribute_types(), key=lambda s: s.lower())
@@ -853,12 +863,22 @@ class FamilyTreeViewConfigPageManagerBoxes:
                         lambda val, box_type=box_type, item_i=item_i, item_param=item_param:
                             # str(val) would give translated string
                             self._cb_param_monitored_data_type_set(
-                                val[1] if val[0] == -1 else AttributeType._I2EMAP[val[0]],
+                                val[1] if val[0] == AttributeType._CUSTOM else AttributeType._I2EMAP[val[0]],
                                 box_type, item_i, item_param
                             )
                     )
                     # GrampsType.__set_str expects translated (as it's using _S2IMAP) so param_value cannot be used directly
-                    get_val = lambda param_value=param_value: AttributeType(AttributeType._E2IMAP[param_value])
+                    def get_val(param_value=param_value):
+                        if param_value in AttributeType._E2IMAP:
+                            return AttributeType(
+                                AttributeType._E2IMAP[param_value]
+                            )
+                        attr_type = AttributeType()
+                        attr_type.set_object_state({
+                            "value": AttributeType._CUSTOM,
+                            "string": param_value
+                        })
+                        return attr_type
                 MonitoredDataType(
                     combo_box,
                     set_val,
@@ -1066,7 +1086,7 @@ class FamilyTreeViewConfigPageManagerBoxes:
     def _cb_param_monitored_data_type_set(self, val, box_type, item_i, item_param):
         if isinstance(val, tuple):
             # event
-            if val[0] == -1:
+            if val[0] == EventType._CUSTOM:
                 new_value = val[1]
             else:
                 new_value = EventType._I2EMAP[val[0]]

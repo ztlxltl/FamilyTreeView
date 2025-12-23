@@ -411,7 +411,12 @@ class FamilyTreeViewWidgetManager:
                 elif item[0] == "attribute":
                     attribute_list = person.get_attribute_list()
                     for attr in attribute_list:
-                        if attr.get_type() == item[1]["attribute_type"]:
+                        attr_type = attr.get_type()
+                        # Compare string that doesn't get translated.
+                        if (
+                            (attr_type.is_custom() and str(attr_type) == item[1]["attribute_type"]) or
+                            (not attr_type.is_custom() and attr_type._I2EMAP[int(attr_type)] == item[1]["attribute_type"])
+                        ):
                             text = attr.get_value()
                             break
                 elif item[0] == "gender":
