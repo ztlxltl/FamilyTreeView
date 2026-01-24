@@ -34,6 +34,7 @@ from gramps.gen.lib import Person
 from gramps.gen.utils.alive import probably_alive
 from gramps.gen.utils.db import get_birth_or_fallback, get_death_or_fallback, get_marriage_or_fallback, get_divorce_or_fallback
 from gramps.gen.utils.string import format_gender
+from gramps.gui.display import display_url
 from gramps.gui.utils import color_graph_box, color_graph_family, get_contrast_color, hex_to_rgb, hex_to_rgb_float, rgb_to_hex
 
 from date_display_compact import get_date as get_date_compact
@@ -1012,6 +1013,21 @@ class FamilyTreeViewWidgetManager:
             self.ftv.edit_person(person_handle)
         )
         self.menu.append(menu_item)
+
+        urls = self.ftv.get_person_urls(person_handle)
+        if len(urls) > 0:
+            submenu = Gtk.Menu()
+            menu_item = Gtk.MenuItem(label=_("Open URL"))
+            menu_item.set_submenu(submenu)
+            menu_item.show()
+            self.menu.append(menu_item)
+
+            for (name, path) in urls:
+                menu_item = Gtk.MenuItem(label=name)
+                menu_item.connect("activate", lambda *_args:
+                    display_url(path)
+                )
+                submenu.append(menu_item)
 
         menu_item = Gtk.MenuItem(label=_("Set as home person"))
         menu_item.connect("activate", lambda *_args:
