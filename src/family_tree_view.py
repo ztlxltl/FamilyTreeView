@@ -947,6 +947,20 @@ class FamilyTreeView(NavigationView, Callback):
                 self.widget_manager.info_box_manager.close_info_box()
                 self.rebuild_tree()
 
+    def get_person_urls(self, person_handle):
+        person = self.get_person_from_handle(person_handle)
+        if person is None:
+            return []
+
+        urls = []
+        for url in person.get_url_list():
+            path = url.get_path()
+            description = url.get_description()
+            if description is None or description == "":
+                description = str(url.get_type())
+            urls.append((description, path))
+        return urls
+
     def set_active_person(self, person_handle):
         if self.get_person_from_handle(person_handle) is not None:
             self.widget_manager.info_box_manager.close_info_box()
