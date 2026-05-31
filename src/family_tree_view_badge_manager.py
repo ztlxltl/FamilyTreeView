@@ -92,6 +92,10 @@ class FamilyTreeViewBadgeManager:
                     if filt is None:
                         # no generic filter
                         continue
+                    if len(badges_filter_match_config[key]["generic"]) == 0:
+                        # Skip if this was never never initialized, e.g.
+                        # config window was never opened.
+                        continue
                     if not badges_filter_match_config[key]["generic"]["active"]:
                         continue
                 else:

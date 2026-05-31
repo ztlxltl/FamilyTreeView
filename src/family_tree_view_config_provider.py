@@ -40,6 +40,13 @@ if TYPE_CHECKING:
 
 _ = get_gettext()
 
+DEFAULT_FILTER_MATCH_BADGE_PARAMS = {
+    "active": False, # Do not show badge for each new filter.
+    "content_text": "◉",
+    "text_color": "#000",
+    "background_color": "#FFF",
+}
+
 class FamilyTreeViewConfigProvider:
     def __init__(self, ftv: "FamilyTreeView"):
         self.ftv = ftv
@@ -168,7 +175,7 @@ class FamilyTreeViewConfigProvider:
                 "gramps_handle": {"person": False, "family": False},
             }),
             ("badges.familytreeview-badges-filter-match", {
-                "person": {"generic": {}, "custom": {}},
+                "person": {"generic": deepcopy(DEFAULT_FILTER_MATCH_BADGE_PARAMS), "custom": {}},
                 "family": {"custom": {}}
             }),
 
@@ -1461,12 +1468,6 @@ class FamilyTreeViewConfigProvider:
 
         # filter match badges
 
-        DEFAULT_FILTER_MATCH_BADGE_PARAMS = {
-            "active": False, # Do not show badge for each new filter.
-            "content_text": "◉",
-            "text_color": "#000",
-            "background_color": "#FFF",
-        }
         filter_match_badges_config = self.ftv._config.get("badges.familytreeview-badges-filter-match")
 
         # NOTE: We use Grid for the filter match badges instead of
